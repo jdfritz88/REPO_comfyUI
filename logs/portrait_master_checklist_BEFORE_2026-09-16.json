@@ -1,0 +1,439 @@
+{
+  "root": "F:/Apps/freedom_system/REPO_comfyUI",
+  "ran_at": "2026-09-16 23:09:32",
+  "pass": 43,
+  "fail": 0,
+  "results": [
+    {
+      "section": "1 Portrait Master",
+      "check": "commit is dbf65b8 (3.6.0)",
+      "result": "PASS",
+      "evidence": "dbf65b808ced29d3ec33305dec820bcf3d99652f"
+    },
+    {
+      "section": "1 Portrait Master",
+      "check": "git status clean (developer's code untouched)",
+      "result": "PASS",
+      "evidence": "(clean)"
+    },
+    {
+      "section": "1 Portrait Master",
+      "check": "__init__.py header says Version 3.6.0",
+      "result": "PASS",
+      "evidence": "Version: 3.6.0"
+    },
+    {
+      "section": "1 Portrait Master",
+      "check": "none of our old edits (FREEDOM CHANGE / seed max)",
+      "result": "PASS",
+      "evidence": "searched __init__.py"
+    },
+    {
+      "section": "1 Portrait Master",
+      "check": "all 7 node types load",
+      "result": "PASS",
+      "evidence": [
+        "PortraitMaster",
+        "PortraitMasterBaseCharacter",
+        "PortraitMasterFaceGenerator",
+        "PortraitMasterMakeup",
+        "PortraitMasterPromptStyler",
+        "PortraitMasterSkinDetails",
+        "PortraitMasterStylePose"
+      ]
+    },
+    {
+      "section": "1 Portrait Master",
+      "check": "seed declared the developer's way (no default)",
+      "result": "PASS",
+      "evidence": [
+        "INT",
+        {
+          "forceInput": false
+        }
+      ]
+    },
+    {
+      "section": "1 Portrait Master",
+      "check": "Legacy 2.9.2 hidden (deprecated: true)",
+      "result": "PASS",
+      "evidence": true
+    },
+    {
+      "section": "1 Portrait Master",
+      "check": "restored preset 'Preset basic' in Base Character's list",
+      "result": "PASS",
+      "evidence": [
+        "-- disabled --",
+        "Preset basic"
+      ]
+    },
+    {
+      "section": "1 Portrait Master",
+      "check": "restored preset 'test_verify_face' in Face Generator's list",
+      "result": "PASS",
+      "evidence": [
+        "-- disabled --",
+        "test_verify_face"
+      ]
+    },
+    {
+      "section": "2 Add-ons",
+      "check": "folder present: custom_nodes/freedom_portrait_control",
+      "result": "PASS",
+      "evidence": "freedom_portrait_control"
+    },
+    {
+      "section": "2 Add-ons",
+      "check": "folder present: custom_nodes/freedom_face_router",
+      "result": "PASS",
+      "evidence": "freedom_face_router"
+    },
+    {
+      "section": "2 Add-ons",
+      "check": "folder present: custom_nodes/freedom_prompt_fixups",
+      "result": "PASS",
+      "evidence": "freedom_prompt_fixups"
+    },
+    {
+      "section": "2 Add-ons",
+      "check": "folder present: custom_nodes/comfyui-prompt-control",
+      "result": "PASS",
+      "evidence": "comfyui-prompt-control"
+    },
+    {
+      "section": "2 Add-ons",
+      "check": "4a node type loads with mode / preset / state",
+      "result": "PASS",
+      "evidence": [
+        "mode",
+        "preset",
+        "state"
+      ]
+    },
+    {
+      "section": "2 Add-ons",
+      "check": "router: required [mode], optional [trained_trigger, random_appearance]",
+      "result": "PASS",
+      "evidence": {
+        "required": [
+          "mode"
+        ],
+        "optional": [
+          "trained_trigger",
+          "random_appearance"
+        ]
+      }
+    },
+    {
+      "section": "2 Add-ons",
+      "check": "Prompt Control's PCLazyTextEncode loads",
+      "result": "PASS",
+      "evidence": true
+    },
+    {
+      "section": "2 Add-ons",
+      "check": "4a web panel served, with the redraw fix (queueRedraw)",
+      "result": "PASS",
+      "evidence": "HTTP 200, queueRedraw present: True"
+    },
+    {
+      "section": "3 Workflow",
+      "check": "32 nodes, 26 links",
+      "result": "PASS",
+      "evidence": "32 nodes, 26 links"
+    },
+    {
+      "section": "3 Workflow",
+      "check": "4a..4g left to right with the logged titles",
+      "result": "PASS",
+      "evidence": [
+        [
+          "FreedomPortraitUserPreset",
+          "STEP 4a  -  Random (Portrait Master) user preset"
+        ],
+        [
+          "PortraitMasterBaseCharacter",
+          "STEP 4b  -  Base Character"
+        ],
+        [
+          "PortraitMasterFaceGenerator",
+          "STEP 4c  -  Face Generator  (cannot be used with 4b)"
+        ],
+        [
+          "PortraitMasterSkinDetails",
+          "STEP 4d  -  Skin Details"
+        ],
+        [
+          "PortraitMasterStylePose",
+          "STEP 4e  -  Style & Pose"
+        ],
+        [
+          "PortraitMasterMakeup",
+          "STEP 4f  -  Make-up"
+        ],
+        [
+          "PortraitMasterPromptStyler",
+          "STEP 4g  -  Prompt Styler  (off by default)"
+        ]
+      ]
+    },
+    {
+      "section": "3 Workflow",
+      "check": "all seven Step 4 nodes collapsed",
+      "result": "PASS",
+      "evidence": [
+        {
+          "collapsed": true
+        },
+        {
+          "collapsed": true
+        },
+        {
+          "collapsed": true
+        },
+        {
+          "collapsed": true
+        },
+        {
+          "collapsed": true
+        },
+        {
+          "collapsed": true
+        },
+        {
+          "collapsed": true
+        }
+      ]
+    },
+    {
+      "section": "3 Workflow",
+      "check": "STEP 4 group moved to y ~ 1470 row",
+      "result": "PASS",
+      "evidence": [
+        -1740,
+        1380,
+        3350,
+        860
+      ]
+    },
+    {
+      "section": "3 Workflow",
+      "check": "chain FaceGen->BaseChar->Skin->Style&Pose->Make-up->Prompt Styler->STEP 5",
+      "result": "PASS",
+      "evidence": {
+        "PortraitMasterBaseCharacter": "PortraitMasterFaceGenerator",
+        "PortraitMasterSkinDetails": "PortraitMasterBaseCharacter",
+        "PortraitMasterStylePose": "PortraitMasterSkinDetails",
+        "PortraitMasterMakeup": "PortraitMasterStylePose",
+        "PortraitMasterPromptStyler": "PortraitMasterMakeup",
+        "router.random_appearance": "PortraitMasterPromptStyler"
+      }
+    },
+    {
+      "section": "3 Workflow",
+      "check": "every Portrait Master dial at the developer's starting value",
+      "result": "PASS",
+      "evidence": "no differences"
+    },
+    {
+      "section": "3 Workflow",
+      "check": "no seed value saved on any Portrait Master node",
+      "result": "PASS",
+      "evidence": {
+        "PortraitMasterBaseCharacter": false,
+        "PortraitMasterFaceGenerator": false,
+        "PortraitMasterSkinDetails": false,
+        "PortraitMasterStylePose": false,
+        "PortraitMasterMakeup": false,
+        "PortraitMasterPromptStyler": false
+      }
+    },
+    {
+      "section": "3 Workflow",
+      "check": "positive encode (node 10) is PCLazyTextEncode",
+      "result": "PASS",
+      "evidence": "PCLazyTextEncode"
+    },
+    {
+      "section": "3 Workflow",
+      "check": "router inputs trained_trigger(59), random_appearance(66), mode(58); wire 58 slot 2",
+      "result": "PASS",
+      "evidence": {
+        "inputs": [
+          [
+            "trained_trigger",
+            59
+          ],
+          [
+            "random_appearance",
+            66
+          ],
+          [
+            "mode",
+            58
+          ]
+        ],
+        "link58": [
+          58,
+          24,
+          0,
+          29,
+          2
+        ],
+        "source outputs": [
+          58
+        ]
+      }
+    },
+    {
+      "section": "4 Presets",
+      "check": "User Preset 01 holds exactly the logged values",
+      "result": "PASS",
+      "evidence": {
+        "named": {
+          "gender": "Woman",
+          "body_type": "Curvy",
+          "facial_expression": "-",
+          "breast_size": "medium",
+          "butt_size": "athletic",
+          "face_shape": "-",
+          "hair_color": "-",
+          "hair_length": "-"
+        },
+        "photorealism": true,
+        "other non-default dials": {}
+      }
+    },
+    {
+      "section": "4 Presets",
+      "check": "User Preset 01 switches: start base, Prompt Styler off",
+      "result": "PASS",
+      "evidence": {
+        "start": "base",
+        "prompt_styler": false
+      }
+    },
+    {
+      "section": "4 Presets",
+      "check": "stored under user/default/portrait_presets/user/",
+      "result": "PASS",
+      "evidence": "file check"
+    },
+    {
+      "section": "4 Presets",
+      "check": "Base Character's combined list shows the developer's 'Preset basic' first",
+      "result": "PASS",
+      "evidence": [
+        {
+          "name": "Preset basic",
+          "source": "developer"
+        }
+      ]
+    },
+    {
+      "section": "4 Presets",
+      "check": "duplicate name refused",
+      "result": "PASS",
+      "evidence": "HTTP 400: A preset called 'User Preset 01' already exists in your preset folder."
+    },
+    {
+      "section": "5 Server rules",
+      "check": "defaults only -> just the photorealism phrase",
+      "result": "PASS",
+      "evidence": "(professional photo, balanced photo, balanced exposure:1.2)"
+    },
+    {
+      "section": "5 Server rules",
+      "check": "4a preset wins -> woman, curvy, medium breasts, athletic butt",
+      "result": "PASS",
+      "evidence": "(woman :1.15), curvy body, medium breasts, athletic butt, (professional photo, balanced photo, balanced exposure:1.2)"
+    },
+    {
+      "section": "5 Server rules",
+      "check": "Face Generator active -> its five fixed phrases",
+      "result": "PASS",
+      "evidence": "front view portrait, symmetrical face, neutral expression, white background, soft diffused lighting, (professional photo, balanced photo, balanced exposure:1.2)"
+    },
+    {
+      "section": "5 Server rules",
+      "check": "Prompt Styler ON -> rewritten as a sentence",
+      "result": "PASS",
+      "evidence": "A detailed photo of a person including the following features: front view portrait, symmetrical face, neutral expression"
+    },
+    {
+      "section": "5 Server rules",
+      "check": "Base Character on the developer's 'Preset basic' -> full preset incl. a nationality blend",
+      "result": "PASS",
+      "evidence": "full body, ([danish:moroccan:0.5] woman 18-years-old :1.15), slim body, medium breasts, medium butt, (albino eyes:1.05), (oval eyes shape:1.05), (blonde eyebrow"
+    },
+    {
+      "section": "5 Server rules",
+      "check": "preset wins + node switches changed -> preset's switches win",
+      "result": "PASS",
+      "evidence": "(woman :1.15), curvy body, medium breasts, athletic butt, (professional photo, balanced photo, balanced exposure:1.2)"
+    },
+    {
+      "section": "6 Blend",
+      "check": "[italian:japanese:0.5] woman -> two scheduled prompts; plain text -> one",
+      "result": "PASS",
+      "evidence": {
+        "blend": [
+          [
+            0.5,
+            {
+              "prompt": "italian woman",
+              "loras": {}
+            }
+          ],
+          [
+            1.0,
+            {
+              "prompt": "japanese woman",
+              "loras": {}
+            }
+          ]
+        ],
+        "plain": [
+          [
+            1.0,
+            {
+              "prompt": "plain woman with no blend",
+              "loras": {}
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "section": "7 End to end",
+      "check": "saved v04 workflow makes a picture (4a preset wins)",
+      "result": "PASS",
+      "evidence": "success ['v04_00001_.png']"
+    },
+    {
+      "section": "7 End to end",
+      "check": "ComfyUI's classic default workflow makes a picture (bigLust_v16.safetensors)",
+      "result": "PASS",
+      "evidence": "success ['default_00001_.png']"
+    },
+    {
+      "section": "8 Addresses",
+      "check": "http://127.0.0.1:8188/ answers",
+      "result": "PASS",
+      "evidence": 200
+    },
+    {
+      "section": "8 Addresses",
+      "check": "http://100.65.32.118:8188/ answers",
+      "result": "PASS",
+      "evidence": 200
+    },
+    {
+      "section": "8 Addresses",
+      "check": "http://100.65.32.118:8188/mobile answers",
+      "result": "PASS",
+      "evidence": 302
+    }
+  ]
+}

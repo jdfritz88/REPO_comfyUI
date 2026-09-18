@@ -1,0 +1,131 @@
+{
+  "loaded": "Susana",
+  "presets": [
+    {
+      "name": "Susana",
+      "values": {
+        "6": {
+          "save_mode": false,
+          "send_only": true,
+          "face_model_name": "competition_face",
+          "compute_method": "Mean"
+        },
+        "7": {
+          "input_faces_order": "large-small",
+          "input_faces_index": "0",
+          "detect_gender_input": "no",
+          "source_faces_order": "large-small",
+          "source_faces_index": "0",
+          "detect_gender_source": "no",
+          "console_log_level": 1,
+          "restore_swapped_only": false
+        },
+        "8": {
+          "enabled": true,
+          "boost_model": "GPEN-BFR-512.onnx",
+          "interpolation": "Bicubic",
+          "visibility": 1,
+          "codeformer_weight": 0.5,
+          "restore_with_main_after": true
+        },
+        "10": {
+          "enabled": true,
+          "swap_model": "inswapper_128.onnx",
+          "facedetection": "retinaface_resnet50",
+          "face_restore_model": "GPEN-BFR-512.onnx",
+          "face_restore_visibility": 0.8,
+          "codeformer_weight": 0.5
+        },
+        "12": {
+          "filename_prefix": "britany_1_faceswap"
+        },
+        "110": {
+          "threshold": 0.3,
+          "dilation": 8,
+          "dilation_ratio": 1,
+          "by_ratio": true
+        },
+        "111": {
+          "index": 0
+        },
+        "114": {
+          "background": false,
+          "skin": false,
+          "nose": false,
+          "eye_g": false,
+          "r_eye": false,
+          "l_eye": false,
+          "r_brow": false,
+          "l_brow": false,
+          "r_ear": false,
+          "l_ear": false,
+          "mouth": false,
+          "u_lip": false,
+          "l_lip": false,
+          "hair": true,
+          "hat": false,
+          "ear_r": false,
+          "neck_l": false,
+          "neck": false,
+          "cloth": false
+        },
+        "116": {
+          "weight": 1,
+          "weight_type": "linear",
+          "combine_embeds": "concat",
+          "start_at": 0,
+          "end_at": 1,
+          "embeds_scaling": "V only"
+        },
+        "117": {
+          "grow_mask_by": 64
+        },
+        "118": {
+          "seed": 0,
+          "control_after_generate": "randomize",
+          "steps": 28,
+          "cfg": 6,
+          "sampler_name": "dpmpp_2m",
+          "scheduler": "karras",
+          "denoise": 0.85
+        },
+        "121": {
+          "filename_prefix": "britany_1_faceswap_hairrepaint"
+        },
+        "122": {
+          "seed": 0,
+          "control_after_generate": "randomize",
+          "steps": 20,
+          "strength": 1.5,
+          "cfg": 1.5
+        },
+        "123": {
+          "seed": 0,
+          "control_after_generate": "randomize",
+          "steps": 20,
+          "cfg": 1.5,
+          "control_strength": 2.5,
+          "adapter_strength": 0.8
+        },
+        "125": {
+          "filename_prefix": "britany_1_faceswap_hairtransfer"
+        },
+        "150": {
+          "upscale_method": "lanczos",
+          "width": 832,
+          "height": 1216,
+          "crop": "center"
+        },
+        "151": {
+          "upscale_method": "lanczos",
+          "width": 832,
+          "height": 1216,
+          "crop": "center"
+        },
+        "161": {
+          "filename_prefix": "debug_hairmask_1"
+        }
+      }
+    }
+  ]
+}

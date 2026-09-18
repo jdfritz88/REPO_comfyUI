@@ -1,0 +1,3690 @@
+{
+  "id": "6a0df4ee-8830-4b1c-8fc2-31906e2623ef",
+  "revision": 0,
+  "last_node_id": 32,
+  "last_link_id": 66,
+  "nodes": [
+    {
+      "id": 13,
+      "type": "MarkdownNote",
+      "pos": [
+        -4170,
+        -340
+      ],
+      "size": [
+        559.96875,
+        1030.296875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "READ ME FIRST",
+      "properties": {},
+      "widgets_values": [
+        "## How to make a picture\n\n1. In the **green box (STEP 4)** type what you want to see. Plain sentences are fine.\n2. Press the blue **Run** button, top right.\n3. Wait 15-60 seconds. The picture(s) show up in **STEP 9**.\n\nEvery picture is archived automatically to `comfyui/output/freedom_archive/`, so\nnothing you make is ever lost. STEP 9 is where you send the *keepers* somewhere of\nyour own: click **Save Image** for a single picture, or tick the ones you want and\nclick **Save Selected Images**. **Set User Save Folder**, the button under Save\nImage, chooses where those copies go.\n\nThat's it. Everything else is already set up.\n\n### If you want to change something\n- **Different look / model:** click the file name in STEP 1.\n- **Her face on or off:** the **FACE ON / FACE OFF** button on STEP 2. Switched off,\n  the same picture is painted with a generic person instead, and the card you picked\n  is remembered for when you switch back.\n- **Add-on LoRAs:** STEP 3 starts with three rows and grows to twelve with\n  **+ Add LoRA**. Tick a row on, pick from the dropdown, set how strong it is - it\n  only lists LoRAs that actually match this checkpoint, so nothing you pick can be\n  the wrong architecture. (Emotions, expression\\_helper and Hands zib are NOT SDXL -\n  they are Flux / Krea / Z-Image LoRAs and will not appear here or work with\n  bigLust or Pony. This note used to say otherwise; that was wrong.)\n- **Wider or taller:** change the numbers in STEP 6.\n- **New random picture, same idea:** just press Run again.\n- **Keep the same picture, tweak wording:** on **STEP 7** set *control_after_generate*\n  to `fixed`, change a few words, Run."
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 14,
+      "type": "MarkdownNote",
+      "pos": [
+        -3480,
+        -300
+      ],
+      "size": [
+        559.921875,
+        267.34375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "STEP 1 - the art model",
+      "properties": {},
+      "widgets_values": [
+        "**STEP 1 - the art model**\n\nThis opens the 'brain' that knows how to paint - **bigLust**, a photo-real model made for adult images.\n\nIt feeds three things to the rest of the recipe: the painter, the part that reads your words, and the part that turns the result into a normal picture.\n\n**You touch this only** to switch models - click the file name to pick lustify, CyberRealistic Pony, etc."
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -3480,
+        30
+      ],
+      "size": [
+        559.921875,
+        109.921875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "ckpt_name",
+          "name": "ckpt_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "ckpt_name"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "MODEL",
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            43
+          ]
+        },
+        {
+          "localized_name": "CLIP",
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            44
+          ]
+        },
+        {
+          "localized_name": "VAE",
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            41
+          ]
+        }
+      ],
+      "title": "STEP 1  -  Pick the art model",
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0",
+        "models": [
+          {
+            "name": "sd_xl_base_1.0.safetensors",
+            "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors?download=true",
+            "directory": "checkpoints"
+          }
+        ]
+      },
+      "widgets_values": [
+        "cyberrealisticPony_v110.safetensors"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "FreedomFaceSource",
+      "pos": [
+        -3420,
+        250
+      ],
+      "size": [
+        419.921875,
+        109.953125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "mode",
+          "name": "mode",
+          "type": "COMBO",
+          "widget": {
+            "name": "mode"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "mode",
+          "name": "mode",
+          "type": "COMBO",
+          "slot_index": 0,
+          "links": [
+            58
+          ]
+        },
+        {
+          "localized_name": "mode_text",
+          "name": "mode_text",
+          "type": "STRING",
+          "slot_index": 1,
+          "links": [
+            57
+          ]
+        }
+      ],
+      "title": "STEP 2  -  Face source switch (trained / random / off)",
+      "properties": {
+        "Node name for S&R": "FreedomFaceSource"
+      },
+      "widgets_values": [
+        "random_face"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "MarkdownNote",
+      "pos": [
+        -2790,
+        -300
+      ],
+      "size": [
+        899.984375,
+        753.09375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "STEP 3 - pick her face",
+      "properties": {},
+      "widgets_values": [
+        "**Pick her face**\n\nThis is the shelf of every face you've trained. Click a picture to put that person's face - or face and body - onto whatever gets painted below. Each trained person shows up as two cards: one for face-only, one for face + body.\n\n**The FACE ON / FACE OFF switch.** At the top of the shelf is a button that reads **FACE ON** in green. It decides whether this whole step does anything at all. Click it once and it turns red and reads **FACE OFF**.\n\n**What FACE OFF really means.** The picture gets painted exactly as if this step were not in the workflow at all. Her face is not applied, and her trigger word is left out of your prompt as well. (A trigger word is the made-up word her training gave her, something like `br1tany woman`. It is the word that tells the art model to draw her and not a stranger.) So with the switch off, nothing about her reaches the picture - not her face, and not her name.\n\n**Your pick is not lost.** The card you clicked stays clicked, just greyed out, and switching back on brings her straight back at the same strength. That is the difference between this switch and the **None** button beside it: **None** forgets who you picked, while the switch only pauses her.\n\n**Two buttons, one switch.** You can flip it from the button on the shelf, or from the small toggle on the node itself just above the shelf, which reads **face ON** / **face OFF**. They are wired together, so moving either one moves both. You never have to wonder which one is in charge.\n\n**When to use it.** Turn her off to try a new prompt, a new pose, or a different art model on a generic person first, so her face isn't pulling the picture around while you experiment. Then turn her back on and make the real one.\n\nThe **strength** slider controls how strongly her face takes over - 0.9 is a good starting point. Lower it toward 0.7 if her face comes out stiff, raise it toward 1.0 if it doesn't look enough like her.\n\n**Refresh** picks up any face you've just finished training without restarting anything."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 2,
+      "type": "FreedomFaceShelf",
+      "pos": [
+        -2780,
+        520
+      ],
+      "size": [
+        889.984375,
+        731.1875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 43
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 44
+        },
+        {
+          "localized_name": "face_mode",
+          "name": "face_mode",
+          "shape": 7,
+          "type": "STRING",
+          "link": 57
+        },
+        {
+          "localized_name": "strength",
+          "name": "strength",
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "selected",
+          "name": "selected",
+          "type": "STRING",
+          "widget": {
+            "name": "selected"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled",
+          "name": "enabled",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "trigger_weight",
+          "name": "trigger_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "trigger_weight"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            45
+          ]
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "links": [
+            46
+          ]
+        },
+        {
+          "localized_name": "trigger",
+          "name": "trigger",
+          "type": "STRING",
+          "links": [
+            59
+          ]
+        },
+        {
+          "localized_name": "person",
+          "name": "person",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "STEP 3  -  Pick her face",
+      "properties": {
+        "Node name for S&R": "FreedomFaceShelf"
+      },
+      "widgets_values": [
+        0.9,
+        "susana_head_sdxl_pony",
+        true,
+        1,
+        ""
+      ]
+    },
+    {
+      "id": 25,
+      "type": "PortraitMasterBaseCharacter",
+      "pos": [
+        -1230,
+        1470
+      ],
+      "size": [
+        430,
+        700
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "text_in",
+          "name": "text_in",
+          "shape": 7,
+          "type": "STRING",
+          "link": 61
+        },
+        {
+          "localized_name": "shot",
+          "name": "shot",
+          "type": "COMBO",
+          "widget": {
+            "name": "shot"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "shot_weight",
+          "name": "shot_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "shot_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "gender",
+          "name": "gender",
+          "type": "COMBO",
+          "widget": {
+            "name": "gender"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "androgynous",
+          "name": "androgynous",
+          "type": "FLOAT",
+          "widget": {
+            "name": "androgynous"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "ugly",
+          "name": "ugly",
+          "type": "FLOAT",
+          "widget": {
+            "name": "ugly"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "ordinary_face",
+          "name": "ordinary_face",
+          "type": "FLOAT",
+          "widget": {
+            "name": "ordinary_face"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "age",
+          "name": "age",
+          "type": "COMBO",
+          "widget": {
+            "name": "age"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "nationality_1",
+          "name": "nationality_1",
+          "type": "COMBO",
+          "widget": {
+            "name": "nationality_1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "nationality_2",
+          "name": "nationality_2",
+          "type": "COMBO",
+          "widget": {
+            "name": "nationality_2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "nationality_mix",
+          "name": "nationality_mix",
+          "type": "FLOAT",
+          "widget": {
+            "name": "nationality_mix"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "body_type",
+          "name": "body_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "body_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "body_type_weight",
+          "name": "body_type_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "body_type_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "breast_size",
+          "name": "breast_size",
+          "type": "COMBO",
+          "widget": {
+            "name": "breast_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "breast_size_weight",
+          "name": "breast_size_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "breast_size_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "butt_size",
+          "name": "butt_size",
+          "type": "COMBO",
+          "widget": {
+            "name": "butt_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "butt_size_weight",
+          "name": "butt_size_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "butt_size_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyes_color",
+          "name": "eyes_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyes_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyes_shape",
+          "name": "eyes_shape",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyes_shape"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyebrows_color",
+          "name": "eyebrows_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyebrows_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyebrows_shape",
+          "name": "eyebrows_shape",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyebrows_shape"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyebrows_thickness",
+          "name": "eyebrows_thickness",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyebrows_thickness"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyebrows_weight",
+          "name": "eyebrows_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "eyebrows_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lips_color",
+          "name": "lips_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "lips_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lips_shape",
+          "name": "lips_shape",
+          "type": "COMBO",
+          "widget": {
+            "name": "lips_shape"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "facial_expression",
+          "name": "facial_expression",
+          "type": "COMBO",
+          "widget": {
+            "name": "facial_expression"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "facial_expression_weight",
+          "name": "facial_expression_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "facial_expression_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_shape",
+          "name": "face_shape",
+          "type": "COMBO",
+          "widget": {
+            "name": "face_shape"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_shape_weight",
+          "name": "face_shape_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "face_shape_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "facial_asymmetry",
+          "name": "facial_asymmetry",
+          "type": "FLOAT",
+          "widget": {
+            "name": "facial_asymmetry"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "hair_style",
+          "name": "hair_style",
+          "type": "COMBO",
+          "widget": {
+            "name": "hair_style"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "hair_color",
+          "name": "hair_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "hair_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "hair_length",
+          "name": "hair_length",
+          "type": "COMBO",
+          "widget": {
+            "name": "hair_length"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "disheveled",
+          "name": "disheveled",
+          "type": "FLOAT",
+          "widget": {
+            "name": "disheveled"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "beard",
+          "name": "beard",
+          "type": "COMBO",
+          "widget": {
+            "name": "beard"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "beard_color",
+          "name": "beard_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "beard_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cheekbones",
+          "name": "cheekbones",
+          "type": "COMBO",
+          "widget": {
+            "name": "cheekbones"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cheekbones_weight",
+          "name": "cheekbones_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cheekbones_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "jawline",
+          "name": "jawline",
+          "type": "COMBO",
+          "widget": {
+            "name": "jawline"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "jawline_weight",
+          "name": "jawline_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "jawline_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "nose_shape",
+          "name": "nose_shape",
+          "type": "COMBO",
+          "widget": {
+            "name": "nose_shape"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "nose_size",
+          "name": "nose_size",
+          "type": "COMBO",
+          "widget": {
+            "name": "nose_size"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "neck",
+          "name": "neck",
+          "type": "COMBO",
+          "widget": {
+            "name": "neck"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_symmetry",
+          "name": "face_symmetry",
+          "type": "COMBO",
+          "widget": {
+            "name": "face_symmetry"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_symmetry_weight",
+          "name": "face_symmetry_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "face_symmetry_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_proportions",
+          "name": "face_proportions",
+          "type": "COMBO",
+          "widget": {
+            "name": "face_proportions"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_proportions_weight",
+          "name": "face_proportions_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "face_proportions_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_balance",
+          "name": "face_balance",
+          "type": "COMBO",
+          "widget": {
+            "name": "face_balance"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_balance_weight",
+          "name": "face_balance_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "face_balance_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_harmony",
+          "name": "face_harmony",
+          "type": "COMBO",
+          "widget": {
+            "name": "face_harmony"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_harmony_weight",
+          "name": "face_harmony_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "face_harmony_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "active",
+          "name": "active",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "active"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "load_preset",
+          "name": "load_preset",
+          "type": "COMBO",
+          "widget": {
+            "name": "load_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset_as",
+          "name": "save_preset_as",
+          "type": "STRING",
+          "widget": {
+            "name": "save_preset_as"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset",
+          "name": "save_preset",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "save_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "text_out",
+          "name": "text_out",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            62
+          ]
+        }
+      ],
+      "title": "STEP 4b  -  Base Character",
+      "properties": {
+        "Node name for S&R": "PortraitMasterBaseCharacter"
+      },
+      "widgets_values": [
+        "-",
+        1,
+        "-",
+        0,
+        0,
+        0,
+        "-",
+        "-",
+        "-",
+        0.5,
+        "-",
+        1,
+        "-",
+        1,
+        "-",
+        1,
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        1,
+        "-",
+        "-",
+        "-",
+        1,
+        "-",
+        1,
+        0,
+        "-",
+        "-",
+        "-",
+        0,
+        "-",
+        "-",
+        "-",
+        1,
+        "-",
+        1,
+        "-",
+        "-",
+        "-",
+        "-",
+        1,
+        "-",
+        1,
+        "-",
+        1,
+        "-",
+        1,
+        true,
+        "-- disabled --",
+        "",
+        false
+      ]
+    },
+    {
+      "id": 26,
+      "type": "PortraitMasterSkinDetails",
+      "pos": [
+        -290,
+        1470
+      ],
+      "size": [
+        430,
+        700
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "text_in",
+          "name": "text_in",
+          "shape": 7,
+          "type": "STRING",
+          "link": 62
+        },
+        {
+          "localized_name": "natural_skin",
+          "name": "natural_skin",
+          "type": "FLOAT",
+          "widget": {
+            "name": "natural_skin"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "bare_face",
+          "name": "bare_face",
+          "type": "FLOAT",
+          "widget": {
+            "name": "bare_face"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "washed_face",
+          "name": "washed_face",
+          "type": "FLOAT",
+          "widget": {
+            "name": "washed_face"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "dried_face",
+          "name": "dried_face",
+          "type": "FLOAT",
+          "widget": {
+            "name": "dried_face"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "skin_details",
+          "name": "skin_details",
+          "type": "FLOAT",
+          "widget": {
+            "name": "skin_details"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "skin_pores",
+          "name": "skin_pores",
+          "type": "FLOAT",
+          "widget": {
+            "name": "skin_pores"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "dimples",
+          "name": "dimples",
+          "type": "FLOAT",
+          "widget": {
+            "name": "dimples"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "wrinkles",
+          "name": "wrinkles",
+          "type": "FLOAT",
+          "widget": {
+            "name": "wrinkles"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "freckles",
+          "name": "freckles",
+          "type": "FLOAT",
+          "widget": {
+            "name": "freckles"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "moles",
+          "name": "moles",
+          "type": "FLOAT",
+          "widget": {
+            "name": "moles"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "skin_imperfections",
+          "name": "skin_imperfections",
+          "type": "FLOAT",
+          "widget": {
+            "name": "skin_imperfections"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "skin_acne",
+          "name": "skin_acne",
+          "type": "FLOAT",
+          "widget": {
+            "name": "skin_acne"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "tanned_skin",
+          "name": "tanned_skin",
+          "type": "FLOAT",
+          "widget": {
+            "name": "tanned_skin"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "skin_tone",
+          "name": "skin_tone",
+          "type": "COMBO",
+          "widget": {
+            "name": "skin_tone"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "skin_texture",
+          "name": "skin_texture",
+          "type": "COMBO",
+          "widget": {
+            "name": "skin_texture"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "skin_shine",
+          "name": "skin_shine",
+          "type": "COMBO",
+          "widget": {
+            "name": "skin_shine"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyes_details",
+          "name": "eyes_details",
+          "type": "FLOAT",
+          "widget": {
+            "name": "eyes_details"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "iris_details",
+          "name": "iris_details",
+          "type": "FLOAT",
+          "widget": {
+            "name": "iris_details"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "circular_iris",
+          "name": "circular_iris",
+          "type": "FLOAT",
+          "widget": {
+            "name": "circular_iris"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "circular_pupil",
+          "name": "circular_pupil",
+          "type": "FLOAT",
+          "widget": {
+            "name": "circular_pupil"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "active",
+          "name": "active",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "active"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "load_preset",
+          "name": "load_preset",
+          "type": "COMBO",
+          "widget": {
+            "name": "load_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset_as",
+          "name": "save_preset_as",
+          "type": "STRING",
+          "widget": {
+            "name": "save_preset_as"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset",
+          "name": "save_preset",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "save_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "text_out",
+          "name": "text_out",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            63
+          ]
+        }
+      ],
+      "title": "STEP 4d  -  Skin Details",
+      "properties": {
+        "Node name for S&R": "PortraitMasterSkinDetails"
+      },
+      "widgets_values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        "-",
+        "-",
+        "-",
+        0,
+        0,
+        0,
+        0,
+        true,
+        "-- disabled --",
+        "",
+        false
+      ]
+    },
+    {
+      "id": 27,
+      "type": "PortraitMasterMakeup",
+      "pos": [
+        650,
+        1470
+      ],
+      "size": [
+        430,
+        700
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "text_in",
+          "name": "text_in",
+          "shape": 7,
+          "type": "STRING",
+          "link": 64
+        },
+        {
+          "localized_name": "makeup_style",
+          "name": "makeup_style",
+          "type": "COMBO",
+          "widget": {
+            "name": "makeup_style"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "makeup_color",
+          "name": "makeup_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "makeup_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyeshadow",
+          "name": "eyeshadow",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "eyeshadow"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyeshadow_color",
+          "name": "eyeshadow_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyeshadow_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyeliner",
+          "name": "eyeliner",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "eyeliner"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyeliner_color",
+          "name": "eyeliner_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyeliner_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mascara",
+          "name": "mascara",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "mascara"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "mascara_color",
+          "name": "mascara_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "mascara_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blush",
+          "name": "blush",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "blush"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "blush_color",
+          "name": "blush_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "blush_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lipstick",
+          "name": "lipstick",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "lipstick"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lipstick_color",
+          "name": "lipstick_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "lipstick_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lip_gloss",
+          "name": "lip_gloss",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "lip_gloss"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lip_gloss_color",
+          "name": "lip_gloss_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "lip_gloss_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "active",
+          "name": "active",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "active"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "load_preset",
+          "name": "load_preset",
+          "type": "COMBO",
+          "widget": {
+            "name": "load_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset_as",
+          "name": "save_preset_as",
+          "type": "STRING",
+          "widget": {
+            "name": "save_preset_as"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset",
+          "name": "save_preset",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "save_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "text_out",
+          "name": "text_out",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            65
+          ]
+        }
+      ],
+      "title": "STEP 4f  -  Make-up",
+      "properties": {
+        "Node name for S&R": "PortraitMasterMakeup"
+      },
+      "widgets_values": [
+        "-",
+        "-",
+        false,
+        "-",
+        false,
+        "-",
+        false,
+        "-",
+        false,
+        "-",
+        false,
+        "-",
+        false,
+        "-",
+        true,
+        "-- disabled --",
+        "",
+        false
+      ]
+    },
+    {
+      "id": 28,
+      "type": "PortraitMasterStylePose",
+      "pos": [
+        180,
+        1470
+      ],
+      "size": [
+        430,
+        700
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "text_in",
+          "name": "text_in",
+          "shape": 7,
+          "type": "STRING",
+          "link": 63
+        },
+        {
+          "localized_name": "model_pose",
+          "name": "model_pose",
+          "type": "COMBO",
+          "widget": {
+            "name": "model_pose"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "clothes",
+          "name": "clothes",
+          "type": "COMBO",
+          "widget": {
+            "name": "clothes"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "female_lingerie",
+          "name": "female_lingerie",
+          "type": "COMBO",
+          "widget": {
+            "name": "female_lingerie"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "makeup",
+          "name": "makeup",
+          "type": "COMBO",
+          "widget": {
+            "name": "makeup"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "light_type",
+          "name": "light_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "light_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "light_direction",
+          "name": "light_direction",
+          "type": "COMBO",
+          "widget": {
+            "name": "light_direction"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "light_weight",
+          "name": "light_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "light_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "style_1",
+          "name": "style_1",
+          "type": "COMBO",
+          "widget": {
+            "name": "style_1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "style_1_weight",
+          "name": "style_1_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "style_1_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "style_2",
+          "name": "style_2",
+          "type": "COMBO",
+          "widget": {
+            "name": "style_2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "style_2_weight",
+          "name": "style_2_weight",
+          "type": "FLOAT",
+          "widget": {
+            "name": "style_2_weight"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "background",
+          "name": "background",
+          "type": "COMBO",
+          "widget": {
+            "name": "background"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "camera_angle",
+          "name": "camera_angle",
+          "type": "COMBO",
+          "widget": {
+            "name": "camera_angle"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "camera_distance",
+          "name": "camera_distance",
+          "type": "COMBO",
+          "widget": {
+            "name": "camera_distance"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "camera_lens",
+          "name": "camera_lens",
+          "type": "COMBO",
+          "widget": {
+            "name": "camera_lens"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "photorealism_improvement",
+          "name": "photorealism_improvement",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "photorealism_improvement"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "active",
+          "name": "active",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "active"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "load_preset",
+          "name": "load_preset",
+          "type": "COMBO",
+          "widget": {
+            "name": "load_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset_as",
+          "name": "save_preset_as",
+          "type": "STRING",
+          "widget": {
+            "name": "save_preset_as"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset",
+          "name": "save_preset",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "save_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "text_out",
+          "name": "text_out",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            64
+          ]
+        }
+      ],
+      "title": "STEP 4e  -  Style & Pose",
+      "properties": {
+        "Node name for S&R": "PortraitMasterStylePose"
+      },
+      "widgets_values": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        1,
+        "-",
+        1,
+        "-",
+        1,
+        "-",
+        "-",
+        "-",
+        "-",
+        true,
+        true,
+        "-- disabled --",
+        "",
+        false
+      ]
+    },
+    {
+      "id": 29,
+      "type": "FreedomFaceRouter",
+      "pos": [
+        -110,
+        -250
+      ],
+      "size": [
+        419.984375,
+        130
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "trained_trigger",
+          "name": "trained_trigger",
+          "shape": 7,
+          "type": "STRING",
+          "link": 59
+        },
+        {
+          "localized_name": "random_appearance",
+          "name": "random_appearance",
+          "shape": 7,
+          "type": "STRING",
+          "link": 66
+        },
+        {
+          "localized_name": "mode",
+          "name": "mode",
+          "type": "COMBO",
+          "widget": {
+            "name": "mode"
+          },
+          "link": 58
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "face_text",
+          "name": "face_text",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            60
+          ]
+        }
+      ],
+      "title": "STEP 5  -  Face router  (feeds the prompt below)",
+      "properties": {
+        "Node name for S&R": "FreedomFaceRouter"
+      },
+      "widgets_values": [
+        "random_face"
+      ]
+    },
+    {
+      "id": 23,
+      "type": "MarkdownNote",
+      "pos": [
+        80,
+        110
+      ],
+      "size": [
+        579.6875,
+        353.734375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "STEP 6 - add other LoRAs",
+      "properties": {},
+      "widgets_values": [
+        "**Add other LoRAs**\n\nA LoRA is a small add-on file that teaches the art model one specific thing - a clothing item, a pose, a style - on top of what it already knows. This is different from STEP 2: STEP 2 is for a trained *person's face*; this step is for everything else.\n\nThree rows are ready to go. Tick a row on, pick a LoRA from its dropdown, and set its **strength** (0.8 is a safe starting point - higher can overpower the picture). Click **+ Add LoRA** for more rows, or the **X** on a row to remove it.\n\nYou will not see any of her trained faces in this list - those only live in STEP 2, so you can't load the wrong one here by mistake."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 3,
+      "type": "FreedomLoraStack",
+      "pos": [
+        80,
+        490
+      ],
+      "size": [
+        589.6875,
+        370
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 45
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 46
+        },
+        {
+          "localized_name": "enabled_1",
+          "name": "enabled_1",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_1",
+          "name": "lora_1",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_1",
+          "name": "strength_1",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_1"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_2",
+          "name": "enabled_2",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_2",
+          "name": "lora_2",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_2",
+          "name": "strength_2",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_2"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_3",
+          "name": "enabled_3",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_3"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_3",
+          "name": "lora_3",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_3"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_3",
+          "name": "strength_3",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_3"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_4",
+          "name": "enabled_4",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_4"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_4",
+          "name": "lora_4",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_4"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_4",
+          "name": "strength_4",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_4"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_5",
+          "name": "enabled_5",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_5"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_5",
+          "name": "lora_5",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_5"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_5",
+          "name": "strength_5",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_5"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_6",
+          "name": "enabled_6",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_6"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_6",
+          "name": "lora_6",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_6"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_6",
+          "name": "strength_6",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_6"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_7",
+          "name": "enabled_7",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_7"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_7",
+          "name": "lora_7",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_7"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_7",
+          "name": "strength_7",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_7"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_8",
+          "name": "enabled_8",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_8"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_8",
+          "name": "lora_8",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_8"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_8",
+          "name": "strength_8",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_8"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_9",
+          "name": "enabled_9",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_9"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_9",
+          "name": "lora_9",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_9"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_9",
+          "name": "strength_9",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_9"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_10",
+          "name": "enabled_10",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_10"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_10",
+          "name": "lora_10",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_10"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_10",
+          "name": "strength_10",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_10"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_11",
+          "name": "enabled_11",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_11"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_11",
+          "name": "lora_11",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_11"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_11",
+          "name": "strength_11",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_11"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "enabled_12",
+          "name": "enabled_12",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "enabled_12"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "lora_12",
+          "name": "lora_12",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "lora_12"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "strength_12",
+          "name": "strength_12",
+          "shape": 7,
+          "type": "FLOAT",
+          "widget": {
+            "name": "strength_12"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            47
+          ]
+        },
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "links": [
+            48,
+            49
+          ]
+        }
+      ],
+      "title": "STEP 6  -  Add other LoRAs",
+      "properties": {
+        "Node name for S&R": "FreedomLoraStack"
+      },
+      "widgets_values": [
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        false,
+        "",
+        0.8,
+        ""
+      ]
+    },
+    {
+      "id": 15,
+      "type": "MarkdownNote",
+      "pos": [
+        900,
+        -290
+      ],
+      "size": [
+        889.96875,
+        272.34375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "STEP 7 - what you want",
+      "properties": {},
+      "widgets_values": [
+        "**What you want**\n\n**This is the main box - type here.**\n\nDescribe the picture in plain sentences: who, where, the lighting, the mood. Example: *a red-haired woman by a rainy window, soft light, sharp photo*.\n\nMore detail = closer to what you pictured.\n\n**If you picked someone on STEP 2's Face Shelf**, her trigger word is glued onto the front of whatever you type here automatically - you don't need to type it yourself. The two small boxes below this one just do that gluing; you never need to touch them."
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 4,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        900,
+        30
+      ],
+      "size": [
+        889.96875,
+        309.96875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "value",
+          "name": "value",
+          "type": "STRING",
+          "widget": {
+            "name": "value"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "STRING",
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            51
+          ]
+        }
+      ],
+      "title": "STEP 7  -  What you WANT  (type here)",
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "hetero, 1girl, 1boy, (sex from behind, doggystyle:1.3), (his hands gripping her waist, his thighs and torso behind her:1.2), (photorealistic photo:1.2), (sixteen year old:1.7) Mexican woman on all fours, large almond eyes, (eyes rolled back, mouth open, orgasm expression:1.3), (head turned away, looking down:1.2), (thick translucent drool dripping from her mouth:1.2), slim naked body, (plump firm breasts:1.1), one hand squeezing her own nipple between thumb and forefinger, soft window light, 85mm, natural skin texture, "
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 16,
+      "type": "MarkdownNote",
+      "pos": [
+        1900,
+        -290
+      ],
+      "size": [
+        759.984375,
+        149.984375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "STEP 8 - what you don't want",
+      "properties": {},
+      "widgets_values": [
+        "**What you don't want**\n\nA list of stuff to avoid: blur, extra fingers, watermarks, a cartoon look.\n\nIt's already filled in with good defaults. **Leave it alone** unless the same problem keeps showing up in your pictures - then add a word for it here."
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 5,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1900,
+        -80
+      ],
+      "size": [
+        759.984375,
+        259.984375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 49
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            34
+          ]
+        }
+      ],
+      "title": "STEP 8  -  What you DON'T want  (leave this)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        "solo, alone, looking at viewer, eye contact, facing camera, 2boys, multiple boys, multiple views, duplicate, clone, extra person, worst quality, low quality, jpeg artifacts, deformed, bad anatomy, disfigured, extra limbs, extra fingers, fused fingers, mutated hands, deformed wrists, extra hands, watermark, text, signature, logo, cartoon, 3d render, doll, plastic skin"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 17,
+      "type": "MarkdownNote",
+      "pos": [
+        1910,
+        350
+      ],
+      "size": [
+        779.984375,
+        209.75
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "STEP 9 - size & how many",
+      "properties": {},
+      "widgets_values": [
+        "**Size & how many**\n\nShape + how many at once. Default **1216 x 832** (wide, SDXL's native size - steadiest).\n\nPresets: 1216x832 wide - 1024x512 wide letterbox - 832x1216 tall - 1024x1024 square - 1344x768 HD wide\n\n1024x512 is a thinner letterbox but at 512 height bigLust can sometimes double a subject; 1216x832 is the safe default."
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 6,
+      "type": "EmptyLatentImage",
+      "pos": [
+        1920,
+        600
+      ],
+      "size": [
+        759.984375,
+        129.984375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "width",
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "height",
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "batch_size",
+          "name": "batch_size",
+          "type": "INT",
+          "widget": {
+            "name": "batch_size"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            35
+          ]
+        }
+      ],
+      "title": "STEP 9  -  Picture size",
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        1216,
+        832,
+        4
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 18,
+      "type": "MarkdownNote",
+      "pos": [
+        2830,
+        -280
+      ],
+      "size": [
+        568.75,
+        375.71875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "STEP 10 - the actual painting",
+      "properties": {},
+      "widgets_values": [
+        "**The actual painting**\n\nThis is where the picture gets made. It takes the painter (STEP 1), your want / don't-want (STEPS 4-5) and the blank canvas (STEP 6), and cleans up random noise into an image over **26 passes**.\n\n- **seed** = the random starting point. Same seed + same words = same picture.\n- **control_after_generate**: `randomize` = new picture each Run; `fixed` = keep tweaking the same one.\n- Leave steps / cfg / sampler as they are - they're tuned for bigLust."
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "pos": [
+        2830,
+        160
+      ],
+      "size": [
+        550,
+        288.75
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "MODEL",
+          "link": 47
+        },
+        {
+          "localized_name": "positive",
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 33
+        },
+        {
+          "localized_name": "negative",
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 34
+        },
+        {
+          "localized_name": "latent_image",
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 35
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "steps",
+          "name": "steps",
+          "type": "INT",
+          "widget": {
+            "name": "steps"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "cfg",
+          "name": "cfg",
+          "type": "FLOAT",
+          "widget": {
+            "name": "cfg"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "sampler_name",
+          "name": "sampler_name",
+          "type": "COMBO",
+          "widget": {
+            "name": "sampler_name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "scheduler",
+          "name": "scheduler",
+          "type": "COMBO",
+          "widget": {
+            "name": "scheduler"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "denoise",
+          "name": "denoise",
+          "type": "FLOAT",
+          "widget": {
+            "name": "denoise"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LATENT",
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            36
+          ]
+        }
+      ],
+      "title": "STEP 10  -  Make the picture",
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        1193033271,
+        "randomize",
+        26,
+        6,
+        "dpmpp_2m",
+        "karras",
+        1
+      ]
+    },
+    {
+      "id": 19,
+      "type": "MarkdownNote",
+      "pos": [
+        3570,
+        -280
+      ],
+      "size": [
+        439.484375,
+        270
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "STEP 11 - develop it",
+      "properties": {},
+      "widgets_values": [
+        "**develop it**\n\n\"The actual painting\" result is still in a coded form the computer uses. This box 'develops' it into a normal picture you can see.\n\n**Never touch this.** It just works."
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        3580,
+        60
+      ],
+      "size": [
+        339.484375,
+        89.484375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "samples",
+          "name": "samples",
+          "type": "LATENT",
+          "link": 36
+        },
+        {
+          "localized_name": "vae",
+          "name": "vae",
+          "type": "VAE",
+          "link": 41
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "IMAGE",
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            37,
+            42
+          ]
+        }
+      ],
+      "title": "STEP 11  -  Develop the picture  (don't touch)",
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      }
+    },
+    {
+      "id": 20,
+      "type": "MarkdownNote",
+      "pos": [
+        4050,
+        -280
+      ],
+      "size": [
+        569.484375,
+        367.71875
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "STEP 12 - see it & save it",
+      "properties": {},
+      "widgets_values": [
+        "**See it, pick it, save it**\n\nEvery picture is already archived automatically by the AUTO-SAVE box, off to the right, so nothing is ever lost. This step is where you send the keepers to a folder of your own. After Run, your picture(s) show here with tick boxes.\n\n- One picture -> **Save Image**.\n- A batch -> tick the ones you want -> **Save Selected Images**.\n\n**Set User Save Folder** (button under Save Image) opens a Windows folder window. Your choice is stored in this workflow, so it sticks when you save the workflow. **Open Folder** shows it in Explorer."
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 9,
+      "type": "FreedomPreviewPick",
+      "pos": [
+        4050,
+        160
+      ],
+      "size": [
+        559.484375,
+        699.484375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 37
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_folder",
+          "name": "save_folder",
+          "type": "STRING",
+          "widget": {
+            "name": "save_folder"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "title": "STEP 12  -  Look, pick, then Save Image",
+      "properties": {
+        "Node name for S&R": "FreedomPreviewPick",
+        "cnr_id": "freedom_folder_inspector"
+      },
+      "widgets_values": [
+        "freedom",
+        "F:/Apps/freedom_system/REPO_comfyUI/output/freedom",
+        ""
+      ]
+    },
+    {
+      "id": 21,
+      "type": "MarkdownNote",
+      "pos": [
+        4660,
+        -270
+      ],
+      "size": [
+        519.484375,
+        267.34375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "about AUTO-SAVE",
+      "properties": {},
+      "widgets_values": [
+        "**AUTO-SAVE (this box)**\n\nKeeps a copy of **every** picture in `comfyui/output/freedom_archive/` the moment it's made - your 'never lose anything' pile.\n\nSTEP 9's pick box runs at the same time, no conflict - use it to send only the keepers to your own folder. Delete this box if you don't want the archive.\n\n[**Open the archive folder**](/freedom/save/open_folder?sub=freedom_archive)"
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 12,
+      "type": "StringConcatenate",
+      "pos": [
+        910,
+        480
+      ],
+      "size": [
+        879.96875,
+        253.90625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "string_a",
+          "name": "string_a",
+          "type": "STRING",
+          "widget": {
+            "name": "string_a"
+          },
+          "link": 60
+        },
+        {
+          "localized_name": "string_b",
+          "name": "string_b",
+          "type": "STRING",
+          "widget": {
+            "name": "string_b"
+          },
+          "link": 51
+        },
+        {
+          "localized_name": "delimiter",
+          "name": "delimiter",
+          "type": "STRING",
+          "widget": {
+            "name": "delimiter"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "STRING",
+          "name": "STRING",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            52
+          ]
+        }
+      ],
+      "title": "her trigger + your words  ->  the actual prompt",
+      "properties": {
+        "Node name for S&R": "StringConcatenate"
+      },
+      "widgets_values": [
+        "",
+        "",
+        ", "
+      ]
+    },
+    {
+      "id": 10,
+      "type": "PCLazyTextEncode",
+      "pos": [
+        910,
+        790
+      ],
+      "size": [
+        889.96875,
+        123.953125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "clip",
+          "name": "clip",
+          "type": "CLIP",
+          "link": 48
+        },
+        {
+          "localized_name": "text",
+          "name": "text",
+          "type": "STRING",
+          "widget": {
+            "name": "text"
+          },
+          "link": 52
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "CONDITIONING",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            33
+          ]
+        }
+      ],
+      "title": "combine + encode  (PC: Schedule prompt - understands [a:b:0.5])",
+      "properties": {
+        "Node name for S&R": "PCLazyTextEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.33.0"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 11,
+      "type": "SaveImage",
+      "pos": [
+        4660,
+        70
+      ],
+      "size": [
+        539.484375,
+        429.484375
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "link": 42
+        },
+        {
+          "localized_name": "filename_prefix",
+          "name": "filename_prefix",
+          "type": "STRING",
+          "widget": {
+            "name": "filename_prefix"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "images",
+          "name": "images",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "title": "AUTO-SAVE  -  every picture, to the output folder (safety net)",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core"
+      },
+      "widgets_values": [
+        "freedom_archive/img"
+      ]
+    },
+    {
+      "id": 30,
+      "type": "FreedomPortraitUserPreset",
+      "pos": [
+        -1700,
+        1470
+      ],
+      "size": [
+        430,
+        700
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "mode",
+          "name": "mode",
+          "type": "COMBO",
+          "widget": {
+            "name": "mode"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "preset",
+          "name": "preset",
+          "type": "COMBO",
+          "widget": {
+            "name": "preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "state",
+          "name": "state",
+          "type": "STRING",
+          "widget": {
+            "name": "state"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "in_charge",
+          "name": "in_charge",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": []
+        }
+      ],
+      "title": "STEP 4a  -  Random (Portrait Master) user preset",
+      "properties": {
+        "Node name for S&R": "FreedomPortraitUserPreset"
+      },
+      "widgets_values": [
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "id": 31,
+      "type": "PortraitMasterFaceGenerator",
+      "pos": [
+        -760,
+        1470
+      ],
+      "size": [
+        430,
+        700
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "gender",
+          "name": "gender",
+          "type": "COMBO",
+          "widget": {
+            "name": "gender"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "age",
+          "name": "age",
+          "type": "COMBO",
+          "widget": {
+            "name": "age"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "nationality",
+          "name": "nationality",
+          "type": "COMBO",
+          "widget": {
+            "name": "nationality"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "body_type",
+          "name": "body_type",
+          "type": "COMBO",
+          "widget": {
+            "name": "body_type"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyes_color",
+          "name": "eyes_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyes_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "hair_style",
+          "name": "hair_style",
+          "type": "COMBO",
+          "widget": {
+            "name": "hair_style"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "hair_color",
+          "name": "hair_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "hair_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "hair_length",
+          "name": "hair_length",
+          "type": "COMBO",
+          "widget": {
+            "name": "hair_length"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "beard",
+          "name": "beard",
+          "type": "COMBO",
+          "widget": {
+            "name": "beard"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "beard_color",
+          "name": "beard_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "beard_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyebrows_color",
+          "name": "eyebrows_color",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyebrows_color"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "eyebrows_shape",
+          "name": "eyebrows_shape",
+          "type": "COMBO",
+          "widget": {
+            "name": "eyebrows_shape"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "nose_shape",
+          "name": "nose_shape",
+          "type": "COMBO",
+          "widget": {
+            "name": "nose_shape"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "face_symmetry",
+          "name": "face_symmetry",
+          "type": "COMBO",
+          "widget": {
+            "name": "face_symmetry"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "active",
+          "name": "active",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "active"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "load_preset",
+          "name": "load_preset",
+          "type": "COMBO",
+          "widget": {
+            "name": "load_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset_as",
+          "name": "save_preset_as",
+          "type": "STRING",
+          "widget": {
+            "name": "save_preset_as"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "save_preset",
+          "name": "save_preset",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "save_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "text_in",
+          "name": "text_in",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "shape": 7,
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "text_out",
+          "name": "text_out",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            61
+          ]
+        }
+      ],
+      "title": "STEP 4c  -  Face Generator  (cannot be used with 4b)",
+      "properties": {
+        "Node name for S&R": "PortraitMasterFaceGenerator"
+      },
+      "widgets_values": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        true,
+        "-- disabled --",
+        "",
+        false
+      ]
+    },
+    {
+      "id": 32,
+      "type": "PortraitMasterPromptStyler",
+      "pos": [
+        1120,
+        1470
+      ],
+      "size": [
+        430,
+        700
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "text_in",
+          "name": "text_in",
+          "type": "STRING",
+          "link": 65
+        },
+        {
+          "localized_name": "style",
+          "name": "style",
+          "type": "COMBO",
+          "widget": {
+            "name": "style"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "add_extra_instructions",
+          "name": "add_extra_instructions",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "add_extra_instructions"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "text_out",
+          "name": "text_out",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            66
+          ]
+        }
+      ],
+      "title": "STEP 4g  -  Prompt Styler  (off by default)",
+      "properties": {
+        "Node name for S&R": "PortraitMasterPromptStyler"
+      },
+      "widgets_values": [
+        "descriptive",
+        true
+      ]
+    }
+  ],
+  "links": [
+    [
+      33,
+      10,
+      0,
+      7,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      34,
+      5,
+      0,
+      7,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      35,
+      6,
+      0,
+      7,
+      3,
+      "LATENT"
+    ],
+    [
+      36,
+      7,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      37,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      41,
+      1,
+      2,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      42,
+      8,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      43,
+      1,
+      0,
+      2,
+      0,
+      "MODEL"
+    ],
+    [
+      44,
+      1,
+      1,
+      2,
+      1,
+      "CLIP"
+    ],
+    [
+      45,
+      2,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      46,
+      2,
+      1,
+      3,
+      1,
+      "CLIP"
+    ],
+    [
+      47,
+      3,
+      0,
+      7,
+      0,
+      "MODEL"
+    ],
+    [
+      48,
+      3,
+      1,
+      10,
+      0,
+      "CLIP"
+    ],
+    [
+      49,
+      3,
+      1,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      51,
+      4,
+      0,
+      12,
+      1,
+      "STRING"
+    ],
+    [
+      52,
+      12,
+      0,
+      10,
+      1,
+      "STRING"
+    ],
+    [
+      57,
+      24,
+      1,
+      2,
+      2,
+      "STRING"
+    ],
+    [
+      58,
+      24,
+      0,
+      29,
+      2,
+      [
+        "off",
+        "trained_face",
+        "random_face"
+      ]
+    ],
+    [
+      59,
+      2,
+      2,
+      29,
+      0,
+      "STRING"
+    ],
+    [
+      60,
+      29,
+      0,
+      12,
+      0,
+      "STRING"
+    ],
+    [
+      61,
+      31,
+      0,
+      25,
+      0,
+      "STRING"
+    ],
+    [
+      62,
+      25,
+      0,
+      26,
+      0,
+      "STRING"
+    ],
+    [
+      63,
+      26,
+      0,
+      28,
+      0,
+      "STRING"
+    ],
+    [
+      64,
+      28,
+      0,
+      27,
+      0,
+      "STRING"
+    ],
+    [
+      65,
+      27,
+      0,
+      32,
+      0,
+      "STRING"
+    ],
+    [
+      66,
+      32,
+      0,
+      29,
+      1,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "STEP 7",
+      "bounding": [
+        890,
+        -360,
+        919.96875,
+        1283.953125
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "STEP 10 MAKE IT",
+      "bounding": [
+        2820,
+        -350,
+        589.734375,
+        809.984375
+      ],
+      "color": "#8e7b3f",
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "GET IT",
+      "bounding": [
+        3560,
+        -350,
+        1649.484375,
+        1219.484375
+      ],
+      "color": "#3f8e5c",
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "STEP 3",
+      "bounding": [
+        -2800,
+        -370,
+        919.984375,
+        1631.1875
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 7,
+      "title": "STEP 6",
+      "bounding": [
+        70,
+        40,
+        609.984375,
+        830
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 8,
+      "title": "STEP 8",
+      "bounding": [
+        1890,
+        -360,
+        779.984375,
+        549.984375
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 9,
+      "title": "STEP 9",
+      "bounding": [
+        1900,
+        280,
+        799.984375,
+        459.984375
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 10,
+      "title": "STEP 4 PORTRAIT MASTER",
+      "bounding": [
+        -1740,
+        1380,
+        3350,
+        860
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    },
+    {
+      "id": 11,
+      "title": "STEP 1",
+      "bounding": [
+        -3490,
+        -370,
+        579.984375,
+        519.984375
+      ],
+      "color": "#3f789e",
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.1,
+      "offset": [
+        5455.383369511413,
+        1820.6590811881624
+      ]
+    },
+    "frontendVersion": "1.49.6",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "mobile_lineage": {
+      "lineage": "lin-1wskpq0ol8lmtrfrfnc",
+      "member": "lin-16mpor4bd48jmtwkyzab"
+    }
+  },
+  "version": 0.4
+}

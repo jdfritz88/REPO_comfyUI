@@ -1,0 +1,16 @@
+{
+  "prompt": "full body photo of a woman standing, plain grey studio background, casual grey t-shirt and dark jeans, soft studio light, photorealistic, sharp focus",
+  "negative": "different person, wrong face, deformed, extra limbs, blurry, lowres, watermark, text, cartoon",
+  "instruction": "Replace the woman in image 1 with the woman shown in images 2 and 3 - her face, her hair and her whole head. Keep image 1's pose, body, clothing, background and lighting unchanged. Do not blend faces.",
+  "expression_mode": "photo",
+  "pose_image": "stock_laugh_blonde.jpg",
+  "expression_image": "",
+  "driving_image": "FanJan.jpg",
+  "hair_reference_image": "F:/Apps/freedom_system/REPO_comfyUI/input/susana_ref/ref_00.png",
+  "photo_folder": "F:/Apps/freedom_system/REPO_comfyUI/input/susana_ref",
+  "skip_1_faceswap": false,
+  "skip_2_instruct": false,
+  "skip_3_fingerprint": false,
+  "skip_4_expression": false,
+  "skip_5_shapetracer": false
+}

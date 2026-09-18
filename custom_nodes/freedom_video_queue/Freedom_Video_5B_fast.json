@@ -1,0 +1,926 @@
+{
+  "id": "freedom-video",
+  "revision": 0,
+  "last_node_id": 60,
+  "last_link_id": 17,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "FreedomVideoQueue",
+      "pos": [
+        40,
+        120
+      ],
+      "size": [
+        680,
+        720
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "start_image",
+          "type": "IMAGE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "motion_prompt",
+          "type": "STRING",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "length_frames",
+          "type": "INT",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "freedom_video_queue",
+        "Node name for S&R": "FreedomVideoQueue"
+      },
+      "widgets_values": [
+        "{}",
+        "next pending"
+      ],
+      "title": "THE QUEUE  -  send images here, one prompt per slot"
+    },
+    {
+      "id": 2,
+      "type": "UnetLoaderGGUF",
+      "pos": [
+        780,
+        120
+      ],
+      "size": [
+        400,
+        60
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UnetLoaderGGUF"
+      },
+      "widgets_values": [
+        "Wan2.2-TI2V-5B-Q5_K_M.gguf"
+      ],
+      "title": "STEP 1  -  the video model (Wan 2.2)"
+    },
+    {
+      "id": 3,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        780,
+        260
+      ],
+      "size": [
+        400,
+        110
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Hands zib v1.safetensors",
+        1.0
+      ],
+      "title": "STEP 2  -  motion / expression add-on (LoRA)  [OFF]",
+      "color": "#3a2a1a",
+      "bgcolor": "#5a4020"
+    },
+    {
+      "id": 4,
+      "type": "ModelSamplingSD3",
+      "pos": [
+        780,
+        420
+      ],
+      "size": [
+        360,
+        60
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingSD3"
+      },
+      "widgets_values": [
+        8.0
+      ],
+      "title": "STEP 3  -  motion strength dial (shift)"
+    },
+    {
+      "id": 5,
+      "type": "CLIPLoaderGGUF",
+      "pos": [
+        780,
+        540
+      ],
+      "size": [
+        400,
+        90
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            9,
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoaderGGUF"
+      },
+      "widgets_values": [
+        "umt5-xxl-encoder-Q5_K_M.gguf",
+        "wan"
+      ],
+      "title": "the word-reader (leave it)"
+    },
+    {
+      "id": 6,
+      "type": "VAELoader",
+      "pos": [
+        780,
+        680
+      ],
+      "size": [
+        400,
+        60
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            11,
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "wan2.2_vae.safetensors"
+      ],
+      "title": "the developer (leave it)"
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1240,
+        120
+      ],
+      "size": [
+        420,
+        130
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 9
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 2,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "title": "STEP 4  -  your motion words  (comes from the slot's prompt)",
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 8,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1240,
+        300
+      ],
+      "size": [
+        420,
+        150
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "static, frozen, still photo, no motion, blurry, distorted face, warping, morphing, extra limbs, extra fingers, watermark, text, jitter, flicker"
+      ],
+      "title": "STEP 5  -  what to avoid  (leave this)",
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 9,
+      "type": "Wan22ImageToVideoLatent",
+      "pos": [
+        1240,
+        500
+      ],
+      "size": [
+        360,
+        150
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 11
+        },
+        {
+          "name": "start_image",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 3,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 4,
+          "widget": {
+            "name": "height"
+          }
+        },
+        {
+          "name": "length",
+          "type": "INT",
+          "link": 5,
+          "widget": {
+            "name": "length"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Wan22ImageToVideoLatent"
+      },
+      "widgets_values": [
+        1216,
+        832,
+        121,
+        1
+      ],
+      "title": "STEP 6  -  build the empty video  (size/length from the slot)"
+    },
+    {
+      "id": 10,
+      "type": "KSampler",
+      "pos": [
+        1680,
+        120
+      ],
+      "size": [
+        300,
+        290
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 14
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        0,
+        "randomize",
+        20,
+        5.0,
+        "euler",
+        "simple",
+        1.0
+      ],
+      "title": "STEP 7  -  make the motion"
+    },
+    {
+      "id": 11,
+      "type": "VAEDecode",
+      "pos": [
+        2020,
+        120
+      ],
+      "size": [
+        230,
+        60
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 16
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "title": "STEP 8  -  develop the frames  (leave it)"
+    },
+    {
+      "id": 12,
+      "type": "FreedomVideoSave",
+      "pos": [
+        2020,
+        260
+      ],
+      "size": [
+        560,
+        460
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 17
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "freedom_video_queue",
+        "Node name for S&R": "FreedomVideoSave"
+      },
+      "widgets_values": [
+        24,
+        "MP4 (H.264) - plays everywhere",
+        "freedom",
+        ""
+      ],
+      "title": "STEP 9  -  auto-save + Save to my folder"
+    },
+    {
+      "id": 50,
+      "type": "MarkdownNote",
+      "pos": [
+        40,
+        -520
+      ],
+      "size": [
+        680,
+        600
+      ],
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "## How to make videos\n\n1. Make pictures in the **bigLust** recipe (the other tab). In its\n   Preview & Pick panel, click the picture(s) you want, then click\n   **Send to Video Queue**.\n2. Come to this tab. Your pictures are now in **THE QUEUE** (the 9 boxes on\n   the left).\n3. Click a slot. In the RIGHT prompt box, type what should MOVE - e.g.\n   \"she slowly turns her head and smiles, hair sways, she breathes\".\n   Each slot has its own prompt. Empty = no motion words, the model guesses.\n   The **Copy from previous prompt** button re-uses the last one.\n4. Pick a **size** and **length** with the preset buttons (or leave the\n   defaults).\n5. Press **Run** (top right). If **Auto-start** is ticked, sending images\n   already pressed Run for you. The queue works through the slots one by one.\n6. Each finished video **auto-saves** to `output/freedom_video/`. To also\n   drop a copy in your own folder, use **Set User Save Folder** then\n   **Save to my folder** on STEP 9.\n\nVideo is slow on a 12 GB card - a 5-second clip is a few minutes. That's\nnormal.\n"
+      ],
+      "title": "READ ME FIRST",
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 51,
+      "type": "MarkdownNote",
+      "pos": [
+        780,
+        -140
+      ],
+      "size": [
+        400,
+        230
+      ],
+      "flags": {},
+      "order": 51,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "**Wan 2.2** is the model that turns a still picture into moving video.\n\nYou never change this box. It just loads `Wan2.2-TI2V-5B` (the compressed\n5-billion version - the one that fits your card)."
+      ],
+      "title": "STEP 1 - the video model",
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 52,
+      "type": "MarkdownNote",
+      "pos": [
+        780,
+        380
+      ],
+      "size": [
+        400,
+        340
+      ],
+      "flags": {},
+      "order": 52,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "**A LoRA is a small file that teaches the model ONE thing** - a camera\nmove, a facial expression, a body motion. You stack it on top of Wan here.\n\n**This box is OFF right now** (orange, greyed) because you have no Wan\nmotion LoRAs yet. To turn it on:\n1. Get one (see `comfyui_ext/LORA_SOURCES.md`, the **Video motion LoRAs**\n   section - and mind the Base model: `Wan Video 2.2` works here, an\n   `SDXL`/`Pony` expression LoRA goes on the bigLust IMAGE step instead). Drop the `.safetensors` in the loras folder.\n2. Right-click this box -> **Mode -> Always**.\n3. Choose the file in **lora_name**.\n4. Put the LoRA's **trigger word** into your motion prompt (it's on the\n   download page).\n\n### strength_model  -  the \"how hard it pushes\" dial\nThink volume knob: **left = subtle, right = strong, too far right = broken.**\n- **0.0**  - off, nothing happens.\n- **~0.5** - a gentle hint. Use this if the LoRA melts the face or warps\n  the body.\n- **1.0**  - normal full amount. **Start here.**\n- **1.2 - 1.5** - crank it. Only if the motion is too weak at 1.0. Higher\n  than this almost always distorts the picture.\n- **-1.0** - do the OPPOSITE of what the LoRA learned. Rarely useful.\n\nStacking two LoRAs? Add another **LoraLoaderModelOnly** box after this one\nand keep each strength lower (~0.6 - 0.8) so they don't fight.\n"
+      ],
+      "title": "STEP 2 - the LoRA add-on  (read this)",
+      "color": "#3a2a1a",
+      "bgcolor": "#5a4020"
+    },
+    {
+      "id": 53,
+      "type": "MarkdownNote",
+      "pos": [
+        780,
+        740
+      ],
+      "size": [
+        360,
+        160
+      ],
+      "flags": {},
+      "order": 53,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "**shift** controls how bold the motion is overall.\n- **around 5** = calm, small movements. Use for portraits, talking,\n  breathing.\n- **8** = the default - a good balance.\n- **10 - 12** = big, dramatic motion. Use for action. Too high = jittery\n  or morphing.\n\nLeft = calm, right = wild."
+      ],
+      "title": "STEP 3 - motion strength (shift)",
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 54,
+      "type": "MarkdownNote",
+      "pos": [
+        1240,
+        -110
+      ],
+      "size": [
+        420,
+        180
+      ],
+      "flags": {},
+      "order": 54,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "**STEP 4 (green)** fills itself from the queue slot you're working on -\ndon't type here, type in the queue panel's right box.\n\nWrite what MOVES, not what the picture looks like (that's already set by the\npicture). Good: \"she leans forward, lips part, slow breath\". Bad: \"red hair,\nfreckles\" (the picture already has those).\n\n**STEP 5 (red)** is the \"don't do this\" list - mainly \"static / frozen\" so\nyou actually get movement. Leave it alone."
+      ],
+      "title": "STEP 4-5 - the words",
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 55,
+      "type": "MarkdownNote",
+      "pos": [
+        1680,
+        430
+      ],
+      "size": [
+        300,
+        250
+      ],
+      "flags": {},
+      "order": 55,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "**steps** - how many passes. **20** is fine for Wan 5B. More (30) =\nslightly smoother, slower. Fewer (12) = faster, rougher.\n\n**cfg** - how hard it obeys your words.\n- **~3.5** = loose, more natural motion, may ignore some of your prompt.\n- **5** = the default - obeys but stays natural.\n- **7+** = obeys hard, can look stiff or over-cooked.\nLeft = free, right = strict.\n\n**sampler / scheduler** - `euler` / `simple` works well for Wan. Leave them.\n\n**control_after_generate**: `randomize` = new motion each Run. `fixed` = keep\nthe same motion while you tweak words."
+      ],
+      "title": "STEP 7 - make the motion",
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 56,
+      "type": "MarkdownNote",
+      "pos": [
+        2020,
+        740
+      ],
+      "size": [
+        560,
+        200
+      ],
+      "flags": {},
+      "order": 56,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "**STEP 9 - save + make it longer**\n\nEvery clip **auto-saves** to `output/freedom_video/` the moment it finishes - you can't lose one.\n\n- **Set User Save Folder** -> pick your own folder (remembered in this workflow). **Save to my folder** -> drops a copy of the last clip there.\n- **Format**: MP4 plays everywhere (default) / WebM is smaller for web / MOV is for video editors.\n\n**Extend video length** -> sends the finished clip back into the queue as a **green slot** (its last frame + its saved prompt come along). Type any extra motion, Run, and the new piece is joined onto the end. Do it as many times as you want.\n\nPicking **10 / 15 / 20 s** does this for you automatically - it makes the clip in ~5-second pieces and joins them. Each piece is a few minutes, so a 20-second clip is a long wait."
+      ],
+      "title": "STEP 9 - saving",
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 57,
+      "type": "MarkdownNote",
+      "pos": [
+        40,
+        860
+      ],
+      "size": [
+        680,
+        150
+      ],
+      "flags": {},
+      "order": 54,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "**Green-framed slots** in the queue came from a video (via Extend, or the **Load a video to extend** button). They carry the video's own saved motion prompt - click one and it shows in the right prompt box, ready to edit. When a green slot runs, the new footage is **joined onto the end** of that video."
+      ],
+      "title": "green slots = from a video",
+      "color": "#233",
+      "bgcolor": "#355"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      9,
+      1,
+      "IMAGE"
+    ],
+    [
+      2,
+      1,
+      1,
+      7,
+      1,
+      "STRING"
+    ],
+    [
+      3,
+      1,
+      2,
+      9,
+      2,
+      "INT"
+    ],
+    [
+      4,
+      1,
+      3,
+      9,
+      3,
+      "INT"
+    ],
+    [
+      5,
+      1,
+      4,
+      9,
+      4,
+      "INT"
+    ],
+    [
+      6,
+      2,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      7,
+      3,
+      0,
+      4,
+      0,
+      "MODEL"
+    ],
+    [
+      8,
+      4,
+      0,
+      10,
+      0,
+      "MODEL"
+    ],
+    [
+      9,
+      5,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      10,
+      5,
+      0,
+      8,
+      0,
+      "CLIP"
+    ],
+    [
+      11,
+      6,
+      0,
+      9,
+      0,
+      "VAE"
+    ],
+    [
+      12,
+      6,
+      0,
+      11,
+      1,
+      "VAE"
+    ],
+    [
+      13,
+      7,
+      0,
+      10,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      8,
+      0,
+      10,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      15,
+      9,
+      0,
+      10,
+      3,
+      "LATENT"
+    ],
+    [
+      16,
+      10,
+      0,
+      11,
+      0,
+      "LATENT"
+    ],
+    [
+      17,
+      11,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "1. QUEUE YOUR PICTURES",
+      "bounding": [
+        10,
+        90,
+        720,
+        1300
+      ],
+      "color": "#3f789e",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2. THE MACHINE (set once, then leave it)",
+      "bounding": [
+        760,
+        90,
+        900,
+        850
+      ],
+      "color": "#7a5b2f",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3. MAKE + SAVE",
+      "bounding": [
+        1660,
+        90,
+        940,
+        850
+      ],
+      "color": "#3f8e5c",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

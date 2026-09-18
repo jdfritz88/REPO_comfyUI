@@ -1,0 +1,10 @@
+# Freedom System - share the existing Stable Diffusion SDXL model library with ComfyUI
+# so bigLust / lustify / Pony and the SDXL LoRAs are usable without copying files.
+sdxl_library:
+    base_path: F:/Apps/freedom_system/app_cabinet/Stable_Diffusion_SDXL/models/
+    checkpoints: Stable-diffusion
+    loras: Lora
+    vae: VAE
+    upscale_models: ESRGAN
+    embeddings: embeddings
+    hypernetworks: hypernetworks

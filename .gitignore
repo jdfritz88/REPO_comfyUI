@@ -1,0 +1,49 @@
+# REPO_comfyUI - our own work only.
+#
+# ComfyUI itself is NOT here. The developer's app lives in app_cabinet/comfyui
+# and is kept pristine so it can be updated. This folder is what the launcher
+# points that app at, via --base-directory. See the launcher's ComfyUI service.
+#
+# Rule: track what we make. Everything else is ignored, however big or small.
+
+# --- the big data: never trackable, GitHub refuses files over 100 MB ---
+models/
+output/
+input/
+temp/
+_backups/
+
+# --- the developer's own placeholder files, kept so the folders make sense ---
+custom_nodes/example_node.py.example
+custom_nodes/websocket_image_save.py
+
+# --- third-party nodes: each has its own upstream repo, re-installable ---
+custom_nodes/*
+!custom_nodes/freedom_*/
+!custom_nodes/FREEDOM_NODES_README.md
+!custom_nodes/LORA_SOURCES.md
+
+# --- user directory: workflows and presets are ours, the rest is runtime ---
+user/*
+!user/default/
+user/default/*
+!user/default/workflows/
+!user/default/portrait_presets/
+user/default/workflows/*.bak_before_*
+user/default/workflows/*.bak-*
+
+# --- logs: the written record is ours, the runtime spew is not ---
+*.log
+logs/*
+!logs/*.md
+!logs/*.py
+!logs/*.json
+
+# --- python and editor noise ---
+__pycache__/
+*.py[cod]
+.vscode/
+.idea/
+venv*/
+.venv/
+.DS_Store

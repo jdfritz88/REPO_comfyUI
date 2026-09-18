@@ -1,0 +1,494 @@
+// =============================================================================
+// FREEDOM SYSTEM - Portrait Control (screen side)
+//
+// Draws, on the desktop ComfyUI page:
+//   - STEP 4a: three radio buttons (who is in charge), a preset list, and the
+//     Save / Save as / Delete / Reset-all buttons.
+//   - each Portrait Master node group: the same explanation banner, an indicator of
+//     who is in charge of it, three radio buttons of its own, a preset list that reads
+//     the developer's folder first and ours second, and Save / Save as / Delete /
+//     Factory reset.
+//   - Base Character and Face Generator: the conflict banner and the paired radio -
+//     exactly one of the two is filled; clicking the empty one switches which node is
+//     active and greys the other out.
+//   - Prompt Styler: its own on/off radio, off by default.
+//
+// Radio buttons are real <input type="radio"> elements: ComfyUI has no radio widget,
+// and the developer's nodes ship no page code at all.
+//
+// Everything the server must obey is mirrored into STEP 4a's hidden "state" field,
+// because ComfyUI sends a node's input values to the server and nothing else.
+// =============================================================================
+import { app } from "../../scripts/app.js";
+
+const CONTROL_NODE = "FreedomPortraitUserPreset";
+
+const MODE_PRESET_WINS = "preset wins - dials locked";
+const MODE_PRESET_UNLOCKED = "preset loaded - dials unlocked";
+const MODE_IGNORE = "ignore presets - use the dials";
+
+const NODE_MODE_PRESET = "node preset";
+const NODE_MODE_PRESET_UNLOCKED = "node preset + unlocked";
+const NODE_MODE_IGNORE = "ignore presets";
+
+const NO_PRESET = "-- none --";
+
+// The six node groups in the workflow. Legacy 2.9.2 is not among them: it is left out
+// of the workflow, hidden from the node menu, and covered by no preset or reset.
+const PM_CLASSES = [
+  "PortraitMasterBaseCharacter",
+  "PortraitMasterFaceGenerator",
+  "PortraitMasterSkinDetails",
+  "PortraitMasterStylePose",
+  "PortraitMasterMakeup",
+  "PortraitMasterPromptStyler",
+];
+const PAIR = ["PortraitMasterBaseCharacter", "PortraitMasterFaceGenerator"];
+const HOUSEKEEPING = new Set(["seed", "control_after_generate", "load_preset",
+                              "save_preset", "save_preset_as", "state"]);
+
+const EXPLANATION =
+  "Radio buttons on 4a decide who is in charge:\n" +
+  "  Use preset            - the preset wins, these dials are locked.\n" +
+  "  Use preset, unlocked  - the preset loads, you can tweak; saving happens on 4a.\n" +
+  "  Ignore presets        - this node's own three radios take over:\n" +
+  "      Use this node's preset (default) - dials locked, no buttons.\n" +
+  "      Load preset, unlock dials        - save, save as, delete available.\n" +
+  "      Ignore presets, unlock dials     - save as and delete available.\n" +
+  "Factory reset works only in the last one.";
+
+const CONFLICT =
+  "These two cannot be used together. The developer: \"Face Generator is a " +
+  "simplified node of Base Character. You can cascade both of them with Skin " +
+  "Details, but don't use Face Generator with Base Character.\"\n" +
+  "The filled radio is the one in use. Click the empty one to switch.";
+
+// --------------------------------------------------------------------------- //
+// small helpers
+// --------------------------------------------------------------------------- //
+const api = {
+  async list(scope) {
+    const r = await fetch(`/freedom/pm/presets?scope=${encodeURIComponent(scope)}`);
+    return (await r.json()).presets || [];
+  },
+  async read(scope, name) {
+    const r = await fetch(`/freedom/pm/preset?scope=${encodeURIComponent(scope)}&name=${encodeURIComponent(name)}`);
+    return r.ok ? await r.json() : null;
+  },
+  async save(scope, name, data, overwrite) {
+    const r = await fetch("/freedom/pm/preset/save", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope, name, data, overwrite }),
+    });
+    return await r.json();
+  },
+  async remove(scope, name) {
+    const r = await fetch("/freedom/pm/preset/delete", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope, name }),
+    });
+    return await r.json();
+  },
+  async defaults(node) {
+    const r = await fetch(`/freedom/pm/defaults${node ? `?node=${encodeURIComponent(node)}` : ""}`);
+    return await r.json();
+  },
+};
+
+const el = (tag, props = {}, children = []) => {
+  const e = Object.assign(document.createElement(tag), props);
+  for (const c of children) e.append(c);
+  return e;
+};
+
+const graphNodes = (type) => (app.graph?._nodes || []).filter((n) => n.type === type);
+const controlNode = () => graphNodes(CONTROL_NODE)[0] || null;
+const widget = (node, name) => (node?.widgets || []).find((w) => w.name === name) || null;
+
+function dialWidgets(node) {
+  return (node.widgets || []).filter(
+    (w) => !HOUSEKEEPING.has(w.name) && w.type !== "button" && !w.__freedom
+  );
+}
+
+function readDials(node) {
+  const out = {};
+  for (const w of dialWidgets(node)) out[w.name] = w.value;
+  return out;
+}
+
+function writeDials(node, values) {
+  let n = 0;
+  for (const w of dialWidgets(node)) {
+    if (values && Object.prototype.hasOwnProperty.call(values, w.name) && w.value !== values[w.name]) {
+      w.value = values[w.name];
+      w.callback?.(w.value);
+      n++;
+    }
+  }
+  queueRedraw();
+  return n;
+}
+
+// One redraw per frame at most. Calling node.setDirtyCanvas() from inside a panel refresh -
+// once per node, on seven nodes that each carry a DOM panel - re-enters the draw path and
+// freezes the page. Measured: with the per-node call the workflow never finished loading;
+// without it, 0.48 s. So redraws are queued and coalesced instead.
+let redrawQueued = false;
+function queueRedraw() {
+  if (redrawQueued) return;
+  redrawQueued = true;
+  requestAnimationFrame(() => { redrawQueued = false; app.graph?.setDirtyCanvas(true, true); });
+}
+
+function lockDials(node, locked) {
+  for (const w of dialWidgets(node)) w.disabled = !!locked;
+  queueRedraw();
+}
+
+// --------------------------------------------------------------------------- //
+// shared state, mirrored into 4a's hidden "state" field for the server
+// --------------------------------------------------------------------------- //
+const state = {
+  nodes: {},                                   // class -> {mode, preset}
+  switches: { start: "base", prompt_styler: false },
+};
+
+for (const c of PM_CLASSES) state.nodes[c] = { mode: NODE_MODE_PRESET, preset: NO_PRESET };
+
+function pushState() {
+  const c = controlNode();
+  const w = widget(c, "state");
+  if (!w) return;
+  w.value = JSON.stringify(state);
+}
+
+function pullState() {
+  const w = widget(controlNode(), "state");
+  if (!w?.value) return;
+  try {
+    const saved = JSON.parse(w.value);
+    if (saved && typeof saved === "object") {
+      if (saved.nodes) Object.assign(state.nodes, saved.nodes);
+      if (saved.switches) Object.assign(state.switches, saved.switches);
+    }
+  } catch (_) { /* a broken field is replaced by the next push */ }
+}
+
+const controlMode = () => widget(controlNode(), "mode")?.value || MODE_PRESET_WINS;
+
+// Who is in charge of one node group, and therefore what is locked or greyed.
+function statusFor(cls) {
+  const m = controlMode();
+  if (m === MODE_PRESET_WINS) return { inCharge: "4a preset", dialsLocked: true, nodeRadios: false, buttons: "none", reset: false };
+  if (m === MODE_PRESET_UNLOCKED) return { inCharge: "4a preset, dials unlocked", dialsLocked: false, nodeRadios: false, buttons: "none", reset: false };
+  const nm = state.nodes[cls]?.mode || NODE_MODE_PRESET;
+  if (nm === NODE_MODE_PRESET) return { inCharge: "this node's preset", dialsLocked: true, nodeRadios: true, buttons: "none", reset: false };
+  if (nm === NODE_MODE_PRESET_UNLOCKED) return { inCharge: "this node's preset, unlocked", dialsLocked: false, nodeRadios: true, buttons: "all", reset: false };
+  return { inCharge: "this node's dials", dialsLocked: false, nodeRadios: true, buttons: "saveas_delete", reset: true };
+}
+
+const panels = [];                             // every panel refreshes when anything changes
+function refreshAll() {
+  pushState();
+  for (const p of panels) { try { p.refresh(); } catch (e) { console.error("[freedom pm]", e); } }
+}
+
+// Applying a 4a preset to what the screen shows, so the dials always show what is used.
+async function applyControlPreset() {
+  const c = controlNode();
+  const name = widget(c, "preset")?.value;
+  const m = controlMode();
+  if (!c || !name || name === NO_PRESET || m === MODE_IGNORE) return;
+  const found = await api.read("user", name);
+  if (!found?.data) return;
+  if (found.data.switches) Object.assign(state.switches, found.data.switches);
+  for (const cls of PM_CLASSES) {
+    const values = found.data.nodes?.[cls];
+    if (!values) continue;
+    for (const node of graphNodes(cls)) {
+      if (m === MODE_PRESET_WINS) writeDials(node, values);
+      else {
+        const defs = (await api.defaults(cls))[cls] || {};
+        const fill = {};
+        for (const [k, v] of Object.entries(values)) {
+          const w = widget(node, k);
+          if (w && w.value === defs[k]) fill[k] = v;
+        }
+        writeDials(node, fill);
+      }
+    }
+  }
+  refreshAll();
+}
+
+// --------------------------------------------------------------------------- //
+// the panel drawn on every node
+// --------------------------------------------------------------------------- //
+function buildPanel(node, cls) {
+  const isControl = cls === CONTROL_NODE;
+  const scope = isControl ? "user" : cls;
+  const root = el("div", { className: "freedom-pm" });
+  root.style.cssText = "font:12px system-ui,sans-serif;display:flex;flex-direction:column;gap:6px;padding:6px;color:#ddd;";
+
+  const banner = el("pre");
+  banner.style.cssText = "margin:0;white-space:pre-wrap;font:11px ui-monospace,monospace;color:#bbb;background:#1c1c1c;border-left:3px solid #666;padding:6px;";
+  banner.textContent = isControl
+    ? "STEP 4a decides who is in charge. One choice only.\n" + EXPLANATION
+    : EXPLANATION;
+  root.append(banner);
+
+  let conflictBanner = null, pairRadio = null;
+  if (PAIR.includes(cls)) {
+    conflictBanner = el("pre");
+    conflictBanner.style.cssText = "margin:0;white-space:pre-wrap;font:11px ui-monospace,monospace;color:#f0c674;background:#2a2113;border-left:3px solid #f0c674;padding:6px;";
+    conflictBanner.textContent = CONFLICT;
+    root.append(conflictBanner);
+
+    const wrap = el("label", {}, []);
+    wrap.style.cssText = "display:flex;gap:6px;align-items:center;";
+    pairRadio = el("input", { type: "radio", name: "freedom-pm-pair" });
+    pairRadio.addEventListener("change", () => {
+      state.switches.start = cls === "PortraitMasterBaseCharacter" ? "base" : "facegen";
+      refreshAll();
+    });
+    wrap.append(pairRadio, el("span", { textContent: "use this node" }));
+    root.append(wrap);
+  }
+
+  let stylerRadios = null;
+  if (cls === "PortraitMasterPromptStyler") {
+    const wrap = el("div");
+    wrap.style.cssText = "display:flex;gap:12px;align-items:center;";
+    stylerRadios = {};
+    for (const [key, label] of [["on", "Prompt Styler ON"], ["off", "Prompt Styler OFF"]]) {
+      const l = el("label"); l.style.cssText = "display:flex;gap:4px;align-items:center;";
+      const r = el("input", { type: "radio", name: `freedom-pm-styler-${node.id}` });
+      r.addEventListener("change", () => { state.switches.prompt_styler = key === "on"; refreshAll(); });
+      l.append(r, el("span", { textContent: label }));
+      wrap.append(l);
+      stylerRadios[key] = r;
+    }
+    root.append(wrap);
+  }
+
+  const indicator = el("div");
+  indicator.style.cssText = "font-weight:600;color:#9ecbff;";
+  root.append(indicator);
+
+  const arrow = el("div", { textContent: "↓" });
+  arrow.style.cssText = "text-align:center;color:#888;font-size:14px;line-height:1;";
+  root.append(arrow);
+
+  // radio buttons
+  const radioWrap = el("div");
+  radioWrap.style.cssText = "display:flex;flex-direction:column;gap:2px;";
+  const radios = {};
+  const choices = isControl
+    ? [[MODE_PRESET_WINS, "Use the preset (dials locked)"],
+       [MODE_PRESET_UNLOCKED, "Use the preset, unlock the dials"],
+       [MODE_IGNORE, "Ignore the presets, use the dials"]]
+    : [[NODE_MODE_PRESET, "Use this node's preset"],
+       [NODE_MODE_PRESET_UNLOCKED, "Load the preset, unlock the dials"],
+       [NODE_MODE_IGNORE, "Ignore the presets, unlock the dials"]];
+  for (const [value, label] of choices) {
+    const l = el("label"); l.style.cssText = "display:flex;gap:6px;align-items:center;";
+    const r = el("input", { type: "radio", name: `freedom-pm-${isControl ? "control" : cls}-${node.id}` });
+    r.addEventListener("change", async () => {
+      if (isControl) {
+        const w = widget(node, "mode");
+        if (w) { w.value = value; w.callback?.(value); }
+        await applyControlPreset();
+      } else {
+        state.nodes[cls].mode = value;
+      }
+      refreshAll();
+    });
+    l.append(r, el("span", { textContent: label }));
+    radioWrap.append(l);
+    radios[value] = r;
+  }
+  root.append(radioWrap);
+
+  // preset row
+  const row = el("div");
+  row.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;";
+  const select = el("select");
+  select.style.cssText = "flex:1;min-width:140px;background:#222;color:#ddd;border:1px solid #555;padding:2px;";
+  select.addEventListener("change", async () => {
+    if (isControl) {
+      const w = widget(node, "preset");
+      if (w) { w.value = select.value; w.callback?.(select.value); }
+      await applyControlPreset();
+    } else {
+      state.nodes[cls].preset = select.value;
+      const found = select.value !== NO_PRESET ? await api.read(scope, select.value) : null;
+      if (found?.data) writeDials(node, found.data);
+    }
+    refreshAll();
+  });
+  row.append(select);
+  const nameBox = el("input", { type: "text", placeholder: "new preset name" });
+  nameBox.style.cssText = "width:150px;background:#222;color:#ddd;border:1px solid #555;padding:2px;";
+  row.append(nameBox);
+  root.append(row);
+
+  const buttonRow = el("div");
+  buttonRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+  const mkButton = (label, fn) => {
+    const b = el("button", { textContent: label });
+    b.style.cssText = "background:#333;color:#ddd;border:1px solid #666;padding:3px 8px;cursor:pointer;";
+    b.addEventListener("click", async (e) => { e.preventDefault(); await fn(); });
+    buttonRow.append(b);
+    return b;
+  };
+
+  const say = el("div");
+  say.style.cssText = "color:#9c9;min-height:14px;";
+
+  const gather = () => {
+    if (!isControl) return readDials(node);
+    const nodes = {};
+    for (const c of PM_CLASSES) {
+      const n = graphNodes(c)[0];
+      if (n) nodes[c] = readDials(n);
+    }
+    return { nodes, switches: { ...state.switches } };
+  };
+
+  const btnSave = mkButton("Save", async () => {
+    const name = select.value;
+    if (!name || name === NO_PRESET) { say.textContent = "Pick a preset to save over."; return; }
+    const res = await api.save(scope, name, gather(), true);
+    say.textContent = res.ok ? `Saved '${name}'.` : res.error;
+    await refreshLists();
+  });
+  const btnSaveAs = mkButton("Save as", async () => {
+    const name = nameBox.value.trim();
+    if (!name) { say.textContent = "Type a name first."; return; }
+    const res = await api.save(scope, name, gather(), false);
+    say.textContent = res.ok ? `Saved '${name}'.` : res.error;
+    if (res.ok) { nameBox.value = ""; await refreshLists(); select.value = name; select.dispatchEvent(new Event("change")); }
+  });
+  const btnDelete = mkButton("Delete", async () => {
+    const name = select.value;
+    if (!name || name === NO_PRESET) { say.textContent = "Pick a preset to delete."; return; }
+    const res = await api.remove(scope, name);
+    say.textContent = res.ok ? `Deleted '${name}'.` : res.error;
+    await refreshLists();
+  });
+  const btnReset = mkButton(isControl ? "Factory reset ALL" : "Factory reset", async () => {
+    const defs = await api.defaults(isControl ? null : cls);
+    let n = 0;
+    for (const c of isControl ? PM_CLASSES : [cls]) {
+      const values = defs[c];
+      if (!values) continue;
+      for (const target of graphNodes(c)) n += writeDials(target, values);
+    }
+    say.textContent = `Factory reset: ${n} dial(s) back to the developer's values.`;
+    refreshAll();
+  });
+  root.append(buttonRow, say);
+
+  async function refreshLists() {
+    const presets = await api.list(scope);
+    const current = select.value;
+    select.replaceChildren();
+    select.append(el("option", { value: NO_PRESET, textContent: NO_PRESET }));
+    for (const p of presets) {
+      select.append(el("option", {
+        value: p.name,
+        textContent: p.source === "developer" ? `${p.name}  (Portrait Master)` : p.name,
+      }));
+    }
+    const wanted = isControl ? widget(node, "preset")?.value : state.nodes[cls]?.preset;
+    select.value = [...select.options].some((o) => o.value === wanted) ? wanted
+                 : ([...select.options].some((o) => o.value === current) ? current : NO_PRESET);
+  }
+
+  function refresh() {
+    if (isControl) {
+      const m = controlMode();
+      for (const [value, r] of Object.entries(radios)) r.checked = value === m;
+      indicator.textContent = `In charge: ${m}`;
+      const ignoring = m === MODE_IGNORE;
+      select.disabled = ignoring;
+      btnSave.disabled = ignoring;
+      btnSaveAs.disabled = ignoring;
+      btnDelete.disabled = ignoring;
+      btnReset.disabled = !ignoring;          // reset-all only when presets are ignored
+      const w = widget(node, "preset");
+      if (w && select.value !== w.value && !ignoring) select.value = w.value;
+    } else {
+      const s = statusFor(cls);
+      for (const [value, r] of Object.entries(radios)) {
+        r.checked = value === (state.nodes[cls]?.mode || NODE_MODE_PRESET);
+        r.disabled = !s.nodeRadios;
+      }
+      indicator.textContent = `In charge: ${s.inCharge}`;
+      radioWrap.style.opacity = s.nodeRadios ? "1" : "0.45";
+      const presetUsable = s.nodeRadios && (state.nodes[cls]?.mode !== NODE_MODE_IGNORE);
+      select.disabled = !presetUsable;
+      btnSave.disabled = s.buttons !== "all";
+      btnSaveAs.disabled = !(s.buttons === "all" || s.buttons === "saveas_delete");
+      btnDelete.disabled = !(s.buttons === "all" || s.buttons === "saveas_delete");
+      btnReset.disabled = !s.reset;
+      lockDials(node, s.dialsLocked);
+      root.style.opacity = s.dialsLocked && controlMode() === MODE_PRESET_WINS ? "0.75" : "1";
+      if (pairRadio) {
+        const active = state.switches.start === (cls === "PortraitMasterBaseCharacter" ? "base" : "facegen");
+        pairRadio.checked = active;
+        root.style.filter = active ? "none" : "grayscale(1)";
+        lockDials(node, s.dialsLocked || !active);
+      }
+      if (stylerRadios) {
+        stylerRadios.on.checked = !!state.switches.prompt_styler;
+        stylerRadios.off.checked = !state.switches.prompt_styler;
+      }
+    }
+  }
+
+  node.addDOMWidget("freedom_pm_panel", "div", root, { serialize: false, hideOnZoom: false });
+  const panel = { node, cls, refresh, refreshLists };
+  panels.push(panel);
+  refreshLists().then(refresh);
+  return panel;
+}
+
+// --------------------------------------------------------------------------- //
+// registration
+// --------------------------------------------------------------------------- //
+app.registerExtension({
+  name: "freedom.portrait.control",
+
+  // (The Legacy 2.9.2 node is hidden on the SERVER side - see __init__.py - because the
+  // page's node-filter store is not reachable from an extension module here.)
+
+  async nodeCreated(node) {
+    const cls = node.comfyClass || node.type;
+    if (cls !== CONTROL_NODE && !PM_CLASSES.includes(cls)) return;
+
+    if (cls === CONTROL_NODE) {
+      const w = widget(node, "state");
+      if (w) {
+        // The state field exists for the SERVER, not to be read on screen. A multiline
+        // STRING widget draws its own textarea element, so marking the widget hidden is not
+        // enough - the element has to be hidden too, or the raw JSON shows on the node.
+        w.__freedom = true;
+        w.type = "hidden";
+        w.computeSize = () => [0, -4];
+        const hideElement = () => {
+          const el = w.element || w.inputEl || w.domElement;
+          if (el) { el.style.display = "none"; return true; }
+          return false;
+        };
+        if (!hideElement()) {
+          let tries = 0;
+          const timer = setInterval(() => { if (hideElement() || ++tries > 20) clearInterval(timer); }, 100);
+        }
+      }
+      setTimeout(() => { pullState(); refreshAll(); }, 50);
+    }
+    setTimeout(() => buildPanel(node, cls), 0);
+  },
+});

@@ -1,0 +1,215 @@
+{
+ "last_node_id": 6,
+ "last_link_id": 0,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "FreedomFolderInspector",
+   "pos": [
+    40,
+    60
+   ],
+   "size": [
+    680,
+    520
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "selected_file",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FreedomFolderInspector"
+   },
+   "widgets_values": [
+    "checkpoints",
+    ""
+   ],
+   "title": "[checkpoints]"
+  },
+  {
+   "id": 2,
+   "type": "FreedomFolderInspector",
+   "pos": [
+    760,
+    60
+   ],
+   "size": [
+    680,
+    520
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "selected_file",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FreedomFolderInspector"
+   },
+   "widgets_values": [
+    "diffusion_models",
+    ""
+   ],
+   "title": "[diffusion_models]"
+  },
+  {
+   "id": 3,
+   "type": "FreedomFolderInspector",
+   "pos": [
+    1480,
+    60
+   ],
+   "size": [
+    680,
+    520
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "selected_file",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FreedomFolderInspector"
+   },
+   "widgets_values": [
+    "loras",
+    ""
+   ],
+   "title": "[loras]"
+  },
+  {
+   "id": 4,
+   "type": "FreedomFolderInspector",
+   "pos": [
+    40,
+    640
+   ],
+   "size": [
+    680,
+    520
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "selected_file",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FreedomFolderInspector"
+   },
+   "widgets_values": [
+    "vae",
+    ""
+   ],
+   "title": "[vae]"
+  },
+  {
+   "id": 5,
+   "type": "FreedomFolderInspector",
+   "pos": [
+    760,
+    640
+   ],
+   "size": [
+    680,
+    520
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "selected_file",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FreedomFolderInspector"
+   },
+   "widgets_values": [
+    "upscale_models",
+    ""
+   ],
+   "title": "[upscale_models]"
+  },
+  {
+   "id": 6,
+   "type": "FreedomFolderInspector",
+   "pos": [
+    1480,
+    640
+   ],
+   "size": [
+    680,
+    520
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "selected_file",
+     "type": "STRING",
+     "links": null,
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "FreedomFolderInspector"
+   },
+   "widgets_values": [
+    "embeddings",
+    ""
+   ],
+   "title": "[embeddings]"
+  }
+ ],
+ "links": [],
+ "groups": [
+  {
+   "title": "Freedom - Model Folder Inspectors  (click a file = read about it; drag a file onto another box = move it on disk)",
+   "bounding": [
+    20,
+    0,
+    2180,
+    1220
+   ],
+   "color": "#3f789e",
+   "font_size": 18
+  }
+ ],
+ "config": {},
+ "extra": {},
+ "version": 0.4
+}

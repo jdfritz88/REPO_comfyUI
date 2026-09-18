@@ -1,0 +1,1166 @@
+{
+  "id": "freedom-video-14b",
+  "revision": 0,
+  "last_node_id": 23,
+  "last_link_id": 25,
+  "nodes": [
+    {
+      "id": 14,
+      "type": "FreedomVideoQueue",
+      "pos": [
+        40,
+        120
+      ],
+      "size": [
+        680,
+        720
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "start_image",
+          "type": "IMAGE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "motion_prompt",
+          "type": "STRING",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "length_frames",
+          "type": "INT",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "freedom_video_queue",
+        "Node name for S&R": "FreedomVideoQueue"
+      },
+      "widgets_values": [
+        "{}",
+        "next pending"
+      ],
+      "title": "THE QUEUE  -  send images here, one prompt per slot"
+    },
+    {
+      "id": 1,
+      "type": "UnetLoaderGGUF",
+      "pos": [
+        780,
+        120
+      ],
+      "size": [
+        420,
+        60
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UnetLoaderGGUF"
+      },
+      "widgets_values": [
+        "Wan2.2-I2V-A14B-HighNoise-Q3_K_M.gguf"
+      ],
+      "title": "STEP 1a  -  Wan 14B  'big shapes' expert"
+    },
+    {
+      "id": 2,
+      "type": "UnetLoaderGGUF",
+      "pos": [
+        780,
+        220
+      ],
+      "size": [
+        420,
+        60
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UnetLoaderGGUF"
+      },
+      "widgets_values": [
+        "Wan2.2-I2V-A14B-LowNoise-Q3_K_M.gguf"
+      ],
+      "title": "STEP 1b  -  Wan 14B  'fine detail' expert"
+    },
+    {
+      "id": 3,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        780,
+        320
+      ],
+      "size": [
+        420,
+        110
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Hands zib v1.safetensors",
+        1.0
+      ],
+      "title": "STEP 2a  -  LoRA on the big-shapes expert  [OFF]",
+      "color": "#3a2a1a",
+      "bgcolor": "#5a4020"
+    },
+    {
+      "id": 4,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        780,
+        460
+      ],
+      "size": [
+        420,
+        110
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly"
+      },
+      "widgets_values": [
+        "Hands zib v1.safetensors",
+        1.0
+      ],
+      "title": "STEP 2b  -  same LoRA on the detail expert  [OFF]",
+      "color": "#3a2a1a",
+      "bgcolor": "#5a4020"
+    },
+    {
+      "id": 5,
+      "type": "ModelSamplingSD3",
+      "pos": [
+        780,
+        600
+      ],
+      "size": [
+        380,
+        60
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingSD3"
+      },
+      "widgets_values": [
+        8.0
+      ],
+      "title": "STEP 3a  -  motion dial (big-shapes)"
+    },
+    {
+      "id": 6,
+      "type": "ModelSamplingSD3",
+      "pos": [
+        780,
+        700
+      ],
+      "size": [
+        380,
+        60
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingSD3"
+      },
+      "widgets_values": [
+        8.0
+      ],
+      "title": "STEP 3b  -  motion dial (detail)"
+    },
+    {
+      "id": 15,
+      "type": "CLIPLoaderGGUF",
+      "pos": [
+        780,
+        800
+      ],
+      "size": [
+        420,
+        90
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            12,
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoaderGGUF"
+      },
+      "widgets_values": [
+        "umt5-xxl-encoder-Q5_K_M.gguf",
+        "wan"
+      ],
+      "title": "the word-reader (leave it)"
+    },
+    {
+      "id": 16,
+      "type": "VAELoader",
+      "pos": [
+        780,
+        930
+      ],
+      "size": [
+        420,
+        60
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            14,
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "wan_2.1_vae.safetensors"
+      ],
+      "title": "the developer (leave it)  -  14B uses the Wan 2.1 VAE"
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1260,
+        120
+      ],
+      "size": [
+        420,
+        130
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 12
+        },
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 2,
+          "widget": {
+            "name": "text"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        ""
+      ],
+      "title": "STEP 4  -  your motion words  (from the slot)",
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 8,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1260,
+        300
+      ],
+      "size": [
+        420,
+        150
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 13
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "static, frozen, still photo, no motion, blurry, distorted face, warping, morphing, extra limbs, extra fingers, watermark, text, jitter, flicker"
+      ],
+      "title": "STEP 5  -  what to avoid  (leave this)",
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 9,
+      "type": "WanImageToVideo",
+      "pos": [
+        1260,
+        500
+      ],
+      "size": [
+        380,
+        200
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 16
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 17
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 14
+        },
+        {
+          "name": "start_image",
+          "type": "IMAGE",
+          "link": 1
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "link": 3,
+          "widget": {
+            "name": "width"
+          }
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "link": 4,
+          "widget": {
+            "name": "height"
+          }
+        },
+        {
+          "name": "length",
+          "type": "INT",
+          "link": 5,
+          "widget": {
+            "name": "length"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            18,
+            21
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            19,
+            22
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanImageToVideo"
+      },
+      "widgets_values": [
+        1216,
+        832,
+        121,
+        1
+      ],
+      "title": "STEP 6  -  build the empty video  (size/length from the slot)"
+    },
+    {
+      "id": 10,
+      "type": "KSamplerAdvanced",
+      "pos": [
+        1700,
+        120
+      ],
+      "size": [
+        300,
+        330
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 8
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 18
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 19
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            23
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerAdvanced"
+      },
+      "widgets_values": [
+        "enable",
+        0,
+        "randomize",
+        20,
+        3.5,
+        "euler",
+        "simple",
+        0,
+        10,
+        "enable"
+      ],
+      "title": "STEP 7a  -  rough motion (big-shapes expert, steps 0-10)"
+    },
+    {
+      "id": 11,
+      "type": "KSamplerAdvanced",
+      "pos": [
+        2020,
+        120
+      ],
+      "size": [
+        300,
+        330
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 11
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 21
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 22
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 23
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerAdvanced"
+      },
+      "widgets_values": [
+        "disable",
+        0,
+        "fixed",
+        20,
+        3.5,
+        "euler",
+        "simple",
+        10,
+        10000,
+        "disable"
+      ],
+      "title": "STEP 7b  -  refine (detail expert, steps 10-end)"
+    },
+    {
+      "id": 12,
+      "type": "VAEDecode",
+      "pos": [
+        2340,
+        120
+      ],
+      "size": [
+        230,
+        60
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 24
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "title": "STEP 8  -  develop the frames  (leave it)"
+    },
+    {
+      "id": 13,
+      "type": "FreedomVideoSave",
+      "pos": [
+        2340,
+        260
+      ],
+      "size": [
+        560,
+        460
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 25
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "freedom_video_queue",
+        "Node name for S&R": "FreedomVideoSave"
+      },
+      "widgets_values": [
+        24,
+        "MP4 (H.264) - plays everywhere",
+        "freedom",
+        ""
+      ],
+      "title": "STEP 9  -  auto-save + Save to my folder"
+    },
+    {
+      "id": 17,
+      "type": "MarkdownNote",
+      "pos": [
+        40,
+        -560
+      ],
+      "size": [
+        720,
+        620
+      ],
+      "flags": {},
+      "order": 50,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "## How to make videos\n\n1. In the **bigLust** recipe (other tab), click your picture(s), then\n   **Send to Video Queue**.\n2. Here: click a slot, type the MOTION in the right prompt box (what should\n   move), pick a size / length, press **Run**.\n3. Each clip **auto-saves** to `output/freedom_video/`. STEP 9 also has\n   **Set User Save Folder** / **Save to my folder**, and **Extend video\n   length** (joins more onto the end).\n\n## This is the 14-billion model - slower, better\nTwo \"experts\" run in sequence per clip: STEP 7a lays down the big motion,\nSTEP 7b polishes detail. On a 12 GB card a 5-second clip is roughly\n**8-15 minutes**. The 10/15/20 s presets chain 5 s pieces, so those are\nlong waits.\n\n**Want it fast?** Open `Freedom_Video_5B_fast.json` instead - the 5-billion\nmodel, ~1-3 min per clip, a bit softer motion.\n"
+      ],
+      "title": "READ ME FIRST  (14B model)",
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 18,
+      "type": "MarkdownNote",
+      "pos": [
+        780,
+        -40
+      ],
+      "size": [
+        420,
+        120
+      ],
+      "flags": {},
+      "order": 51,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "14B is split in two. **1a** handles overall movement and layout, **1b**\nsharpens the fine detail. Both load; STEP 7 uses one then the other. You\nnever change these boxes."
+      ],
+      "title": "STEP 1 - the two experts",
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 22,
+      "type": "MarkdownNote",
+      "pos": [
+        780,
+        -470
+      ],
+      "size": [
+        430,
+        400
+      ],
+      "flags": {},
+      "order": 55,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "These are two engines for turning a picture into a moving clip.\n\n**The big engine (this workflow)**\n- The movement looks real. Faces stay faces, hands stay hands, nothing\n  melts or wobbles between frames.\n- It listens. Type a detailed motion and it actually does that motion.\n- The add-on \"trick\" files - eyes rolling back, ecstasy face, finger\n  movement - are almost all built for this big engine. The small one\n  barely has any.\n- It works in two passes: first pass blocks out the big motion, second\n  pass cleans up the detail.\n\n**What the big engine costs you**\n- **Time:** ~8-15 min for a 5-second clip on this laptop. The small\n  engine does it in 1-3 min.\n- **Memory:** ~10.5 of your 12 GB of graphics memory, so the chat model\n  and other apps have to shut off while it runs.\n- **Disk:** two big files, ~13 GB together, plus a helper file. The small\n  engine is one 3.6 GB file.\n- Long clips (10 / 15 / 20 s) are made by gluing 5-second pieces\n  together, so they take a while.\n\n**Which one to use**\n- Just testing an idea, or checking a picture moves at all -> open the\n  file named `Freedom_Video_5B_fast`.\n- Something you want to keep, or using a trick file, or asking for tricky\n  movement -> stay here on the big one.\n- We picked a squeezed-down version of the big model on purpose, so it\n  just barely fits your graphics memory."
+      ],
+      "title": "WHY THE BIG MODEL (14B), NOT THE SMALL ONE (5B)",
+      "color": "#2a2f3a",
+      "bgcolor": "#3c4a63"
+    },
+    {
+      "id": 19,
+      "type": "MarkdownNote",
+      "pos": [
+        1220,
+        -40
+      ],
+      "size": [
+        460,
+        120
+      ],
+      "flags": {},
+      "order": 52,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "**STEP 4 (green)** fills from the queue slot - type in the queue panel,\nnot here. Write what MOVES. **STEP 5 (red)** is the \"no static\" list -\nleave it."
+      ],
+      "title": "STEP 4-5 - the words",
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 20,
+      "type": "MarkdownNote",
+      "pos": [
+        780,
+        480
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "flags": {},
+      "order": 53,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "A LoRA teaches ONE motion / expression. For 14B it must go on **BOTH**\nexperts - that's why there are two boxes (2a and 2b). Load the **same\nfile** in each.\n\n**Both are OFF now** (orange). To turn on: get a **Wan 2.2 / Wan 14B**\nLoRA (see `comfyui_ext/LORA_SOURCES.md`), drop it in the loras folder,\nright-click each box -> **Mode -> Always**, pick the file in both, and put\nits trigger word in your motion prompt.\n\n### strength_model  -  volume knob\n- **0.0** off  -  **~0.5** gentle hint (use if it distorts)  -\n  **1.0** normal, start here  -  **1.2-1.5** crank it (only if too weak).\nLeft = subtle, right = strong, too far right = broken. Keep 2a and 2b the\nsame number."
+      ],
+      "title": "STEP 2 - LoRA add-on  (both boxes)",
+      "color": "#3a2a1a",
+      "bgcolor": "#5a4020"
+    },
+    {
+      "id": 21,
+      "type": "MarkdownNote",
+      "pos": [
+        1700,
+        470
+      ],
+      "size": [
+        620,
+        240
+      ],
+      "flags": {},
+      "order": 54,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "Two passes: **7a** (big-shapes expert) runs steps 0-10, **7b** (detail\nexpert) runs 10 to the end.\n\n- **cfg ~3.5** - Wan likes it low. Higher = stiffer, obeys words harder.\n- **steps 20** total is the norm. The split (10 / 10) is the two\n  start_at_step / end_at_step numbers - leave them matched.\n- **7a** seed control `randomize` = new motion each Run; `fixed` = keep\n  tweaking. **7b** stays `fixed`.\n- `return_with_leftover_noise`: **7a = enable, 7b = disable**. Don't swap\n  these."
+      ],
+      "title": "STEP 7 - two-stage sampling",
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 23,
+      "type": "MarkdownNote",
+      "pos": [
+        2340,
+        740
+      ],
+      "size": [
+        560,
+        220
+      ],
+      "flags": {},
+      "order": 56,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MarkdownNote"
+      },
+      "widgets_values": [
+        "Auto-saves to `output/freedom_video/`. **Set User Save Folder** +\n**Save to my folder** = your own copy (folder saved in the workflow).\n**Format**: MP4 default / WebM smaller / MOV for editors.\n\n**Extend video length** -> the clip goes back to the queue as a green\nslot (last frame + saved prompt). Run to add more onto the end.\n\n10 / 15 / 20 s presets auto-chain 5 s pieces - each piece is many minutes\non 14B."
+      ],
+      "title": "STEP 9 - save + longer",
+      "color": "#233",
+      "bgcolor": "#355"
+    }
+  ],
+  "links": [
+    [
+      1,
+      14,
+      0,
+      9,
+      3,
+      "IMAGE"
+    ],
+    [
+      2,
+      14,
+      1,
+      7,
+      1,
+      "STRING"
+    ],
+    [
+      3,
+      14,
+      2,
+      9,
+      4,
+      "INT"
+    ],
+    [
+      4,
+      14,
+      3,
+      9,
+      5,
+      "INT"
+    ],
+    [
+      5,
+      14,
+      4,
+      9,
+      6,
+      "INT"
+    ],
+    [
+      6,
+      1,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      7,
+      3,
+      0,
+      5,
+      0,
+      "MODEL"
+    ],
+    [
+      8,
+      5,
+      0,
+      10,
+      0,
+      "MODEL"
+    ],
+    [
+      9,
+      2,
+      0,
+      4,
+      0,
+      "MODEL"
+    ],
+    [
+      10,
+      4,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      11,
+      6,
+      0,
+      11,
+      0,
+      "MODEL"
+    ],
+    [
+      12,
+      15,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      13,
+      15,
+      0,
+      8,
+      0,
+      "CLIP"
+    ],
+    [
+      14,
+      16,
+      0,
+      9,
+      2,
+      "VAE"
+    ],
+    [
+      15,
+      16,
+      0,
+      12,
+      1,
+      "VAE"
+    ],
+    [
+      16,
+      7,
+      0,
+      9,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      17,
+      8,
+      0,
+      9,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      18,
+      9,
+      0,
+      10,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      19,
+      9,
+      1,
+      10,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      20,
+      9,
+      2,
+      10,
+      3,
+      "LATENT"
+    ],
+    [
+      21,
+      9,
+      0,
+      11,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      22,
+      9,
+      1,
+      11,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      23,
+      10,
+      0,
+      11,
+      3,
+      "LATENT"
+    ],
+    [
+      24,
+      11,
+      0,
+      12,
+      0,
+      "LATENT"
+    ],
+    [
+      25,
+      12,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "1. QUEUE YOUR PICTURES",
+      "bounding": [
+        10,
+        90,
+        720,
+        1300
+      ],
+      "color": "#3f789e",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "2. THE 14B MACHINE (set once)",
+      "bounding": [
+        760,
+        90,
+        920,
+        930
+      ],
+      "color": "#7a5b2f",
+      "font_size": 22,
+      "flags": {}
+    },
+    {
+      "title": "3. MAKE + SAVE",
+      "bounding": [
+        1690,
+        90,
+        1220,
+        880
+      ],
+      "color": "#3f8e5c",
+      "font_size": 22,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
