@@ -363,7 +363,7 @@ face-training output "live" relative to git — established that:
    `main.py` and the venv's `python.exe` both exist at the resolved path.
 6. **Restarted ComfyUI** from the new location with its original launch flags
    (`--port 8188 --disable-auto-launch --output-directory ... --listen
-   127.0.0.1,100.65.32.118`). Startup log showed all 20 custom node packages
+   127.0.0.1,<TAILSCALE_IP>`). Startup log showed all 20 custom node packages
    (the six `freedom_*` ones plus every third-party one) importing with zero
    errors; server reachable on both addresses (HTTP 200 confirmed via curl on
    both `127.0.0.1:8188` and the Tailscale IP).

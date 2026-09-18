@@ -55,8 +55,8 @@ chain:  4c -> 4b -> 4d -> 4e -> 4f -> 4g -> STEP 5 router -> your typed words ->
 
 ## 1.4 Addresses
 - This computer: `http://127.0.0.1:8188`
-- Phone, Comfy Portal app: `http://100.65.32.118:8188`
-- Phone, Safari, no app: `http://100.65.32.118:8188/mobile`
+- Phone, Comfy Portal app: `http://<TAILSCALE_IP>:8188`
+- Phone, Safari, no app: `http://<TAILSCALE_IP>:8188/mobile`
 - The server listens on both 127.0.0.1 and the Tailscale address.
 
 ## 1.5 Where things are kept

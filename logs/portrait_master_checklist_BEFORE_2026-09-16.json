@@ -425,13 +425,13 @@
     },
     {
       "section": "8 Addresses",
-      "check": "http://100.65.32.118:8188/ answers",
+      "check": "http://<TAILSCALE_IP>:8188/ answers",
       "result": "PASS",
       "evidence": 200
     },
     {
       "section": "8 Addresses",
-      "check": "http://100.65.32.118:8188/mobile answers",
+      "check": "http://<TAILSCALE_IP>:8188/mobile answers",
       "result": "PASS",
       "evidence": 302
     }

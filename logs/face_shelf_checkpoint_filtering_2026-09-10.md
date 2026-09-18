@@ -25,7 +25,7 @@ session:
 - **Bound to loopback only.** ComfyUI was reachable at `127.0.0.1:8188` on the
   laptop but not from the phone over Tailscale, because it was listening on the
   loopback address only. Fixed by launching with `--listen 0.0.0.0`, after which
-  `http://100.65.32.118:8188` worked from the phone.
+  `http://<TAILSCALE_IP>:8188` worked from the phone.
 
 Standing launch line used for the rest of the session:
 

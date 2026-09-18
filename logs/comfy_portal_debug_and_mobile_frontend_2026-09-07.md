@@ -14,7 +14,7 @@ showing "An error occurred while syncing workflows. Please check your connection
 **Investigated methodically, ruling things out one at a time rather than guessing:**
 
 1. Confirmed ComfyUI itself was up and listening on both `127.0.0.1:8188` and the Tailscale IP
-   `100.65.32.118:8188` (`netstat`).
+   `<TAILSCALE_IP>:8188` (`netstat`).
 2. Confirmed the `comfy-portal-endpoint` plugin was actually installed on disk
    (`app_cabinet/comfyui/custom_nodes/comfy-portal-endpoint`) and loaded cleanly in `comfyui.log`
    — nothing needed reinstalling, correcting an earlier wrong assumption.
@@ -26,8 +26,8 @@ showing "An error occurred while syncing workflows. Please check your connection
 4. Checked Windows Firewall: no explicit rule blocking it, and there's a pre-existing "Python" inbound-allow
    rule covering the Private profile (which the Tailscale interface is categorized under) for both TCP and
    UDP, any port — so the firewall was never the problem either.
-5. Confirmed on the phone that Tailscale itself was connected, and both this PC (`jacobx16zeta`,
-   `100.65.32.118`) and the phone (`iphone-13-pro-max`, `100.119.119.70`) showed green/online in the
+5. Confirmed on the phone that Tailscale itself was connected, and both this PC (`<THIS_PC>`,
+   `<TAILSCALE_IP>`) and the phone (`<PHONE>`, `<PHONE_TAILSCALE_IP>`) showed green/online in the
    tailnet.
 
 Every server-side and network-level check passed. The actual fix was on the phone: after the user tapped
@@ -79,7 +79,7 @@ whether to add the flag to `_make_comfyui_service()`. Still open.
 
 ## 4. Researched the actual security model before answering "can anyone with the address get in?"
 
-User's worry: since ComfyUI is listening on `100.65.32.118:8188`, "anyone with the web address" could
+User's worry: since ComfyUI is listening on `<TAILSCALE_IP>:8188`, "anyone with the web address" could
 access it. Checked rather than assumed:
 
 - Tailscale addresses (the `100.x.x.x` CGNAT range) are only routable between devices in the same tailnet —
@@ -121,7 +121,7 @@ Checked both relevant licenses directly rather than assuming "open source = free
   every other third-party custom node here).
 - ComfyUI was already running (in "Server + phone access" mode, left up from the prior session) — stopped it
   (`taskkill /T` needed `/F` to actually kill the full process tree; some child processes resisted the
-  graceful signal) and relaunched it with the same `--listen 127.0.0.1,100.65.32.118` flags so the new
+  graceful signal) and relaunched it with the same `--listen 127.0.0.1,<TAILSCALE_IP>` flags so the new
   custom node would load.
 - Confirmed in `comfyui.log`: `[Mobile Frontend] Mobile UI enabled at: /mobile` — loaded clean.
 
@@ -136,7 +136,7 @@ Checked both relevant licenses directly rather than assuming "open source = free
   screenshot/page-read calls specifically failed against `http://127.0.0.1:8188/...` with "Frame with ID 0 is
   showing error page" — even though `curl` against the identical URL worked perfectly and returned real
   HTML. Confirmed this is a loopback-specific block: the exact same page loaded and rendered correctly over
-  the Tailscale address `http://100.65.32.118:8188/mobile/` instead. Not a ComfyUI or mobile-frontend
+  the Tailscale address `http://<TAILSCALE_IP>:8188/mobile/` instead. Not a ComfyUI or mobile-frontend
   problem — an extension-side restriction on `127.0.0.1`.
 
 ### Verified the actual interface, live, for editing/rearranging capability
@@ -161,8 +161,8 @@ User specifically wanted to know whether a wrongly-arranged mobile layout could 
 
 ## 7. Current state at end of session
 
-- ComfyUI: UP, phone-access mode, `--listen 127.0.0.1,100.65.32.118`, port 8188.
-- `comfyui-mobile-frontend` installed and loading clean; reachable at `http://100.65.32.118:8188/mobile` from
+- ComfyUI: UP, phone-access mode, `--listen 127.0.0.1,<TAILSCALE_IP>`, port 8188.
+- `comfyui-mobile-frontend` installed and loading clean; reachable at `http://<TAILSCALE_IP>:8188/mobile` from
   Safari on the phone (not `127.0.0.1` — that address is specifically blocked for the Claude-in-Chrome
   extension, though it works fine from an actual phone browser since the extension isn't involved there).
 - Comfy Portal (the original native app) is still installed and working — this is a second, alternative

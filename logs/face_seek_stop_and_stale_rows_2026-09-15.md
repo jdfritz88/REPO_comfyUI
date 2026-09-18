@@ -252,8 +252,8 @@ carries them between the user's own devices.
     tailscale serve --bg --http=8080 http://127.0.0.1:50086
     # off again: tailscale serve --http=8080 off
 
-**Address: `http://jacobx16zeta.taildfe328.ts.net:8080/`** - the name, not the IP.
-The forwarding is tied to the machine name, so `http://100.65.32.118:8080/`
+**Address: `http://<TAILSCALE_HOST>:8080/`** - the name, not the IP.
+The forwarding is tied to the machine name, so `http://<TAILSCALE_IP>:8080/`
 answers 404 unless the Host header carries the name. Plain http, not https:
 `CertDomains` is empty on this tailnet, so `--https=443` had nothing to serve
 with and hung. Tested from outside the loopback: page 200, state showed Susana

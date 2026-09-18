@@ -334,8 +334,17 @@ rec("7 End to end", f"ComfyUI's classic default workflow makes a picture ({ckpt}
 # ---------------------------------------------------------------------------------------------
 # 8. Addresses
 # ---------------------------------------------------------------------------------------------
-for url, expect in (("http://127.0.0.1:8188/", (200,)), ("http://100.65.32.118:8188/", (200,)),
-                    ("http://100.65.32.118:8188/mobile", (200, 302))):
+# The phone address is this machine's private Tailscale IP. It is not written
+# down here because this repo is public; set FREEDOM_TAILSCALE_IP before running
+# if you want the two phone checks to run. Without it they are skipped, and the
+# local check still runs.
+_phone_ip = os.environ.get("FREEDOM_TAILSCALE_IP", "").strip()
+_checks = [("http://127.0.0.1:8188/", (200,))]
+if _phone_ip:
+    _checks += [(f"http://{_phone_ip}:8188/", (200,)),
+                (f"http://{_phone_ip}:8188/mobile", (200, 302))]
+
+for url, expect in _checks:
     try:
         req = urllib.request.Request(url, method="GET")
         opener = urllib.request.build_opener(type("NoRedirect", (urllib.request.HTTPRedirectHandler,),
