@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Face Seek Review</title>
+<style>
+  :root { --bg:#141414; --panel:#1f1f1f; --text:#e8e8e8; --muted:#9a9a9a; --line:#333;
+          --tick:#3d8bfd; --yellow:#f5c518; --danger:#d9534f; --go:#2e9d52; --dup:#3fb950; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding-inline:16px; padding-block:0 48px; background:var(--bg); color:var(--text);
+         font:14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  #bar { position:sticky; top:0; z-index:10; background:var(--bg); border-bottom:1px solid var(--line);
+         padding-block:10px; }
+  #bar h1 { font-size:18px; margin:0 0 6px; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; color:var(--muted); margin-bottom:8px; }
+  .swatch { display:inline-block; width:18px; height:14px; vertical-align:middle; margin-right:6px;
+            border:3px solid var(--line); border-radius:3px; }
+  .swatch.yellow { border-color:var(--yellow); }
+  .swatch.tick { border-color:var(--tick); }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  button { font:inherit; padding:6px 12px; border-radius:5px; border:1px solid #555; background:#2a2a2a;
+           color:var(--text); cursor:pointer; }
+  button:disabled { opacity:.45; cursor:default; }
+  button.danger { border-color:var(--danger); }
+  button.go { background:var(--go); border-color:var(--go); color:#fff; font-weight:600; }
+  #status { color:var(--muted); min-height:1.4em; margin-top:6px; }
+  #work { margin-top:8px; }
+  #work[hidden] { display:none; }
+  #workLine { color:var(--text); margin-bottom:4px; }
+  #workTrack { height:14px; background:#2a2a2a; border:1px solid var(--line); border-radius:7px;
+               overflow:hidden; max-width:520px; }
+  #workFill { height:100%; width:0; background:var(--go); transition:width .25s linear; }
+  #confirm { margin-top:8px; padding:10px; border:1px solid var(--go); border-radius:6px; background:#18261c; }
+  #confirm[hidden], #big[hidden], #finish[hidden], #yes[hidden] { display:none; }
+  h2 { font-size:17px; margin:26px 0 6px; border-bottom:1px solid var(--line); padding-bottom:5px; }
+  .what { color:var(--text); margin:0 0 8px; max-width:78ch; }
+  .howto { color:var(--muted); background:var(--panel); border-left:3px solid var(--tick);
+           border-radius:0 6px 6px 0; padding:9px 12px; margin:0 0 12px; max-width:78ch; }
+  .howto ul { margin:6px 0; padding-left:20px; }
+  .howto li { margin:3px 0; }
+  .howto b { color:var(--text); }
+  .empty { color:var(--muted); font-style:italic; padding:6px 0; }
+  .empty[hidden], section[hidden], .howto[hidden] { display:none; }
+  h2 span { color:var(--muted); font-weight:400; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:10px; }
+  .grid.wide { grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); }
+  .tile video { width:100%; max-height:320px; background:#000; display:block; border-radius:3px; }
+  .tile .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .tile .row button { padding:5px 10px; }
+  .tile .mark { color:var(--go); font:600 12px "Segoe UI", sans-serif; }
+  .tile.answered { opacity:.45; }
+  .tile { background:var(--panel); border:4px solid transparent; border-radius:7px; padding:6px; cursor:pointer;
+          user-select:none; position:relative; }
+  .tile.others { border-color:var(--yellow); }
+  .tile .best { color:var(--dup); font:700 11px "Segoe UI", sans-serif; }
+  .group { border-top:2px solid var(--dup); margin:18px 0 0; padding-top:8px; }
+  .group:first-child { border-top:none; }
+  .ghead { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 8px; }
+  .ghead b { color:var(--dup); }
+  .ghead .n { color:var(--muted); }
+  .scanbar { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin:0 0 12px;
+             padding:9px 12px; background:var(--panel); border-left:3px solid var(--dup);
+             border-radius:0 6px 6px 0; }
+  .scanbar input[type=range] { width:230px; accent-color:var(--dup); }
+  .scanbar .val { font:700 14px "Segoe UI", sans-serif; min-width:1.6em; text-align:center; }
+  .scanbar .hint { color:var(--muted); }
+  .tile.ticked { outline:4px solid var(--tick); outline-offset:1px; }
+  .tile img { width:100%; height:210px; object-fit:contain; background:#000; display:block; border-radius:3px; }
+  .tile .meta { font:11px Consolas, monospace; color:var(--muted); margin-top:4px; word-break:break-all; }
+  .tile .flag { color:var(--yellow); font:600 11px "Segoe UI", sans-serif; }
+  .tile label { display:flex; gap:6px; align-items:center; margin-top:4px; }
+  input[type=checkbox] { width:18px; height:18px; accent-color:var(--tick); }
+  #big { position:fixed; inset:0; background:rgba(0,0,0,.9); display:flex; align-items:center; justify-content:center;
+         z-index:20; padding:16px; }
+  #big img { max-width:100%; max-height:100%; object-fit:contain; }
+  #settings { margin:16px 0 4px; padding:14px 16px; border:3px solid #f0a030; border-radius:8px;
+              background:#2a1d08; color:#ffe7c2; }
+  #settings h2 { margin:0 0 8px; font-size:20px; color:#ffb347; letter-spacing:.3px; }
+  #settings ol { margin:6px 0 10px; padding-left:22px; }
+  #settings li { margin:3px 0; }
+  #settings li.chosen { color:#fff; font-weight:700; }
+  #settings li.chosen::after { content:"  ← CHOSEN"; color:#ffb347; }
+  #settings table { border-collapse:collapse; }
+  #settings td { padding:2px 14px 2px 0; vertical-align:top; }
+  #settings td:first-child { color:#f5c890; white-space:nowrap; }
+  #settings .note { color:#f5c890; font-size:13px; margin-top:8px; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <h1 id="title">Review crops before training</h1>
+  <div class="legend">
+    <span id="counts">loading…</span>
+    <span>Double-click any picture to see it large.</span>
+  </div>
+  <div class="actions">
+    <button id="yellowOnly">Filter: yellow framed only</button>
+    <button id="all">Tick all</button>
+    <button id="none">Clear ticks</button>
+    <button id="del" class="danger" disabled>Delete ticked</button>
+    <button id="unused" disabled>Yes — but don't use it</button>
+    <button id="blur" disabled>Blur other faces</button>
+    <button id="left" disabled>Rotate Left</button>
+    <button id="right" disabled>Rotate Right</button>
+    <button id="proceed" class="go">Proceed to training</button>
+    <button id="undo" disabled>Undo</button>
+    <span id="undoSaid" class="mark"></span>
+  </div>
+  <div id="confirm" hidden>
+    <div id="confirmText"></div>
+    <div class="actions" style="margin-top:8px">
+      <button id="yes" class="go">Yes, start training</button>
+      <button id="finish" class="go" hidden>Process approved photo(s) and videos</button>
+      <button id="no">Cancel</button>
+    </div>
+  </div>
+  <div id="work" hidden>
+    <div id="workLine"></div>
+    <div id="workTrack"><div id="workFill"></div></div>
+  </div>
+  <div id="status"></div>
+</div>
+
+<section id="settings" aria-label="Training settings">
+  <h2>TRAINING SETTINGS — text-encoder training is your choice (c)</h2>
+  <div>The three options were:</div>
+  <ol type="a" id="setOptions"></ol>
+  <table id="setTable"></table>
+  <div class="note">Why there was a choice: no authoritative source gives tested text-encoder values for a
+    real-person SDXL LoRA. OneTrainer's own SDXL LoRA preset has it off; Kohya's SDXL docs recommend
+    training the UNet only. Proceed trains with exactly these settings.</div>
+</section>
+
+<section id="unsureVideosWrap">
+  <h2>1 &middot; Videos the search could not call <span id="unsureVideoN"></span></h2>
+  <p class="what">Videos that have a face in them the search could not be sure about. Each one is a
+    copy; your own video on the drive is untouched. Nothing has been taken out of these.</p>
+  <div class="howto" id="unsureVideoHow">
+    <b>What to do:</b> play a video. If she is in it, pause at the first moment you see her and press
+    <b>She appears here</b>. The video then leaves this list; its copy is kept, and the next search
+    starts that video at the moment you marked instead of reading it from the beginning, and pulls
+    her frames out. If she is not in it, press <b>Not her</b>: the copy is deleted and the decision
+    is written into her search history. Mark it once — <b>Undo</b> at the top takes it back.
+  </div>
+  <div class="grid wide" id="unsureVideos"></div>
+  <div class="empty" id="unsureVideoEmpty" hidden>Nothing waiting here.</div>
+</section>
+
+<section id="unsurePhotosWrap">
+  <h2>2 &middot; Photos the search could not call <span id="unsurePhotoN"></span></h2>
+  <p class="what">Whole photos, and whole frames pulled out of your videos, where the app could not
+    tell whether the face is hers. Rather than guess, it set them aside for you. Answer one and it
+    leaves the list.</p>
+  <div class="howto" id="unsurePhotoHow">
+    <b>What to do:</b> answer each picture.
+    <ul>
+      <li><b>Yes, it's her</b> — the picture is kept and cut into crops for training.</li>
+      <li><b>Yes — but don't use it</b> — it is her, but you do not want it trained on. The decision
+        is written down, the copy is deleted, and nothing about the app's idea of her face changes.</li>
+      <li><b>Duplicate</b> — the same picture again. Recorded and the copy deleted.</li>
+      <li><b>Not her</b> — the copy is deleted and no later search will copy that photo again.</li>
+    </ul>
+    Nothing asks you to confirm. <b>Undo</b> at the top of the page takes back your last answer, and
+    no file is actually deleted while Undo can still reach it.
+  </div>
+  <div class="grid" id="unsurePhotos"></div>
+  <div class="empty" id="unsurePhotoEmpty" hidden>Nothing waiting here.</div>
+</section>
+
+<section id="headWrap">
+  <h2>3 &middot; Face crops <span id="headN"></span></h2>
+  <p class="what">Her face, cut close out of every photo and frame the search kept. These are what the
+    LoRA learns her face from.</p>
+  <div class="howto">
+    <b>What to do:</b> look for crops that are wrong — someone else's face still in shot, a sideways
+    picture, a bad cut. Tick those, then use the buttons at the top of the page:
+    <ul>
+      <li><b>Delete ticked</b> — the crop goes to the Recycle Bin, and the app writes down that the
+        photo it came from is not her, so no later search copies it again.</li>
+      <li><b>Rotate Left</b> / <b>Rotate Right</b> — turns a sideways crop a quarter turn and
+        measures her face again.</li>
+    </ul>
+    Anything you leave alone is kept. A <span class="swatch tick"></span><b>blue outline</b> means
+    you have ticked it.
+  </div>
+  <div class="howto">
+    <b><span class="swatch yellow"></span>Yellow frame: someone else is still in the picture.</b>
+    When a crop is cut, the app finds every face in it, works out which is hers, and shrinks the
+    edges to push the others out without ever cutting into her face. Yellow means that failed — the
+    other face overlaps hers, or trimming far enough would have left too little picture. Three ways
+    to deal with one:
+    <ul>
+      <li><b>Blur other faces</b> — the other faces are blurred away where they stand and the crop
+        is kept. Blur, not a black box, because a hard black rectangle is a shape the training would
+        learn.</li>
+      <li><b>Yes — but don't use it</b> — it is her, and you don't want it trained on. The crop goes
+        to the Recycle Bin and the decision is recorded. Nothing is learned from it, and the photo
+        is <i>not</i> marked as somebody else.</li>
+      <li><b>Delete ticked</b> — for a crop that isn't her at all. The crop goes to the Recycle Bin
+        and the app records that the photo it came from is not this person, so no later search
+        copies it again.</li>
+    </ul>
+    <b>Find near duplicates</b> looks for crops showing her at the same moment — it finds her face,
+    straightens it, and compares her head angle and the look of her face, eyes and mouth. The
+    background, her clothes and how the picture was framed do not count. The groups are shown one
+    under another, divided by a green line. Every picture in a group is ticked except the
+    one with the biggest, sharpest view of her face, which is left unticked and marked <b>BEST</b>. Agree by pressing that group's own <b>Yes — but don't use it</b> or <b>Delete ticked</b>, up beside
+    its heading, or change the ticks first. Those buttons touch that group and nothing else; the ones
+    in the toolbar stand down while a scan is showing, because the ticks belong to the whole page. The
+    slider decides how alike counts as the same; move it and scan again. A group you have dealt
+    with, or pressed <b>Keep all of these</b> on, leaves the queue.
+    <br>Leaving one alone trains on it, other face and all. <b>Filter: yellow framed only</b> at the top
+    hides everything else, so you can work through just these; while it is on, <b>Tick all</b> ticks
+    only what is shown.
+  </div>
+  <div class="scanbar">
+    <button id="scan_head">Find near duplicates</button>
+    <label for="notch_head">How alike her face must be:</label>
+    <input type="range" id="notch_head" min="1" max="10" step="1" value="4">
+    <span class="val" id="notchVal_head">4</span>
+    <span class="hint">left = only a face that has barely moved · right = looser, so a small turn
+      or a change of expression still groups. Scanning only ticks; nothing is deleted.</span>
+    <button id="scanOff_head" hidden>Reset filters</button>
+    <span class="hint" id="settled_head"></span>
+  </div>
+  <div class="grid" id="head"></div>
+  <div class="empty" id="headEmpty" hidden>No face crops.</div>
+</section>
+
+<section id="bodyWrap">
+  <h2>4 &middot; Body crops <span id="bodyN"></span></h2>
+  <p class="what">A wider cut of the same pictures, head to somewhere below the waist, so the LoRA
+    also learns her build and how she stands rather than a face floating on its own.</p>
+  <div class="howto">
+    <b>What to do:</b> the same as face crops — tick the bad ones and use <b>Delete ticked</b> or the
+    rotate buttons at the top of the page. Anything you leave alone is kept.
+  </div>
+  <div class="scanbar">
+    <button id="scan_body">Find near duplicates</button>
+    <label for="notch_body">How alike her face must be:</label>
+    <input type="range" id="notch_body" min="1" max="10" step="1" value="4">
+    <span class="val" id="notchVal_body">4</span>
+    <span class="hint">left = only a face that has barely moved · right = looser, so a small turn
+      or a change of expression still groups. Scanning only ticks; nothing is deleted.</span>
+    <button id="scanOff_body" hidden>Reset filters</button>
+    <span class="hint" id="settled_body"></span>
+  </div>
+  <div class="grid" id="body"></div>
+  <div class="empty" id="bodyEmpty" hidden>No body crops.</div>
+</section>
+
+<p class="what" id="finishNote">When you are finished, <b>Proceed to training</b> at the top uses
+  every crop still left in sections 3 and 4 — whatever you ticked or did not tick — and starts the
+  run. If anything you answered "Yes, it's her" or marked "She appears here" has not been turned into
+  crops yet, it stops and offers to do that first, so nothing you approved is left out.</p>
+
+<div id="big" hidden><img alt=""></div>
+
+<script>
+const ticked = new Set();          // "kind/name"
+// Show only the crops with somebody else's face still in them (user,
+// 2026-09-17). Everything that acts on ticked crops - Tick all included - works
+// on what is SHOWN, so nothing can be done to a crop you cannot see.
+let yellowOnly = false;
+// Near-duplicate groups per section, as a queue: {groups, threshold}. A group is
+// {keep, members}. Working through one group may take several scans at different
+// slider settings (user, 2026-09-17), so a group only leaves when it is settled.
+const dupView = { head: null, body: null };
+const shown = (kind) => {
+  const rows = (state && state.items[kind]) || [];
+  return yellowOnly ? rows.filter(i => i.others > 0) : rows;
+};
+let state = null;
+const $ = (id) => document.getElementById(id);
+const say = (t) => { $("status").textContent = t; };
+
+function groupBlock(kind, gr, i, total) {
+  const rows = (state.items[kind] || []).filter(it => gr.members.includes(it.name));
+  const box = document.createElement("div");
+  box.className = "group";
+  const head = document.createElement("div");
+  head.className = "ghead";
+  const title = document.createElement("b");
+  title.textContent = `Group ${i + 1} of ${total}`;
+  const n = document.createElement("span");
+  n.className = "n";
+  n.textContent = `${rows.length} pictures · the best one is unticked`;
+  // Every button here works on THIS group only. The ticks are shared across the
+  // whole page, so a toolbar button would act on every group at once - which is
+  // what threw the user out of the queue after dealing with group 1
+  // (found 2026-09-17).
+  const mine = () => rows.filter(it => ticked.has(`${kind}/${it.name}`))
+                         .map(it => ({ kind, name: it.name }));
+  const unusedOne = document.createElement("button");
+  unusedOne.textContent = "Yes — but don't use it";
+  unusedOne.onclick = () => actOnGroup(kind, gr, mine(), "not_used");
+  const delOne = document.createElement("button");
+  delOne.className = "danger";
+  delOne.textContent = "Delete ticked";
+  delOne.onclick = () => actOnGroup(kind, gr, mine(), "delete");
+  const keepAll = document.createElement("button");
+  keepAll.textContent = "Keep all of these";
+  keepAll.onclick = async () => {
+    for (const it of rows) ticked.delete(`${kind}/${it.name}`);
+    await settleGroup(kind, gr, "kept_all");
+  };
+  head.append(title, n, unusedOne, delOne, keepAll);
+  const grid = document.createElement("div");
+  grid.className = "grid";
+  grid.append(...rows.map(it => {
+    const t = tile(it);
+    if (it.name === gr.keep) {
+      const b = document.createElement("div");
+      b.className = "best";
+      b.textContent = "BEST — kept";
+      t.append(b);
+    }
+    return t;
+  }));
+  box.append(head, grid);
+  return box;
+}
+
+async function settleActedGroups(rels) {
+  // The crops just dealt with belonged to groups; any group that has been acted
+  // on is finished with, so it comes off the queue and goes into the log.
+  for (const kind of ["head", "body"]) {
+    const dv = dupView[kind];
+    if (!dv) continue;
+    const touched = new Set(rels.filter(r => r.startsWith(kind + "/"))
+                                .map(r => r.slice(kind.length + 1)));
+    if (!touched.size) continue;
+    const done = dv.groups.filter(gr => gr.members.some(m => touched.has(m)));
+    for (const gr of done) {
+      try {
+        await post("/api/settle_group", { members: gr.members.map(m => `${kind}/${m}`),
+                                          outcome: "acted", kept: gr.keep });
+      } catch (e) { say("Could not record a group: " + e.message); }
+    }
+    dv.groups = dv.groups.filter(gr => !done.includes(gr));
+  }
+}
+
+async function actOnGroup(kind, gr, items, what) {
+  if (!items.length) {
+    say("Nothing is ticked in that group. Tick the ones you do not want, or press "
+        + "“Keep all of these”.");
+    return;
+  }
+  say(`${what === "delete" ? "Deleting" : "Recording"} ${items.length} from this group…`);
+  try {
+    const j = await post(what === "delete" ? "/api/delete" : "/api/not_used", { items });
+    const done = (j.deleted || j.not_used || []).length;
+    for (const it of items) ticked.delete(`${it.kind}/${it.name}`);
+    await settleGroup(kind, gr, "acted");
+    say(what === "delete"
+      ? `${done} deleted from this group (their originals are recorded as not this person). `
+        + `Next group is above.`
+      : `${done} recorded as her but not used, and deleted. The rest of the group is kept.`);
+  } catch (e) { say("That group could not be dealt with: " + e.message); }
+}
+
+async function settleGroup(kind, gr, outcome) {
+  try {
+    await post("/api/settle_group",
+               { members: gr.members.map(m => `${kind}/${m}`), outcome, kept: gr.keep });
+  } catch (e) { say("Could not record the group: " + e.message); }
+  const dv = dupView[kind];
+  if (dv) dv.groups = dv.groups.filter(x => x !== gr);
+  await load();
+  say(outcome === "kept_all" ? "Group kept in full and taken off the queue."
+                             : "Group recorded and taken off the queue.");
+}
+
+function refreshButtons() {
+  const n = ticked.size, busy = document.body.dataset.busy === "1";
+  const locked = state && state.training && state.training.running;
+  const grouping = !!(dupView.head || dupView.body);
+  for (const id of ["del", "unused", "blur", "left", "right"])
+    $(id).disabled = busy || locked || n === 0 || grouping;
+  $("proceed").disabled = busy || locked;
+  const flagged = state ? [...state.items.head, ...state.items.body].filter(i => i.others > 0).length : 0;
+  const h = state ? state.items.head.length : 0, b = state ? state.items.body.length : 0;
+  $("counts").textContent = `${h} face crops · ${b} body crops · ${flagged} framed yellow · ${n} ticked`
+    + (yellowOnly ? " · showing the yellow framed ones only" : "")
+    + (grouping ? " · working through groups: use the buttons on each group" : "");
+  $("yellowOnly").textContent = yellowOnly ? "Reset filters" : "Filter: yellow framed only";
+  $("yellowOnly").disabled = busy || (!flagged && !yellowOnly);
+}
+
+function tile(it) {
+  const key = `${it.kind}/${it.name}`;
+  const t = document.createElement("div");
+  t.className = "tile" + (it.others > 0 ? " others" : "") + (ticked.has(key) ? " ticked" : "");
+  t.dataset.key = key;
+  const img = document.createElement("img");
+  img.loading = "lazy"; img.alt = it.name;
+  img.src = `/img/${it.kind}/${encodeURIComponent(it.name)}?v=${it.v}`;
+  const lab = document.createElement("label");
+  const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = ticked.has(key);
+  cb.setAttribute("aria-label", `tick ${key}`);
+  lab.append(cb, document.createTextNode("tick"));
+  const meta = document.createElement("div"); meta.className = "meta";
+  meta.textContent = it.name + (it.source ? `  ← ${it.source.split(/[\\/]/).pop()}` : "");
+  t.append(img, lab);
+  if (it.others > 0) {
+    const f = document.createElement("div"); f.className = "flag";
+    f.textContent = `other people: ${it.others} face${it.others > 1 ? "s" : ""}`;
+    t.append(f);
+  }
+  t.append(meta);
+  const set = (on) => {
+    on ? ticked.add(key) : ticked.delete(key);
+    cb.checked = on; t.classList.toggle("ticked", on); refreshButtons();
+  };
+  cb.addEventListener("click", (e) => { e.stopPropagation(); set(cb.checked); });
+  lab.addEventListener("click", (e) => e.stopPropagation());
+  t.addEventListener("click", () => set(!ticked.has(key)));
+  img.addEventListener("dblclick", (e) => {
+    e.stopPropagation(); set(!ticked.has(key));   // undo the click a double-click also fires
+    $("big").querySelector("img").src = img.src; $("big").hidden = false;
+  });
+  return t;
+}
+
+// --- what was just recorded, and taking it back (user, 2026-09-17) --------
+// No answer asks you to confirm first. Instead the line below the buttons says
+// what went into the log, and Undo takes the last answer back - the file has not
+// been deleted yet, it is waiting out of sight until the answer is out of reach.
+function recorded(said, undo) {
+  $("undoSaid").textContent = said ? `Recorded — ${said}` : "";
+  showUndo(undo);
+}
+
+function showWork(job, what) {
+  // the two long jobs - processing what you approved, and finding her face in
+  // each crop - both report "at" of "of", so one bar serves both.
+  if (!job || !job.running) { $("work").hidden = true; return; }
+  const at = job.at || job.done || 0, of = job.of || job.total || 0;
+  const pct = of ? Math.round(100 * at / of) : 0;
+  const eta = job.eta == null ? ""
+    : job.eta > 90 ? ` · about ${Math.round(job.eta / 60)} min left`
+    : ` · about ${job.eta}s left`;
+  $("workLine").textContent = `${what}: ${at} of ${of}${of ? ` (${pct}%)` : ""}${eta}`
+    + (job.now ? ` — ${job.now}` : "");
+  $("workFill").style.width = `${pct}%`;
+  $("work").hidden = false;
+}
+
+function showUndo(undo) {
+  const n = undo ? undo.n : (state && state.undo ? state.undo.n : 0);
+  $("undo").disabled = !n;
+  $("undo").textContent = n ? `Undo (${n})` : "Undo";
+}
+
+async function undoLast() {
+  try {
+    const j = await post("/api/undo", {});
+    if (j.error) { say(j.error); return; }
+    $("undoSaid").textContent = `Taken back — ${j.said || j.name}`;
+    await load();
+  } catch (e) { say("Could not undo: " + e.message); }
+}
+
+// --- uncertain videos and photos -----------------------------------------
+// One screen for everything the search could not call (user, 2026-09-15): the
+// Face Tool's old Needs review window is gone.
+async function answerUnsure(kind, name, answer, extra) {
+  const j = await post("/api/unsure", Object.assign({ kind, name, answer }, extra || {}));
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+function videoTile(it) {
+  const t = document.createElement("div");
+  t.className = "tile";
+  const v = document.createElement("video");
+  v.src = `/unsure/video/${encodeURIComponent(it.name)}`;
+  v.controls = true; v.preload = "metadata";
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = `${it.name}  (${it.mb} MB)`;
+  // what happened the last time this one was marked, if anything
+  const note0 = document.createElement("div");
+  note0.className = "flag";
+  if (it.note) note0.textContent = `Tried: ${it.note}. Mark another moment, or say Not her.`;
+  const row = document.createElement("div");
+  row.className = "row";
+  const here = document.createElement("button");
+  here.textContent = "She appears here";
+  const no = document.createElement("button");
+  no.className = "danger"; no.textContent = "Not her";
+  const note = document.createElement("span");
+  note.className = "mark";
+  here.onclick = async () => {
+    const seconds = v.currentTime;
+    // the frame number is the moment shown times the frames a second; the page
+    // knows the moment, the server works out the frame from the video itself
+    try {
+      const j = await answerUnsure("video", it.name, "appears", { seconds });
+      note.textContent = `marked at ${seconds.toFixed(2)}s` +
+        (j.start_frame != null ? ` (frame ${j.start_frame})` : "");
+      recorded(j.said || `${it.name}: the next search starts here.`, j.undo);
+      t.classList.add("answered"); here.disabled = no.disabled = true;
+      await load();          // an answered video leaves the list, like a photo
+    } catch (e) { say("Could not mark it: " + e.message); }
+  };
+  no.onclick = async () => {
+    try {
+      const j = await answerUnsure("video", it.name, "not_her");
+      t.classList.add("answered"); here.disabled = no.disabled = true;
+      recorded(j.said || `${it.name}: recorded as not her.`, j.undo);
+      await load();
+    } catch (e) { say("Could not delete it: " + e.message); }
+  };
+  row.append(here, no, note);
+  t.append(v, meta, note0, row);
+  return t;
+}
+
+function unsurePhotoTile(it) {
+  const t = document.createElement("div");
+  t.className = "tile";
+  const img = document.createElement("img");
+  img.loading = "lazy"; img.alt = it.name;
+  img.src = `/unsure/photo/${encodeURIComponent(it.name)}?v=${it.v}`;
+  img.addEventListener("dblclick", () => { $("big").querySelector("img").src = img.src; $("big").hidden = false; });
+  const meta = document.createElement("div");
+  meta.className = "meta"; meta.textContent = it.name;
+  const row = document.createElement("div");
+  row.className = "row";
+  const yes = document.createElement("button");
+  yes.textContent = "Yes, it's her";
+  const no = document.createElement("button");
+  no.className = "danger"; no.textContent = "Not her";
+  // Her, but not wanted in the training set, and the same picture twice
+  // (user, 2026-09-17). Neither teaches the app anything; both are recorded.
+  const unused = document.createElement("button");
+  unused.textContent = "Yes — but don't use it";
+  const dup = document.createElement("button");
+  dup.textContent = "Duplicate";
+  const all = [yes, no, unused, dup];
+  const answer = async (which) => {
+    try {
+      const j = await answerUnsure("photo", it.name, which);
+      t.classList.add("answered"); all.forEach(b => b.disabled = true);
+      recorded(j.said || `${it.name}: recorded.`, j.undo);
+      await load();
+    } catch (e) { say("Could not record it: " + e.message); }
+  };
+  yes.onclick = () => answer("yes");
+  no.onclick = () => answer("not_her");
+  unused.onclick = () => answer("her_unused");
+  dup.onclick = () => answer("duplicate");
+  row.append(yes, unused, dup, no);
+  t.append(img, meta, row);
+  return t;
+}
+
+function showUnsure() {
+  // Videos and photos are two sections now, not one: they ask different things
+  // of you and their buttons do different jobs (user, 2026-09-17).
+  const u = (state && state.unsure) || { video: [], photo: [] };
+  // An empty section stays on the page with its heading and "Nothing waiting
+  // here", so finishing a section reads as finished instead of the section
+  // disappearing. Only the instructions go, since there is nothing to do.
+  for (const [kind, items, tile] of [["Video", u.video, videoTile],
+                                     ["Photo", u.photo, unsurePhotoTile]]) {
+    const low = kind.toLowerCase();
+    $(`unsure${kind}sWrap`).hidden = false;
+    $(`unsure${kind}N`).textContent = `(${items.length})`;
+    $(`unsure${low === "video" ? "Videos" : "Photos"}`)
+      .replaceChildren(...items.map(tile));
+    $(`unsure${kind}Empty`).hidden = items.length > 0;
+    $(`unsure${kind}How`).hidden = items.length === 0;
+  }
+}
+
+async function load() {
+  const r = await fetch("/api/state");
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  state = j;
+  $("title").textContent = `Review ${state.person}'s crops before training`;
+  const s = state.settings;
+  if (s) {
+    $("setOptions").replaceChildren(...["a", "b", "c"].map(k => {
+      const li = document.createElement("li"); li.textContent = s.options[k];
+      if (k === s.choice) li.className = "chosen"; return li;
+    }));
+    const rows = [
+      ["Text encoders 1 + 2", s.text_encoders_trained ? "trained" : "not trained"],
+      ["Their learning rate", `${s.text_encoder_learning_rate} (half of the model's ${s.model_learning_rate})`],
+      ["Stop training them", `after ${s.text_encoder_stop_after_epochs} epochs — ${s.stop_point_note}`],
+      ["Rank / alpha", `${s.rank} / ${s.alpha}`],
+      ["Random flip", s.random_flip ? "on" : "off"],
+    ];
+    $("setTable").replaceChildren(...rows.map(([k, v]) => {
+      const tr = document.createElement("tr");
+      const a = document.createElement("td"); a.textContent = k;
+      const b = document.createElement("td"); b.textContent = v;
+      tr.append(a, b); return tr;
+    }));
+  }
+  const names = new Set([...shown("head"), ...shown("body")].map(i => `${i.kind}/${i.name}`));
+  for (const k of [...ticked]) if (!names.has(k)) ticked.delete(k);
+  for (const kind of ["head", "body"]) {
+    const dv = dupView[kind];
+    const g = $(kind);
+    if (dv) {
+      const live = new Set(state.items[kind].map(i => i.name));
+      dv.groups = dv.groups.filter(gr => gr.members.some(m => live.has(m)));
+      if (!dv.groups.length) {
+        // The queue is finished. Staying in group view leaves the toolbar
+        // locked with nothing to work on (user, 2026-09-17), so it lets go.
+        dupView[kind] = null;
+        $("scanOff_" + kind).hidden = true;
+        say(`Every group in the ${kind === "head" ? "face" : "body"} crops has been dealt with. `
+            + `Showing all the crops again — scan any time to look for more.`);
+      }
+    }
+    if (dupView[kind]) {
+      const dv2 = dupView[kind];
+      g.classList.remove("grid");
+      g.replaceChildren(...dv2.groups.map((gr, i) => groupBlock(kind, gr, i, dv2.groups.length)));
+      $(kind + "N").textContent =
+        `(${dv2.groups.length} group(s) left to look at, of ${state.items[kind].length} crops)`;
+      $(kind + "Empty").hidden = true;
+      continue;
+    }
+    g.classList.add("grid");
+    const rows = shown(kind);
+    g.replaceChildren(...rows.map(tile));
+    $(kind + "N").textContent = yellowOnly
+      ? `(${rows.length} of ${state.items[kind].length}, yellow framed)`
+      : `(${state.items[kind].length})`;
+    $(kind + "Empty").hidden = rows.length > 0;
+    $(kind + "Empty").textContent = yellowOnly
+      ? "No yellow framed crops here." : `No ${kind === "head" ? "face" : "body"} crops.`;
+  }
+  for (const kind of ["head", "body"]) {
+    const done = (state.settled || {})[kind] || 0;
+    $("settled_" + kind).textContent = done
+      ? `${done} group(s) dealt with so far — those are saved and will not be offered again.`
+      : "";
+  }
+  if (state.finishing && state.finishing.running) showWork(state.finishing, "Processing what you approved");
+  else if (state.measuring && state.measuring.running) showWork(state.measuring, "Finding her face in each crop");
+  else if (!(state.training && state.training.running)) $("work").hidden = true;
+  showUnsure();
+  showUndo(state.undo);
+  showTraining();
+  refreshButtons();
+}
+
+// Training runs for hours after Proceed. While it runs, ask the server every
+// few seconds how it is going, so this line never says "running" after the run
+// has ended (window test 2026-09-14: it did, until the page was reloaded).
+// Only the training line and the buttons change - the crops are not redrawn,
+// so the page does not jump while you look at it.
+const POLL_MS = 5000;   // how often the page asks how the training is going
+let pollTimer = null;
+
+function trainingLine(tr) {
+  const log = ` Log: ${tr.log}`;
+  if (tr.running) return `Training is running (started ${tr.started}).` + log;
+  const o = tr.outcome, at = `at ${tr.ended}`;
+  if (!o) return `Training ended ${at} (exit ${tr.exit}) without writing its run summary - see the log.` + log;
+  const errs = o.errors.length ? ` Problems: ${o.errors.join("; ")}` : "";
+  if (o.stopped && o.loras === 0) return `Training stopped by request ${at}. No LoRA file was saved.` + errs + log;
+  if (o.stopped) return `Training stopped by request ${at}. ${o.loras} LoRA file(s) kept, ${o.partial} of them partial.` + errs + log;
+  if (o.loras === 0) return `Training ended ${at} without making a LoRA.` + errs + log;
+  return `Training finished ${at}: ${o.loras} LoRA file(s) made.` + errs + log;
+}
+
+function showTraining() {
+  if (!state || !state.training) return;
+  say(trainingLine(state.training));
+  // a real bar for the run, read from the log OneTrainer is writing
+  // (user, 2026-09-17)
+  const p = state.training.running && state.training.progress;
+  if (p) {
+    $("workLine").textContent = `Training — ${p.line}`;
+    $("workFill").style.width = `${p.pct || 0}%`;
+    $("work").hidden = false;
+  }
+  if (state.training.running && !pollTimer) pollTimer = setTimeout(pollTraining, POLL_MS);
+}
+
+async function pollTraining() {
+  pollTimer = null;
+  try {
+    const r = await fetch("/api/state");
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    state.training = j.training; state.review_pending = j.review_pending;
+    showTraining(); refreshButtons();
+  } catch (e) {
+    say(`Lost touch with the review page's server (${e.message}), so this line can no longer follow the training. ` +
+        `The Face Tool and the log still show it. Log: ${state.training.log}`);
+  }
+}
+
+async function post(url, body) {
+  document.body.dataset.busy = "1"; refreshButtons();
+  try {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                                 body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    return j;
+  } finally {
+    document.body.dataset.busy = "0"; refreshButtons();
+  }
+}
+
+const tickedItems = () => [...ticked].map(k => { const i = k.indexOf("/"); return { kind: k.slice(0, i), name: k.slice(i + 1) }; });
+
+$("all").onclick = () => {
+  if (!state) return;
+  for (const it of [...shown("head"), ...shown("body")]) ticked.add(`${it.kind}/${it.name}`);
+  load();
+};
+$("yellowOnly").onclick = () => {
+  yellowOnly = !yellowOnly;
+  ticked.clear();          // never leave a tick on a crop that is now hidden
+  load();
+  say(yellowOnly ? "Showing only the crops with somebody else's face in them. "
+                 + "Tick all now ticks just these."
+                 : "Filters reset — showing every crop again.");
+};
+$("none").onclick = () => { ticked.clear(); load(); };
+
+for (const kind of ["head", "body"]) {
+  const val = $("notchVal_" + kind), notch = $("notch_" + kind);
+  notch.oninput = () => { val.textContent = notch.value; };
+  $("scan_" + kind).onclick = async () => {
+    const t = Number(notch.value);
+    say(`Looking for near duplicates in the ${kind === "head" ? "face" : "body"} crops at ${t}…`);
+    $("scan_" + kind).disabled = true;
+    try {
+      let j = await post("/api/duplicate_scan", { kind, threshold: t });
+      if (j.error) { say(j.error); return; }
+      // The first scan of a section has to find her face in each crop, about
+      // 0.4s each. The page waits and shows how far it has got, then asks again
+      // - after that the measurements are stored and a scan is instant.
+      while (j.measuring) {
+        showWork(j.measuring, "Finding her face in each crop");
+        say("Finding her face in each crop — this happens once; later scans are instant.");
+        await new Promise(r => setTimeout(r, 1000));
+        const st = await fetch("/api/state").then(r => r.json()).catch(() => null);
+        if (st && st.measuring) { j = { measuring: st.measuring }; showWork(st.measuring, "Finding her face in each crop"); }
+        if (st && st.measuring && st.measuring.running) continue;
+        $("work").hidden = true;
+        if (st && st.measuring && st.measuring.error) { say("It failed: " + st.measuring.error); return; }
+        j = await post("/api/duplicate_scan", { kind, threshold: t });
+        if (j.error) { say(j.error); return; }
+      }
+      dupView[kind] = { groups: j.groups, threshold: j.threshold };
+      // everything in a group except the best one starts ticked
+      for (const [k] of [...ticked].map(x => [x])) if (k.startsWith(kind + "/")) ticked.delete(k);
+      for (const gr of j.groups)
+        for (const m of gr.members) if (m !== gr.keep) ticked.add(`${kind}/${m}`);
+      $("scanOff_" + kind).hidden = false;
+      await load();
+      say(j.groups.length
+        ? `${j.groups.length} group(s) at notch ${j.threshold} — ${j.means}. Every picture is `
+          + `ticked except the best view of her face in each group. Agree, or change the ticks, `
+          + `then use that group's own buttons.`
+        : `Nothing groups at notch ${j.threshold} (${j.means}) — try a higher number.`);
+    } catch (e) { say("The scan failed: " + e.message); }
+    finally { $("scan_" + kind).disabled = false; }
+  };
+  $("scanOff_" + kind).onclick = () => {
+    dupView[kind] = null;
+    for (const k of [...ticked]) if (k.startsWith(kind + "/")) ticked.delete(k);
+    $("scanOff_" + kind).hidden = true;
+    load();
+    say("Filters reset — showing every crop again.");
+  };
+}
+
+$("undo").onclick = undoLast;
+$("blur").onclick = async () => {
+  const items = tickedItems(); say(`Blurring other faces in ${items.length}…`);
+  try {
+    const j = await post("/api/blur_others", { items });
+    const n = (j.blurred || []).length;
+    say(`${n} crop(s) cleaned` + (j.others_remain ? `, ${j.others_remain} face(s) the detector still sees` : "")
+        + ((j.errors || []).length ? ` · ${j.errors.join(" · ")}` : ""));
+    ticked.clear(); await load();
+  } catch (e) { say("Could not blur them: " + e.message); }
+};
+$("unused").onclick = async () => {
+  const items = tickedItems(); say(`Recording ${items.length} as hers but not used…`);
+  try {
+    const j = await post("/api/not_used", { items });
+    const n = (j.not_used || []).length;
+    say(`${n} crop(s) recorded as her but not used, and deleted`
+        + ((j.errors || []).length ? ` · ${j.errors.join(" · ")}` : ""));
+    await settleActedGroups(j.not_used || []);
+    ticked.clear(); await load();
+  } catch (e) { say("Could not record them: " + e.message); }
+};
+$("del").onclick = async () => {
+  const items = tickedItems(); say(`Deleting ${items.length}…`);
+  try {
+    const j = await post("/api/delete", { items });
+    await settleActedGroups(j.deleted || []);
+    ticked.clear(); await load();
+    say(`Deleted ${j.deleted.length} (to the Recycle Bin; their originals are recorded as not this person).` +
+        (j.errors.length ? ` Problems: ${j.errors.join("; ")}` : ""));
+  } catch (e) { say("Delete failed: " + e.message); }
+};
+
+for (const dir of ["left", "right"]) {
+  $(dir).onclick = async () => {
+    const items = tickedItems(); say(`Rotating ${items.length} ${dir}…`);
+    try {
+      const j = await post("/api/rotate", { items, direction: dir });
+      await load();
+      const unmeasured = j.rotated.filter(x => !x.caption_remeasured).length;
+      say(`Rotated ${j.rotated.length} ${dir}.` + (unmeasured ? ` ${unmeasured} caption(s) kept as they were (no face found after turning).` : "") +
+          (j.errors.length ? ` Problems: ${j.errors.join("; ")}` : ""));
+    } catch (e) { say("Rotate failed: " + e.message); }
+  };
+}
+
+// Training must not quietly leave out what you approved (user, 2026-09-17):
+// the server is asked first, and says if approved photos or marked videos are
+// still waiting to be turned into crops.
+function askToFinish(pending) {
+  const bits = [];
+  if (pending.photos) bits.push(`${pending.photos} photo(s) you answered "Yes, it's her"`);
+  if (pending.videos.length) bits.push(`${pending.videos.length} video(s) you marked "She appears here" (${pending.videos.join(", ")})`);
+  $("confirmText").textContent =
+    `Not starting training yet. ${bits.join(" and ")} have not been turned into crops, ` +
+    `so training now would leave them out. Process them first — the photos are cut the same way ` +
+    `the search cuts one, and her frames are pulled out of the videos from the moment you marked, ` +
+    `then pruned of the blurry and near-identical ones and cut. This can take a few minutes.`;
+  $("yes").hidden = true; $("finish").hidden = false;
+  $("confirm").hidden = false;
+}
+
+$("proceed").onclick = () => {
+  const p = state && state.pending;
+  if (p && (p.photos || (p.videos && p.videos.length))) return askToFinish(p);
+  $("yes").hidden = false; $("finish").hidden = true;
+  const h = state.items.head.length, b = state.items.body.length;
+  const flagged = [...state.items.head, ...state.items.body].filter(i => i.others > 0).length;
+  $("confirmText").textContent = `Start training now on ${h} face crops and ${b} body crops?` +
+    (flagged ? ` ${flagged} crop(s) are still framed yellow (other people's faces in them).` : "") +
+    ` Crops on this page are exactly what will be trained on.` +
+    (state.settings ? ` Settings: text-encoder training (c) — on at ${state.settings.text_encoder_learning_rate} ` +
+      `(half of ${state.settings.model_learning_rate}), stopped after ${state.settings.text_encoder_stop_after_epochs} epochs; ` +
+      `rank ${state.settings.rank}, alpha ${state.settings.alpha}, random flip ${state.settings.random_flip ? "on" : "off"}.` : "");
+  $("confirm").hidden = false;
+};
+$("no").onclick = () => { $("confirm").hidden = true; };
+$("finish").onclick = async () => {
+  $("finish").disabled = true;
+  say("Processing what you approved …");
+  try {
+    const j = await post("/api/finish_approved", {});
+    if (j.error) { say(j.error); $("finish").disabled = false; return; }
+    $("confirm").hidden = true;
+    pollFinishing();
+  } catch (e) { say("Could not start it: " + e.message); $("finish").disabled = false; }
+};
+
+async function pollFinishing() {
+  const j = await fetch("/api/state").then(r => r.json()).catch(() => null);
+  const f = j && j.finishing;
+  if (f && f.running) {
+    showWork(f, "Processing what you approved");
+    say("Processing what you approved — this page will say when it is done.");
+    return setTimeout(pollFinishing, 1000);
+  }
+  $("work").hidden = true;
+  $("finish").disabled = false;
+  await load();
+  const done = state.finishing;
+  say(done ? `Done — ${done.line}. Press Proceed to training again.`
+           : "Done. Press Proceed to training again.");
+}
+$("yes").onclick = async () => {
+  $("confirm").hidden = true; say("Starting training…");
+  try {
+    const j = await post("/api/proceed", {});
+    if (j.error) { say("Not started: " + j.error); return; }
+    await load();
+  } catch (e) { say("Not started: " + e.message); }
+};
+
+$("big").addEventListener("click", (e) => { e.currentTarget.hidden = true; });
+load().catch(e => say("Could not load the crops: " + e.message));
+</script>
+</body>
+</html>
