@@ -67,8 +67,15 @@ class FreedomFaceRouter:
                 "mode": (MODES, {"default": "random_face"}),
             },
             "optional": {
-                "trained_trigger": ("STRING", {"forceInput": True}),
-                "random_appearance": ("STRING", {"forceInput": True}),
+                # LAZY: only the branch "mode" actually selects is ever built.
+                # ComfyUI's own docs give this exact shape - a switch whose one
+                # input decides which other input is passed through - as the
+                # case lazy inputs exist for. check_lazy_status below names the
+                # branch it wants; everything feeding the other one is never
+                # executed, for every client (desktop, phone, raw API), because
+                # this is decided in the server's execution graph.
+                "trained_trigger": ("STRING", {"forceInput": True, "lazy": True}),
+                "random_appearance": ("STRING", {"forceInput": True, "lazy": True}),
             },
         }
 
@@ -78,10 +85,25 @@ class FreedomFaceRouter:
     CATEGORY = "Freedom"
 
     @classmethod
-    def IS_CHANGED(cls, mode, trained_trigger="", random_appearance=""):
-        return f"{mode}|{trained_trigger}|{random_appearance}"
+    def IS_CHANGED(cls, mode, trained_trigger=None, random_appearance=None):
+        # A lazy input that was never built arrives as None, not "".
+        return f"{mode}|{trained_trigger or ''}|{random_appearance or ''}"
 
-    def run(self, mode, trained_trigger="", random_appearance=""):
+    def check_lazy_status(self, mode, trained_trigger=None, random_appearance=None):
+        """Name only the branch this mode needs; the other is never evaluated.
+
+        NOT a classmethod - it reads the real input values, per ComfyUI's docs.
+        Returns the lazy inputs still required, or an empty list when it has
+        everything it needs. "off" needs neither, so nothing upstream of either
+        branch runs at all.
+        """
+        if mode == "trained_face":
+            return [] if trained_trigger is not None else ["trained_trigger"]
+        if mode == "random_face":
+            return [] if random_appearance is not None else ["random_appearance"]
+        return []
+
+    def run(self, mode, trained_trigger=None, random_appearance=None):
         if mode == "trained_face":
             return ((trained_trigger or "").strip(),)
         if mode == "random_face":
