@@ -13,6 +13,12 @@ input/
 temp/
 _backups/
 
+# --- OneTrainer's data, moved out of the developer's app 2026-09-19 ---
+# 5.7 GB, and _face_profiles holds her photographs. Lives here so OneTrainer
+# stops writing into its own checkout; never published.
+_face_profiles/
+_face_runs/
+
 # --- the developer's own placeholder files, kept so the folders make sense ---
 custom_nodes/example_node.py.example
 custom_nodes/websocket_image_save.py
