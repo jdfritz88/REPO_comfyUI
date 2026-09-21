@@ -2,19 +2,17 @@
 // FREEDOM SYSTEM - Portrait Control (screen side)
 //
 // Draws, on the desktop ComfyUI page:
-//   - STEP 4a: three radio buttons (who is in charge), a preset list, and the
-//     Save / Save as / Delete / Reset-all buttons.
-//   - each Portrait Master node group: the same explanation banner, an indicator of
-//     who is in charge of it, three radio buttons of its own, a preset list that reads
-//     the developer's folder first and ours second, and Save / Save as / Delete /
-//     Factory reset.
-//   - Base Character and Face Generator: the conflict banner and the paired radio -
-//     exactly one of the two is filled; clicking the empty one switches which node is
-//     active and greys the other out.
-//   - Prompt Styler: its own on/off radio, off by default.
+//   - STEP 4a: an In-charge dropdown, a preset list, and the four preset buttons.
+//   - Each Portrait Master node: the shared banner, an indicator of who is in charge
+//     of it, its own In-charge dropdown, a preset list, and the preset buttons.
+//   - Base Character and Face Generator: the conflict banner and an "Active of the
+//     pair" dropdown - exactly one of the two is in use.
+//   - Prompt Styler: its own on/off dropdown, off by default.
 //
-// Radio buttons are real <input type="radio"> elements: ComfyUI has no radio widget,
-// and the developer's nodes ship no page code at all.
+// There are no radio buttons any more. Radios had to be drawn as page elements, which
+// meant only this PC had them - a phone or a raw API call could not set any of these
+// choices. Every choice is now a REAL dropdown on node 4a, so it travels with the
+// workflow to any client. The controls below read and write those widgets.
 //
 // Everything the server must obey is mirrored into STEP 4a's hidden "state" field,
 // because ComfyUI sends a node's input values to the server and nothing else.
@@ -33,6 +31,34 @@ const NODE_MODE_IGNORE = "ignore presets";
 
 const NO_PRESET = "-- none --";
 
+// The per-node choices now live as REAL dropdowns on node 4a, so every client sends
+// them. The controls below are ordinary <select> elements that read and write those
+// widgets, which is why the phone gets the same choices the PC has.
+const STEP_OF = {
+  PortraitMasterBaseCharacter: "n4b",
+  PortraitMasterFaceGenerator: "n4c",
+  PortraitMasterSkinDetails:   "n4d",
+  PortraitMasterStylePose:     "n4e",
+  PortraitMasterMakeup:        "n4f",
+  PortraitMasterPromptStyler:  "n4g",
+};
+const MIRROR_NAMES = Object.values(STEP_OF)
+  .flatMap((st) => [st + "_mode", st + "_preset"])
+  .concat(["active_of_pair", "prompt_styler_switch"]);
+
+// read / write a widget on 4a from anywhere
+function ctrlWidget(name) { return widget(controlNode(), name); }
+function setCtrl(name, value) {
+  const w = ctrlWidget(name);
+  if (w && value !== undefined && value !== null) { w.value = value; w.callback?.(value); }
+}
+function makeSelect(choices) {
+  const sel = el("select");
+  sel.style.cssText = "background:#222;color:#ddd;border:1px solid #555;padding:2px;min-width:200px;";
+  for (const [value, label] of choices) sel.append(el("option", { value, textContent: label }));
+  return sel;
+}
+
 // The six node groups in the workflow. Legacy 2.9.2 is not among them: it is left out
 // of the workflow, hidden from the node menu, and covered by no preset or reset.
 const PM_CLASSES = [
@@ -45,13 +71,15 @@ const PM_CLASSES = [
 ];
 const PAIR = ["PortraitMasterBaseCharacter", "PortraitMasterFaceGenerator"];
 const HOUSEKEEPING = new Set(["seed", "control_after_generate", "load_preset",
-                              "save_preset", "save_preset_as", "state"]);
+                              "save_preset", "save_preset_as", "state",
+                              ...Object.values(STEP_OF).flatMap((st) => [st + "_mode", st + "_preset"]),
+                              "active_of_pair", "prompt_styler_switch"]);
 
 const EXPLANATION =
-  "Radio buttons on 4a decide who is in charge:\n" +
+  "The In-charge dropdown on 4a decides who is in charge:\n" +
   "  Use preset            - the preset wins, these dials are locked.\n" +
   "  Use preset, unlocked  - the preset loads, you can tweak; saving happens on 4a.\n" +
-  "  Ignore presets        - this node's own three radios take over:\n" +
+  "  Ignore presets        - this node's own In-charge dropdown takes over:\n" +
   "      Use this node's preset (default) - dials locked, no buttons.\n" +
   "      Load preset, unlock dials        - save, save as, delete available.\n" +
   "      Ignore presets, unlock dials     - save as and delete available.\n" +
@@ -61,7 +89,7 @@ const CONFLICT =
   "These two cannot be used together. The developer: \"Face Generator is a " +
   "simplified node of Base Character. You can cascade both of them with Skin " +
   "Details, but don't use Face Generator with Base Character.\"\n" +
-  "The filled radio is the one in use. Click the empty one to switch.";
+  "Use the \"Active of the pair\" dropdown to choose which of the two is in use.";
 
 // --------------------------------------------------------------------------- //
 // small helpers
@@ -158,9 +186,22 @@ for (const c of PM_CLASSES) state.nodes[c] = { mode: NODE_MODE_PRESET, preset: N
 
 function pushState() {
   const c = controlNode();
+  if (!c) return;
   const w = widget(c, "state");
-  if (!w) return;
-  w.value = JSON.stringify(state);
+  if (w) w.value = JSON.stringify(state);
+  // keep the real dropdowns in step with the panel, so what the server receives is
+  // always what the screen shows - on this PC and on any other client.
+  for (const [cls, st] of Object.entries(STEP_OF)) {
+    const ns = state.nodes[cls] || {};
+    const wm = widget(c, st + "_mode");
+    if (wm && ns.mode) wm.value = ns.mode;
+    const wp = widget(c, st + "_preset");
+    if (wp && ns.preset) wp.value = ns.preset;
+  }
+  const wpair = widget(c, "active_of_pair");
+  if (wpair) wpair.value = state.switches.start === "facegen" ? "4c Face Generator" : "4b Base Character";
+  const wst = widget(c, "prompt_styler_switch");
+  if (wst) wst.value = state.switches.prompt_styler ? "on" : "off";
 }
 
 function pullState() {
@@ -180,12 +221,12 @@ const controlMode = () => widget(controlNode(), "mode")?.value || MODE_PRESET_WI
 // Who is in charge of one node group, and therefore what is locked or greyed.
 function statusFor(cls) {
   const m = controlMode();
-  if (m === MODE_PRESET_WINS) return { inCharge: "4a preset", dialsLocked: true, nodeRadios: false, buttons: "none", reset: false };
-  if (m === MODE_PRESET_UNLOCKED) return { inCharge: "4a preset, dials unlocked", dialsLocked: false, nodeRadios: false, buttons: "none", reset: false };
+  if (m === MODE_PRESET_WINS) return { inCharge: "4a preset", dialsLocked: true, nodeChoice: false, buttons: "none", reset: false };
+  if (m === MODE_PRESET_UNLOCKED) return { inCharge: "4a preset, dials unlocked", dialsLocked: false, nodeChoice: false, buttons: "none", reset: false };
   const nm = state.nodes[cls]?.mode || NODE_MODE_PRESET;
-  if (nm === NODE_MODE_PRESET) return { inCharge: "this node's preset", dialsLocked: true, nodeRadios: true, buttons: "none", reset: false };
-  if (nm === NODE_MODE_PRESET_UNLOCKED) return { inCharge: "this node's preset, unlocked", dialsLocked: false, nodeRadios: true, buttons: "all", reset: false };
-  return { inCharge: "this node's dials", dialsLocked: false, nodeRadios: true, buttons: "saveas_delete", reset: true };
+  if (nm === NODE_MODE_PRESET) return { inCharge: "this node's preset", dialsLocked: true, nodeChoice: true, buttons: "none", reset: false };
+  if (nm === NODE_MODE_PRESET_UNLOCKED) return { inCharge: "this node's preset, unlocked", dialsLocked: false, nodeChoice: true, buttons: "all", reset: false };
+  return { inCharge: "this node's dials", dialsLocked: false, nodeChoice: true, buttons: "saveas_delete", reset: true };
 }
 
 const panels = [];                             // every panel refreshes when anything changes
@@ -238,37 +279,37 @@ function buildPanel(node, cls) {
     : EXPLANATION;
   root.append(banner);
 
-  let conflictBanner = null, pairRadio = null;
+  let conflictBanner = null, pairSelect = null;
   if (PAIR.includes(cls)) {
     conflictBanner = el("pre");
     conflictBanner.style.cssText = "margin:0;white-space:pre-wrap;font:11px ui-monospace,monospace;color:#f0c674;background:#2a2113;border-left:3px solid #f0c674;padding:6px;";
     conflictBanner.textContent = CONFLICT;
     root.append(conflictBanner);
 
-    const wrap = el("label", {}, []);
+    const wrap = el("div");
     wrap.style.cssText = "display:flex;gap:6px;align-items:center;";
-    pairRadio = el("input", { type: "radio", name: "freedom-pm-pair" });
-    pairRadio.addEventListener("change", () => {
-      state.switches.start = cls === "PortraitMasterBaseCharacter" ? "base" : "facegen";
+    pairSelect = makeSelect([["4b Base Character", "Use 4b Base Character"],
+                             ["4c Face Generator", "Use 4c Face Generator"]]);
+    pairSelect.addEventListener("change", () => {
+      state.switches.start = pairSelect.value.startsWith("4b") ? "base" : "facegen";
+      setCtrl("active_of_pair", pairSelect.value);
       refreshAll();
     });
-    wrap.append(pairRadio, el("span", { textContent: "use this node" }));
+    wrap.append(el("span", { textContent: "Active of the pair:" }), pairSelect);
     root.append(wrap);
   }
 
-  let stylerRadios = null;
+  let stylerSelect = null;
   if (cls === "PortraitMasterPromptStyler") {
     const wrap = el("div");
     wrap.style.cssText = "display:flex;gap:12px;align-items:center;";
-    stylerRadios = {};
-    for (const [key, label] of [["on", "Prompt Styler ON"], ["off", "Prompt Styler OFF"]]) {
-      const l = el("label"); l.style.cssText = "display:flex;gap:4px;align-items:center;";
-      const r = el("input", { type: "radio", name: `freedom-pm-styler-${node.id}` });
-      r.addEventListener("change", () => { state.switches.prompt_styler = key === "on"; refreshAll(); });
-      l.append(r, el("span", { textContent: label }));
-      wrap.append(l);
-      stylerRadios[key] = r;
-    }
+    stylerSelect = makeSelect([["off", "Prompt Styler OFF"], ["on", "Prompt Styler ON"]]);
+    stylerSelect.addEventListener("change", () => {
+      state.switches.prompt_styler = stylerSelect.value === "on";
+      setCtrl("prompt_styler_switch", stylerSelect.value);
+      refreshAll();
+    });
+    wrap.append(el("span", { textContent: "Prompt Styler:" }), stylerSelect);
     root.append(wrap);
   }
 
@@ -280,10 +321,10 @@ function buildPanel(node, cls) {
   arrow.style.cssText = "text-align:center;color:#888;font-size:14px;line-height:1;";
   root.append(arrow);
 
-  // radio buttons
-  const radioWrap = el("div");
-  radioWrap.style.cssText = "display:flex;flex-direction:column;gap:2px;";
-  const radios = {};
+  // who is in charge - a dropdown, not radio buttons. On 4a it drives 4a's own
+  // "mode" widget; on a Portrait Master node it drives that node's "<step>_mode"
+  // dropdown over on 4a. Either way the value is a real node setting, so the phone
+  // and a raw API call send it exactly as the PC does.
   const choices = isControl
     ? [[MODE_PRESET_WINS, "Use the preset (dials locked)"],
        [MODE_PRESET_UNLOCKED, "Use the preset, unlock the dials"],
@@ -291,24 +332,23 @@ function buildPanel(node, cls) {
     : [[NODE_MODE_PRESET, "Use this node's preset"],
        [NODE_MODE_PRESET_UNLOCKED, "Load the preset, unlock the dials"],
        [NODE_MODE_IGNORE, "Ignore the presets, unlock the dials"]];
-  for (const [value, label] of choices) {
-    const l = el("label"); l.style.cssText = "display:flex;gap:6px;align-items:center;";
-    const r = el("input", { type: "radio", name: `freedom-pm-${isControl ? "control" : cls}-${node.id}` });
-    r.addEventListener("change", async () => {
-      if (isControl) {
-        const w = widget(node, "mode");
-        if (w) { w.value = value; w.callback?.(value); }
-        await applyControlPreset();
-      } else {
-        state.nodes[cls].mode = value;
-      }
-      refreshAll();
-    });
-    l.append(r, el("span", { textContent: label }));
-    radioWrap.append(l);
-    radios[value] = r;
-  }
-  root.append(radioWrap);
+  const modeWrap = el("div");
+  modeWrap.style.cssText = "display:flex;gap:6px;align-items:center;";
+  const modeSelect = makeSelect(choices);
+  modeSelect.addEventListener("change", async () => {
+    const value = modeSelect.value;
+    if (isControl) {
+      const w = widget(node, "mode");
+      if (w) { w.value = value; w.callback?.(value); }
+      await applyControlPreset();
+    } else {
+      state.nodes[cls].mode = value;
+      setCtrl(STEP_OF[cls] + "_mode", value);
+    }
+    refreshAll();
+  });
+  modeWrap.append(el("span", { textContent: "In charge:" }), modeSelect);
+  root.append(modeWrap);
 
   // preset row
   const row = el("div");
@@ -409,7 +449,7 @@ function buildPanel(node, cls) {
   function refresh() {
     if (isControl) {
       const m = controlMode();
-      for (const [value, r] of Object.entries(radios)) r.checked = value === m;
+      modeSelect.value = m;
       indicator.textContent = `In charge: ${m}`;
       const ignoring = m === MODE_IGNORE;
       select.disabled = ignoring;
@@ -421,13 +461,11 @@ function buildPanel(node, cls) {
       if (w && select.value !== w.value && !ignoring) select.value = w.value;
     } else {
       const s = statusFor(cls);
-      for (const [value, r] of Object.entries(radios)) {
-        r.checked = value === (state.nodes[cls]?.mode || NODE_MODE_PRESET);
-        r.disabled = !s.nodeRadios;
-      }
+      modeSelect.value = state.nodes[cls]?.mode || NODE_MODE_PRESET;
+      modeSelect.disabled = !s.nodeChoice;
       indicator.textContent = `In charge: ${s.inCharge}`;
-      radioWrap.style.opacity = s.nodeRadios ? "1" : "0.45";
-      const presetUsable = s.nodeRadios && (state.nodes[cls]?.mode !== NODE_MODE_IGNORE);
+      modeWrap.style.opacity = s.nodeChoice ? "1" : "0.45";
+      const presetUsable = s.nodeChoice && (state.nodes[cls]?.mode !== NODE_MODE_IGNORE);
       select.disabled = !presetUsable;
       btnSave.disabled = s.buttons !== "all";
       btnSaveAs.disabled = !(s.buttons === "all" || s.buttons === "saveas_delete");
@@ -435,15 +473,14 @@ function buildPanel(node, cls) {
       btnReset.disabled = !s.reset;
       lockDials(node, s.dialsLocked);
       root.style.opacity = s.dialsLocked && controlMode() === MODE_PRESET_WINS ? "0.75" : "1";
-      if (pairRadio) {
+      if (pairSelect) {
         const active = state.switches.start === (cls === "PortraitMasterBaseCharacter" ? "base" : "facegen");
-        pairRadio.checked = active;
+        pairSelect.value = state.switches.start === "facegen" ? "4c Face Generator" : "4b Base Character";
         root.style.filter = active ? "none" : "grayscale(1)";
         lockDials(node, s.dialsLocked || !active);
       }
-      if (stylerRadios) {
-        stylerRadios.on.checked = !!state.switches.prompt_styler;
-        stylerRadios.off.checked = !state.switches.prompt_styler;
+      if (stylerSelect) {
+        stylerSelect.value = state.switches.prompt_styler ? "on" : "off";
       }
     }
   }

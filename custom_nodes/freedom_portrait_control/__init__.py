@@ -39,6 +39,47 @@ NODE_MODE_PRESET_UNLOCKED = "node preset + unlocked"
 NODE_MODE_IGNORE = "ignore presets"
 
 
+# --------------------------------------------------------------------------- #
+# The per-node choices as REAL node dropdowns on 4a.
+#
+# They replace the radio buttons our web code used to draw on each Portrait Master
+# node. Radios were page elements, so only the PC had them; a dropdown is part of
+# the node, so the PC, the phone and a raw API call all send it.
+#
+# Named by STEP letter (n4b ... n4g) so the phone shows something recognisable.
+# Appended AFTER mode/preset/state, because saved workflows store values by
+# position and inserting among them would misread every older workflow.
+# --------------------------------------------------------------------------- #
+STEP_OF = {
+    "PortraitMasterBaseCharacter": "n4b",
+    "PortraitMasterFaceGenerator": "n4c",
+    "PortraitMasterSkinDetails":   "n4d",
+    "PortraitMasterStylePose":     "n4e",
+    "PortraitMasterMakeup":        "n4f",
+    "PortraitMasterPromptStyler":  "n4g",
+}
+NODE_MODES = [NODE_MODE_PRESET, NODE_MODE_PRESET_UNLOCKED, NODE_MODE_IGNORE]
+PAIR_CHOICES = ["4b Base Character", "4c Face Generator"]
+STYLER_CHOICES = ["off", "on"]
+
+
+def _node_preset_names(class_name):
+    try:
+        return [NO_PRESET] + [p["name"] for p in list_presets(class_name)]
+    except Exception:
+        return [NO_PRESET]
+
+
+def _dropdown_inputs():
+    out = {}
+    for cls, step in STEP_OF.items():
+        out["%s_mode" % step] = (NODE_MODES, {"default": NODE_MODE_PRESET})
+        out["%s_preset" % step] = (_node_preset_names(cls), {"default": NO_PRESET})
+    out["active_of_pair"] = (PAIR_CHOICES, {"default": "4b Base Character"})
+    out["prompt_styler_switch"] = (STYLER_CHOICES, {"default": "off"})
+    return out
+
+
 def _user_preset_names():
     return [NO_PRESET] + [p["name"] for p in list_presets("user")]
 
@@ -55,7 +96,8 @@ class FreedomPortraitUserPreset:
                 # Hidden on screen by our web code; it carries each node group's radio
                 # choice, its chosen preset, and the two switches, to the server.
                 "state": ("STRING", {"multiline": True, "default": "{}"}),
-            }
+            },
+            "optional": _dropdown_inputs(),
         }
 
     RETURN_TYPES = ("STRING",)
@@ -64,10 +106,10 @@ class FreedomPortraitUserPreset:
     CATEGORY = "Freedom"
 
     @classmethod
-    def IS_CHANGED(cls, mode, preset, state):
-        return f"{mode}|{preset}|{state}"
+    def IS_CHANGED(cls, mode, preset, state, **kw):
+        return f"{mode}|{preset}|{state}|" + "|".join(f"{k}={v}" for k, v in sorted(kw.items()))
 
-    def run(self, mode, preset, state):
+    def run(self, mode, preset, state, **kw):
         if mode == MODE_IGNORE_PRESETS:
             return (mode,)
         return (f"{mode}: {preset}",)
@@ -145,6 +187,25 @@ def _deactivate(node):
     return False
 
 
+def _activate(node):
+    """Switch one Portrait Master node ON: active = True.
+
+    The page code used to do this as you clicked a radio, so the server only ever had
+    to switch the OTHER one off. A client with no page code - the phone, or a raw API
+    call - sends whatever the workflow was saved with, and the workflow saves the
+    non-default one as active = False. Without this the pair dropdown could switch one
+    off and leave BOTH off, which produced an empty prompt from the pair. Found by a
+    live run, not by reasoning.
+    """
+    inputs = node.setdefault("inputs", {})
+    if "active" not in inputs or isinstance(inputs.get("active"), list):
+        return False
+    if inputs["active"] is not True:
+        inputs["active"] = True
+        return True
+    return False
+
+
 def _bypass_prompt_styler(prompt, styler_ids):
     """Take Prompt Styler out of the line: whoever reads its output reads its input source
     instead. Used when its radio is off, which is the default."""
@@ -191,8 +252,35 @@ def _apply(json_data):
     if not isinstance(state, dict):
         state = {}
 
+    # ----------------------------------------------------------------------- #
+    # The dropdowns are the source of truth when the node carries them. A workflow
+    # saved before they existed has none, and falls back to the old hidden field,
+    # so older workflows keep behaving exactly as they did.
+    # ----------------------------------------------------------------------- #
+    nodes_state = state.setdefault("nodes", {})
+    sw = state.setdefault("switches", {})
+    chosen = []
+    for _cls, _step in STEP_OF.items():
+        _m = cin.get("%s_mode" % _step)
+        if _m:
+            nodes_state.setdefault(_cls, {})["mode"] = _m
+            chosen.append("%s=%s" % (_step, _m))
+        _p = cin.get("%s_preset" % _step)
+        if _p:
+            nodes_state.setdefault(_cls, {})["preset"] = _p
+    _pair = cin.get("active_of_pair")
+    if _pair:
+        sw["start"] = "base" if _pair.startswith("4b") else "facegen"
+        chosen.append("pair=%s" % sw["start"])
+    _styler = cin.get("prompt_styler_switch")
+    if _styler:
+        sw["prompt_styler"] = (_styler == "on")
+        chosen.append("styler=%s" % _styler)
+
     touched = 0
     notes = []
+    if chosen:
+        notes.append("dropdowns: " + ", ".join(chosen))
     switches = state.get("switches") or {}
 
     if mode in (MODE_PRESET_WINS, MODE_PRESET_UNLOCKED) and preset_name and preset_name != NO_PRESET:
@@ -232,10 +320,15 @@ def _apply(json_data):
 
     start = switches.get("start", "base")
     off_class = "PortraitMasterFaceGenerator" if start == "base" else "PortraitMasterBaseCharacter"
+    on_class = "PortraitMasterBaseCharacter" if start == "base" else "PortraitMasterFaceGenerator"
     for _nid, node in by_class.get(off_class, []):
         if _deactivate(node):
             touched += 1
             notes.append("%s switched off (start = %s)" % (off_class, start))
+    for _nid, node in by_class.get(on_class, []):
+        if _activate(node):
+            touched += 1
+            notes.append("%s switched on (start = %s)" % (on_class, start))
 
     if not switches.get("prompt_styler", False):
         styler_ids = [nid for nid, _ in by_class.get("PortraitMasterPromptStyler", [])]
