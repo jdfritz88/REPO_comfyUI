@@ -154,7 +154,17 @@ class FreedomPreviewPick:
         folder = _resolve_folder(save_folder)
         # keep the last-used folder as the default for brand-new nodes
         save_settings({"folder": folder})
-        return {"ui": {"freedom_files": files,
+        # "images" is ComfyUI's OWN key for preview pictures, and every client
+        # understands it: the desktop page, the phone, and a raw API call reading
+        # /history. "freedom_files" is ours, and only this package's JavaScript can
+        # draw it - which runs on the desktop and nowhere else.
+        #
+        # Returning ONLY the custom key meant the phone saw a node that produced
+        # nothing, and /history recorded zero images for this node, even though the
+        # pictures existed. Emitting both fixes that without changing the desktop
+        # picker, which keeps reading "freedom_files" exactly as before.
+        return {"ui": {"images": files,
+                       "freedom_files": files,
                        "freedom_folder": [folder],
                        "freedom_prefix": [_clean_prefix(filename_prefix)]}}
 

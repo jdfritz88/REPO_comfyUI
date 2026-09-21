@@ -1,8 +1,8 @@
 {
   "id": "6a0df4ee-8830-4b1c-8fc2-31906e2623ef",
   "revision": 0,
-  "last_node_id": 37,
-  "last_link_id": 76,
+  "last_node_id": 40,
+  "last_link_id": 84,
   "nodes": [
     {
       "id": 13,
@@ -16,7 +16,8 @@
         1030.296875
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 0,
       "mode": 0,
@@ -42,7 +43,8 @@
         267.34375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 1,
       "mode": 0,
@@ -68,7 +70,8 @@
         109.921875
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 2,
       "mode": 0,
@@ -110,7 +113,7 @@
           ]
         }
       ],
-      "title": "STEP 1  -  Pick the art model",
+      "title": "STEP 1  -  CheckpointLoaderSimple  -  Pick the art model",
       "properties": {
         "Node name for S&R": "CheckpointLoaderSimple",
         "cnr_id": "comfy-core",
@@ -139,7 +142,8 @@
         109.953125
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 3,
       "mode": 0,
@@ -170,11 +174,12 @@
           "type": "STRING",
           "slot_index": 1,
           "links": [
-            57
+            57,
+            80
           ]
         }
       ],
-      "title": "STEP 2  -  Face source switch (trained / random / off)",
+      "title": "STEP 2  -  FreedomFaceSource  -  Face source switch (trained / random / off)",
       "properties": {
         "Node name for S&R": "FreedomFaceSource"
       },
@@ -194,7 +199,8 @@
         753.09375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 4,
       "mode": 0,
@@ -220,7 +226,8 @@
         731.1875
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 17,
       "mode": 0,
@@ -303,7 +310,8 @@
           "name": "trigger",
           "type": "STRING",
           "links": [
-            59
+            59,
+            79
           ]
         },
         {
@@ -313,15 +321,15 @@
           "links": []
         }
       ],
-      "title": "STEP 3  -  Pick her face",
+      "title": "STEP 3  -  FreedomFaceShelf  -  Pick her face",
       "properties": {
         "Node name for S&R": "FreedomFaceShelf"
       },
       "widgets_values": [
-        0.9,
-        "susana_head_body_sdxl_pony",
+        1.0,
+        "susana_head_sdxl_pony",
         true,
-        1,
+        1.1,
         ""
       ]
     },
@@ -857,7 +865,7 @@
           ]
         }
       ],
-      "title": "STEP 4b  -  Base Character",
+      "title": "STEP 4b  -  PortraitMasterBaseCharacter  -  Base Character",
       "properties": {
         "Node name for S&R": "PortraitMasterBaseCharacter"
       },
@@ -1180,7 +1188,7 @@
           ]
         }
       ],
-      "title": "STEP 4d  -  Skin Details",
+      "title": "STEP 4d  -  PortraitMasterSkinDetails  -  Skin Details",
       "properties": {
         "Node name for S&R": "PortraitMasterSkinDetails"
       },
@@ -1419,7 +1427,7 @@
           ]
         }
       ],
-      "title": "STEP 4f  -  Make-up",
+      "title": "STEP 4f  -  PortraitMasterMakeup  -  Make-up",
       "properties": {
         "Node name for S&R": "PortraitMasterMakeup"
       },
@@ -1670,7 +1678,7 @@
           ]
         }
       ],
-      "title": "STEP 4e  -  Style & Pose",
+      "title": "STEP 4e  -  PortraitMasterStylePose  -  Style & Pose",
       "properties": {
         "Node name for S&R": "PortraitMasterStylePose"
       },
@@ -1709,7 +1717,8 @@
         130
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 22,
       "mode": 0,
@@ -1749,7 +1758,7 @@
           ]
         }
       ],
-      "title": "STEP 5  -  Face router  (feeds the prompt below)",
+      "title": "STEP 5  -  FreedomFaceRouter  -  Face router  (feeds the prompt below)",
       "properties": {
         "Node name for S&R": "FreedomFaceRouter"
       },
@@ -1769,7 +1778,8 @@
         353.734375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 6,
       "mode": 0,
@@ -1795,7 +1805,8 @@
         370
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 19,
       "mode": 0,
@@ -2180,7 +2191,7 @@
           "type": "MODEL",
           "links": [
             47,
-            68
+            77
           ]
         },
         {
@@ -2190,11 +2201,11 @@
           "links": [
             48,
             49,
-            69
+            78
           ]
         }
       ],
-      "title": "STEP 6  -  Add other LoRAs",
+      "title": "STEP 6  -  FreedomLoraStack  -  Add other LoRAs",
       "properties": {
         "Node name for S&R": "FreedomLoraStack"
       },
@@ -2250,7 +2261,8 @@
         272.34375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 7,
       "mode": 0,
@@ -2276,7 +2288,8 @@
         309.96875
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 16,
       "mode": 0,
@@ -2301,7 +2314,7 @@
           ]
         }
       ],
-      "title": "STEP 7  -  What you WANT  (type here)",
+      "title": "STEP 7  -  PrimitiveStringMultiline  -  What you WANT  (type here)",
       "properties": {
         "Node name for S&R": "PrimitiveStringMultiline"
       },
@@ -2323,7 +2336,8 @@
         149.984375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 8,
       "mode": 0,
@@ -2349,7 +2363,8 @@
         259.984375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 21,
       "mode": 0,
@@ -2381,7 +2396,7 @@
           ]
         }
       ],
-      "title": "STEP 8  -  What you DON'T want  (leave this)",
+      "title": "STEP 8  -  CLIPTextEncode  -  What you DON'T want  (leave this)",
       "properties": {
         "Node name for S&R": "CLIPTextEncode",
         "cnr_id": "comfy-core",
@@ -2405,7 +2420,8 @@
         209.75
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 9,
       "mode": 0,
@@ -2431,7 +2447,8 @@
         129.984375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 14,
       "mode": 0,
@@ -2474,7 +2491,7 @@
           ]
         }
       ],
-      "title": "STEP 9  -  Picture size",
+      "title": "STEP 9  -  EmptyLatentImage  -  Picture size",
       "properties": {
         "Node name for S&R": "EmptyLatentImage",
         "cnr_id": "comfy-core",
@@ -2500,7 +2517,8 @@
         375.71875
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 10,
       "mode": 0,
@@ -2526,7 +2544,8 @@
         288.75
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 25,
       "mode": 0,
@@ -2620,7 +2639,7 @@
           ]
         }
       ],
-      "title": "STEP 10  -  Make the picture",
+      "title": "STEP 10  -  KSampler  -  Make the picture",
       "properties": {
         "Node name for S&R": "KSampler",
         "cnr_id": "comfy-core",
@@ -2648,7 +2667,8 @@
         270
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 11,
       "mode": 0,
@@ -2674,7 +2694,8 @@
         89.484375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 26,
       "mode": 0,
@@ -2703,7 +2724,7 @@
           ]
         }
       ],
-      "title": "STEP 11  -  Develop the picture  (don't touch)",
+      "title": "STEP 11  -  VAEDecode  -  Develop the picture  (don't touch)",
       "properties": {
         "Node name for S&R": "VAEDecode",
         "cnr_id": "comfy-core",
@@ -2722,7 +2743,8 @@
         367.71875
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 12,
       "mode": 0,
@@ -2748,7 +2770,8 @@
         699.484375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 27,
       "mode": 0,
@@ -2779,7 +2802,7 @@
         }
       ],
       "outputs": [],
-      "title": "STEP 12  -  Look, pick, then Save Image",
+      "title": "STEP 12  -  FreedomPreviewPick  -  Look, pick, then Save Image",
       "properties": {
         "Node name for S&R": "FreedomPreviewPick",
         "cnr_id": "freedom_folder_inspector"
@@ -2802,7 +2825,8 @@
         267.34375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 13,
       "mode": 0,
@@ -2828,7 +2852,8 @@
         253.90625
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 23,
       "mode": 0,
@@ -2872,7 +2897,7 @@
           ]
         }
       ],
-      "title": "her trigger + your words  ->  the actual prompt",
+      "title": "StringConcatenate  -  her trigger + your words  ->  the actual prompt",
       "properties": {
         "Node name for S&R": "StringConcatenate"
       },
@@ -2894,7 +2919,8 @@
         123.953125
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 24,
       "mode": 0,
@@ -2926,7 +2952,7 @@
           ]
         }
       ],
-      "title": "combine + encode  (PC: Schedule prompt - understands [a:b:0.5])",
+      "title": "PCLazyTextEncode  -  combine + encode  (PC: Schedule prompt - understands [a:b:0.5])",
       "properties": {
         "Node name for S&R": "PCLazyTextEncode",
         "cnr_id": "comfy-core",
@@ -2950,7 +2976,8 @@
         429.484375
       ],
       "flags": {
-        "pinned": true
+        "pinned": true,
+        "collapsed": true
       },
       "order": 28,
       "mode": 0,
@@ -2979,7 +3006,7 @@
           "links": []
         }
       ],
-      "title": "AUTO-SAVE  -  every picture, to the output folder (safety net)",
+      "title": "AUTO-SAVE  -  SaveImage  -  every picture, to the output folder (safety net)",
       "properties": {
         "Node name for S&R": "SaveImage",
         "cnr_id": "comfy-core"
@@ -3154,7 +3181,7 @@
           "links": []
         }
       ],
-      "title": "STEP 4a  -  Portrait Master presets & per-node choices",
+      "title": "STEP 4a  -  FreedomPortraitUserPreset  -  Portrait Master presets & per-node choices",
       "properties": {
         "Node name for S&R": "FreedomPortraitUserPreset"
       },
@@ -3386,7 +3413,7 @@
           ]
         }
       ],
-      "title": "STEP 4c  -  Face Generator  (cannot be used with 4b)",
+      "title": "STEP 4c  -  PortraitMasterFaceGenerator  -  Face Generator  (cannot be used with 4b)",
       "properties": {
         "Node name for S&R": "PortraitMasterFaceGenerator"
       },
@@ -3464,7 +3491,7 @@
           ]
         }
       ],
-      "title": "STEP 4g  -  Prompt Styler  (off by default)",
+      "title": "STEP 4g  -  PortraitMasterPromptStyler  -  Prompt Styler  (off by default)",
       "properties": {
         "Node name for S&R": "PortraitMasterPromptStyler"
       },
@@ -3484,7 +3511,9 @@
         340,
         90
       ],
-      "flags": {},
+      "flags": {
+        "collapsed": true
+      },
       "order": 29,
       "mode": 0,
       "inputs": [],
@@ -3510,7 +3539,7 @@
       "widgets_values": [
         "bbox/face_yolov8m.pt"
       ],
-      "title": "STEP 11a  -  Find her face"
+      "title": "STEP 11a  -  UltralyticsDetectorProvider  -  Find her face"
     },
     {
       "id": 35,
@@ -3523,7 +3552,9 @@
         340,
         60
       ],
-      "flags": {},
+      "flags": {
+        "collapsed": true
+      },
       "order": 30,
       "mode": 0,
       "color": "#232",
@@ -3534,7 +3565,7 @@
           "name": "BOOLEAN",
           "type": "BOOLEAN",
           "links": [
-            76
+            83
           ],
           "slot_index": 0
         }
@@ -3545,7 +3576,7 @@
       "widgets_values": [
         true
       ],
-      "title": "STEP 11 SWITCH  -  Repaint her face   (true = ON)"
+      "title": "STEP 11 SWITCH  -  PrimitiveBoolean  -  Repaint her face   (true = ON)"
     },
     {
       "id": 34,
@@ -3558,7 +3589,9 @@
         380,
         520
       ],
-      "flags": {},
+      "flags": {
+        "collapsed": true
+      },
       "order": 31,
       "mode": 0,
       "inputs": [
@@ -3570,12 +3603,12 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 68
+          "link": 77
         },
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 69
+          "link": 78
         },
         {
           "name": "vae",
@@ -3596,6 +3629,14 @@
           "name": "bbox_detector",
           "type": "BBOX_DETECTOR",
           "link": 73
+        },
+        {
+          "name": "wildcard",
+          "type": "STRING",
+          "link": 79,
+          "widget": {
+            "name": "wildcard"
+          }
         }
       ],
       "outputs": [
@@ -3644,20 +3685,20 @@
       "widgets_values": [
         1024,
         true,
-        2048,
+        1024,
         0,
         "randomize",
         26,
         6,
         "dpmpp_2m",
         "karras",
-        0.45,
-        5,
+        0.55,
+        8,
         true,
         false,
         0.5,
         10,
-        2.0,
+        3.0,
         "center-1",
         0,
         0.93,
@@ -3666,9 +3707,9 @@
         "False",
         10,
         "",
-        1
+        2
       ],
-      "title": "STEP 11b  -  Repaint the face as her"
+      "title": "STEP 11b  -  FaceDetailer  -  Repaint the face as her"
     },
     {
       "id": 36,
@@ -3681,14 +3722,16 @@
         320,
         80
       ],
-      "flags": {},
+      "flags": {
+        "collapsed": true
+      },
       "order": 32,
       "mode": 0,
       "inputs": [
         {
           "name": "cond",
           "type": "BOOLEAN",
-          "link": 76
+          "link": 84
         },
         {
           "name": "tt_value",
@@ -3716,7 +3759,7 @@
         "Node name for S&R": "ImpactConditionalBranch"
       },
       "widgets_values": [],
-      "title": "STEP 11c  -  ON = repainted   /   OFF = as painted"
+      "title": "STEP 11c  -  ImpactConditionalBranch  -  ON = repainted   /   OFF = as painted"
     },
     {
       "id": 37,
@@ -3729,7 +3772,9 @@
         620,
         780
       ],
-      "flags": {},
+      "flags": {
+        "collapsed": true
+      },
       "order": 33,
       "mode": 0,
       "color": "#432",
@@ -3738,9 +3783,142 @@
       "outputs": [],
       "properties": {},
       "widgets_values": [
-        "**STEP 11 - Repaint the face as her**\n\nWhen a picture shows her whole body, her face ends up tiny - sometimes only about\n100 pixels across. But her face was trained on big head-and-shoulders photos, around\n1000 pixels across. A face that small has no room for the details that make her look\nlike *her*, so she comes out looking like a generic person.\n\nThis step fixes that. It finds the face in the finished picture, cuts it out, blows it\nup to a size her face model understands, paints it again using **the same face model and\nthe same words** that made the picture, then shrinks it back down and blends it in. The\nrest of the picture is never touched.\n\n### The ON / OFF switch\n\nThe small box to the left is the switch. **true = ON**, and the face gets repainted.\nThat is the normal setting.\n\nClick it to **false = OFF** and the picture comes out exactly the way STEP 10 painted it.\nThe repainting is skipped completely - it does not run at all, so it costs you no extra\ntime when it is off.\n\n### The dials, in plain words\n\n- **denoise (0.45)** - how much the face is allowed to change. Lower keeps more of the\n  face that was already there. Higher lets it redraw more freely. Push it much past 0.6\n  and the new face may stop matching the body.\n- **guide_size (1024)** - how big the face is blown up to before it gets repainted.\n  1024 is the size her face was trained at, which is why it is set here.\n- **max_size (2048)** - a ceiling, so a big close-up does not blow up into something\n  your graphics card cannot hold. Careful: if this is set too low, *this* is what\n  decides the real size, not guide_size.\n- **bbox_crop_factor (2.0)** - how much area around the face gets cut out along with it.\n  Bigger numbers take in more neck and hair, which blends more smoothly but makes the\n  cut-out bigger and slower.\n- **force_inpaint (off)** - off means \"if the face is already bigger than guide_size,\n  leave it alone\". There is nothing to fix on a face that is already large.\n\n### What you will notice\n\nRuns take longer, because the face is painted twice. STEP 9 makes 4 pictures per run,\nso that is 4 extra face passes every time. Turn the switch off when you are just\ntrying out ideas.\n"
+        "**STEP 11 - FaceDetailer - repaint the face as her**\n\nWhen a picture shows her whole body, her face ends up tiny - sometimes only about\n100 pixels across. But her face was trained on big head-and-shoulders photos, around\n1000 pixels across. A face that small has no room for the details that make her look\nlike *her*, so she comes out looking like a generic person.\n\nThis step fixes that. It finds the face in the finished picture, cuts it out, blows it\nup to a size her face model understands, paints it again using **the same face model and\nthe same words** that made the picture, then shrinks it back down and blends it in. The\nrest of the picture is never touched.\n\n### The ON / OFF switch\n\nThe small box to the left is the switch. **true = ON**, and the face gets repainted.\nThat is the normal setting. Click it to **false = OFF** and the picture comes out exactly\nthe way STEP 10 painted it - the repainting does not run at all, so it costs no time.\n\n---\n\n## Every dial, in plain words\n\nOur value is shown in brackets where we have set one.\n\n### Group 1 - how big the face gets blown up\n\n- **guide_size (1024)** - the size the face is blown up to before repainting. 1024 is\n  what her face was trained at, which is why it is set here.\n- **guide_size_for (bbox)** - what that size is measured against. **bbox** means the face\n  box itself. **crop_region** means the whole cut-out including the hair and neck around it.\n  On bbox the face reaches the target size; on crop_region it ends up smaller.\n- **max_size (2048)** - a ceiling on the blown-up cut-out, so a big close-up cannot grow\n  into something your graphics card chokes on. Watch this one: when it bites, *it* decides\n  the real size, not guide_size.\n\n### Group 2 - the repaint itself (this is a small painter of its own)\n\n- **seed** - the starting randomness for the repaint. Fix it and the same face comes back\n  every time; randomize it and you get a different attempt each run.\n- **control_after_generate** - what the seed does after each run: stay fixed, go up, go\n  down, or randomize.\n- **steps (26)** - how many passes the repaint takes. More is slower and usually finer.\n- **cfg (6)** - how hard the repaint is pushed to obey the words. Too high and the face\n  goes harsh and over-baked.\n- **sampler_name (dpmpp_2m)** - which painting method it uses.\n- **scheduler (karras)** - how the noise is stepped down across those steps.\n- **denoise (0.45)** - how much of the existing face may change. Low keeps what was there;\n  high redraws freely. Past about 0.6 the new face can stop matching the body.\n\n### Group 3 - blending it back in\n\n- **feather (5)** - how soft the edge is where the new face is pasted back. It blurs the\n  mask by this amount. 0 gives a hard cut-out edge you can see.\n- **noise_mask (on)** - repaint only inside the face mask rather than the whole cut-out.\n  Normally on.\n\n### Group 4 - finding the face in the first place\n\n- **bbox_threshold (0.5)** - how sure the finder must be before it calls something a face.\n  Raise it and it only accepts obvious faces; lower it and it starts finding faces in\n  patterns and shadows.\n- **bbox_dilation (10)** - grows the found box outwards by this many pixels, so the jaw and\n  hairline are included rather than cut off at the skin.\n- **bbox_crop_factor (2.0)** - how much extra picture is cut out around the box. Bigger\n  takes in more neck and hair, blends more smoothly, and is slower.\n- **drop_size (10)** - ignore any found face smaller than this across. Stops it wasting a\n  full repaint on a face in the far background.\n\n### Group 5 - when to skip the work\n\n- **force_inpaint (off)** - off means \"if the face is already bigger than guide_size, leave\n  it alone\", because there is nothing to gain. On forces a repaint every time, even when the\n  face would have to be shrunk to fit.\n\n### Group 6 - two that most people never touch\n\n- **wildcard (empty)** - **the face's own prompt.** Leave it empty and the face is repainted\n  using the whole scene sentence from STEP 7 - including the parts about position and hands,\n  which mean nothing on a face-only crop. Put words here and they REPLACE that sentence for\n  the repaint only. This is the one dial that lets the face be described as a face.\n- **cycle (1)** - how many times the repaint is repeated on the same face. 2 or 3 sharpens\n  further and costs proportionally more time.\n\n### Group 7 - the SAM dials: not used here, and cannot be\n\n**sam_detection_hint, sam_dilation, sam_threshold, sam_bbox_expansion,\nsam_mask_hint_threshold, sam_mask_hint_use_negative**\n\nThese six only do something when a SAM model is plugged into the node's `sam_model_opt`\nsocket. SAM would trace the exact outline of the face instead of using a rectangle. There\nis no SAM model on this machine - the `models/sams` folder does not exist - so the socket\nis empty and all six of these are ignored no matter what you set them to.\n\n### Group 8 - optional extras, off unless you add them\n\n- **inpaint_model** - turn on only if the model loaded is a true inpainting model. Wrong\n  setting here gives a smeared patch.\n- **noise_mask_feather** - a second, separate softening applied to the mask *before*\n  painting, as opposed to `feather` which softens it when pasting back.\n- **tiled_encode / tiled_decode** - process the cut-out in tiles to use less graphics\n  memory, at the cost of speed. For emergencies on a small card.\n\n---\n\n### What you will notice\n\nRuns take longer, because the face is painted twice. STEP 9 makes 4 pictures per run, so\nthat is 4 extra face passes every time. Turn the switch off while trying out ideas.\n\n*Measured here on 2026-09-19: ON took 48.9s, OFF took 17.8s, and the change was confined\nto the face - 23.7 average change inside the face box, 0.1 everywhere else.*\n"
       ],
-      "title": "STEP 11  -  what the repaint does"
+      "title": "STEP 11  -  MarkdownNote  -  every FaceDetailer dial explained"
+    },
+    {
+      "id": 38,
+      "type": "PrimitiveString",
+      "pos": [
+        3040,
+        1060
+      ],
+      "size": [
+        300,
+        90
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 25,
+      "mode": 0,
+      "title": "STEP 11 GATE  -  PrimitiveString  -  the words 'trained_face'",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            81
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveString"
+      },
+      "widgets_values": [
+        "trained_face"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 39,
+      "type": "ImpactCompare",
+      "pos": [
+        3040,
+        1130
+      ],
+      "size": [
+        300,
+        90
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 25,
+      "mode": 0,
+      "title": "STEP 11 GATE  -  ImpactCompare  -  is STEP 2 on trained face?",
+      "inputs": [
+        {
+          "name": "a",
+          "type": "*",
+          "link": 80
+        },
+        {
+          "name": "b",
+          "type": "*",
+          "link": 81
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": [
+            82
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImpactCompare"
+      },
+      "widgets_values": [
+        "a = b"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
+    },
+    {
+      "id": 40,
+      "type": "ImpactLogicalOperators",
+      "pos": [
+        3040,
+        1200
+      ],
+      "size": [
+        300,
+        90
+      ],
+      "flags": {
+        "collapsed": true
+      },
+      "order": 25,
+      "mode": 0,
+      "title": "STEP 11 GATE  -  ImpactLogicalOperators  -  switch AND trained face",
+      "inputs": [
+        {
+          "name": "bool_a",
+          "type": "BOOLEAN",
+          "link": 83
+        },
+        {
+          "name": "bool_b",
+          "type": "BOOLEAN",
+          "link": 82
+        }
+      ],
+      "outputs": [
+        {
+          "name": "BOOLEAN",
+          "type": "BOOLEAN",
+          "links": [
+            84
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImpactLogicalOperators"
+      },
+      "widgets_values": [
+        "and"
+      ],
+      "color": "#223",
+      "bgcolor": "#335"
     }
   ],
   "links": [
@@ -3965,22 +4143,6 @@
       "IMAGE"
     ],
     [
-      68,
-      3,
-      0,
-      34,
-      1,
-      "MODEL"
-    ],
-    [
-      69,
-      3,
-      1,
-      34,
-      2,
-      "CLIP"
-    ],
-    [
       70,
       1,
       2,
@@ -4029,8 +4191,64 @@
       "IMAGE"
     ],
     [
-      76,
+      77,
+      3,
+      0,
+      34,
+      1,
+      "MODEL"
+    ],
+    [
+      78,
+      3,
+      1,
+      34,
+      2,
+      "CLIP"
+    ],
+    [
+      79,
+      2,
+      2,
+      34,
+      7,
+      "STRING"
+    ],
+    [
+      80,
+      24,
+      1,
+      39,
+      0,
+      "STRING"
+    ],
+    [
+      81,
+      38,
+      0,
+      39,
+      1,
+      "STRING"
+    ],
+    [
+      82,
+      39,
+      0,
+      40,
+      1,
+      "BOOLEAN"
+    ],
+    [
+      83,
       35,
+      0,
+      40,
+      0,
+      "BOOLEAN"
+    ],
+    [
+      84,
+      40,
       0,
       36,
       0,
