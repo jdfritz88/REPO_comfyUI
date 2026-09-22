@@ -326,7 +326,7 @@
         "Node name for S&R": "FreedomFaceShelf"
       },
       "widgets_values": [
-        1.0,
+        0.9,
         "susana_head_sdxl_pony",
         true,
         1.1,
@@ -2210,9 +2210,9 @@
         "Node name for S&R": "FreedomLoraStack"
       },
       "widgets_values": [
-        false,
-        "",
-        0.8,
+        true,
+        "faces/susana_head_sdxl_pony.safetensors",
+        0.9,
         false,
         "",
         0.8,
@@ -2319,7 +2319,7 @@
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
-        "hetero, 1girl, 1boy, (sex from behind, doggystyle:1.3), (his hands gripping her waist, his thighs and torso behind her:1.2), (photorealistic photo:1.2), (thirty year old:1.2) Mexican woman on all fours, large almond eyes, (eyes rolled back, mouth open, orgasm expression:1.1), (head turned away, looking down:1.2), (thick translucent drool dripping from her mouth:1.2), slim naked body, (plump firm breasts:1.1), one hand squeezing her own nipple between thumb and forefinger, soft window light, 85mm, natural skin texture, "
+        "hetero, 1girl, 1boy, (sex from behind, doggystyle:1.3), (his hands gripping her waist, his thighs and torso behind her:1.2), (photorealistic photo:1.2), (thirty year old:1.2) woman on all fours, large almond eyes, (eyes rolled back, orgasm expression:1.1), (head turned away, looking down:1.2), (thick translucent drool dripping from her mouth:1.2), slim naked body, (plump firm breasts:1.1), one hand squeezing her own nipple between thumb and forefinger, soft window light, 85mm, natural skin texture, "
       ],
       "color": "#232",
       "bgcolor": "#353"
@@ -2646,7 +2646,7 @@
         "ver": "0.33.0"
       },
       "widgets_values": [
-        449864329,
+        1743360928,
         "randomize",
         26,
         6,
@@ -3686,7 +3686,7 @@
         1024,
         true,
         1024,
-        0,
+        480957299,
         "randomize",
         26,
         6,
@@ -3698,7 +3698,7 @@
         false,
         0.5,
         10,
-        3.0,
+        3,
         "center-1",
         0,
         0.93,
@@ -4381,7 +4381,7 @@
     "VHS_KeepIntermediate": true,
     "mobile_lineage": {
       "lineage": "lin-1wskpq0ol8lmtrfrfnc",
-      "member": "lin-us5vjaxfy3qmu55a5vk"
+      "member": "lin-d2mm5u0c1x7mubr1oyt"
     },
     "freedom_note": "v06: the radio buttons on STEP 4 are gone. Every choice is now a real dropdown on node 4a, so the PC, the phone and a raw API call all send the same settings."
   },
