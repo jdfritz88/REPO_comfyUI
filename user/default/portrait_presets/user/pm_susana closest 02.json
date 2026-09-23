@@ -1,0 +1,227 @@
+{
+  "nodes": {
+    "PortraitMasterBaseCharacter": {
+      "shot": "-",
+      "shot_weight": 1,
+      "gender": "-",
+      "androgynous": 0,
+      "ugly": 0,
+      "ordinary_face": 0,
+      "age": "-",
+      "nationality_1": "-",
+      "nationality_2": "-",
+      "nationality_mix": 0.5,
+      "body_type": "-",
+      "body_type_weight": 1,
+      "breast_size": "-",
+      "breast_size_weight": 1,
+      "butt_size": "-",
+      "butt_size_weight": 1,
+      "eyes_color": "-",
+      "eyes_shape": "-",
+      "eyebrows_color": "-",
+      "eyebrows_shape": "-",
+      "eyebrows_thickness": "-",
+      "eyebrows_weight": 1,
+      "lips_color": "-",
+      "lips_shape": "-",
+      "facial_expression": "-",
+      "facial_expression_weight": 1,
+      "face_shape": "-",
+      "face_shape_weight": 1,
+      "facial_asymmetry": 0,
+      "hair_style": "-",
+      "hair_color": "-",
+      "hair_length": "-",
+      "disheveled": 0,
+      "beard": "-",
+      "beard_color": "-",
+      "cheekbones": "-",
+      "cheekbones_weight": 1,
+      "jawline": "-",
+      "jawline_weight": 1,
+      "nose_shape": "-",
+      "nose_size": "-",
+      "neck": "-",
+      "face_symmetry": "-",
+      "face_symmetry_weight": 1,
+      "face_proportions": "-",
+      "face_proportions_weight": 1,
+      "face_balance": "-",
+      "face_balance_weight": 1,
+      "face_harmony": "-",
+      "face_harmony_weight": 1,
+      "active": true,
+      "freedom_pm_panel": ""
+    },
+    "PortraitMasterFaceGenerator": {
+      "gender": "-",
+      "age": "-",
+      "nationality": "-",
+      "body_type": "-",
+      "eyes_color": "-",
+      "hair_style": "-",
+      "hair_color": "-",
+      "hair_length": "-",
+      "beard": "-",
+      "beard_color": "-",
+      "eyebrows_color": "-",
+      "eyebrows_shape": "-",
+      "nose_shape": "-",
+      "face_symmetry": "-",
+      "active": true,
+      "freedom_pm_panel": ""
+    },
+    "PortraitMasterSkinDetails": {
+      "natural_skin": 0,
+      "bare_face": 0,
+      "washed_face": 0,
+      "dried_face": 0,
+      "skin_details": 0,
+      "skin_pores": 0,
+      "dimples": 0,
+      "wrinkles": 0,
+      "freckles": 0,
+      "moles": 0,
+      "skin_imperfections": 0,
+      "skin_acne": 0,
+      "tanned_skin": 0,
+      "skin_tone": "-",
+      "skin_texture": "-",
+      "skin_shine": "-",
+      "eyes_details": 0,
+      "iris_details": 0,
+      "circular_iris": 0,
+      "circular_pupil": 0,
+      "active": true,
+      "freedom_pm_panel": ""
+    },
+    "PortraitMasterStylePose": {
+      "model_pose": "-",
+      "clothes": "-",
+      "female_lingerie": "-",
+      "makeup": "-",
+      "light_type": "-",
+      "light_direction": "-",
+      "light_weight": 1,
+      "style_1": "-",
+      "style_1_weight": 1,
+      "style_2": "-",
+      "style_2_weight": 1,
+      "background": "-",
+      "camera_angle": "-",
+      "camera_distance": "-",
+      "camera_lens": "-",
+      "photorealism_improvement": true,
+      "active": true,
+      "freedom_pm_panel": ""
+    },
+    "PortraitMasterMakeup": {
+      "makeup_style": "-",
+      "makeup_color": "-",
+      "eyeshadow": false,
+      "eyeshadow_color": "-",
+      "eyeliner": false,
+      "eyeliner_color": "-",
+      "mascara": false,
+      "mascara_color": "-",
+      "blush": false,
+      "blush_color": "-",
+      "lipstick": false,
+      "lipstick_color": "-",
+      "lip_gloss": false,
+      "lip_gloss_color": "-",
+      "active": true,
+      "freedom_pm_panel": ""
+    },
+    "PortraitMasterPromptStyler": {
+      "style": "descriptive",
+      "add_extra_instructions": true,
+      "freedom_pm_panel": ""
+    }
+  },
+  "switches": {
+    "start": "base",
+    "prompt_styler": false
+  },
+  "recipe": {
+    "ksampler": {
+      "seed": 930312207,
+      "control_after_generate": "fixed"
+    },
+    "facedetailer": {
+      "seed": 1736114183,
+      "control_after_generate": "fixed"
+    },
+    "face_shelf": {
+      "strength": 0.6,
+      "selected": "susana_head_sdxl_pony",
+      "enabled": true,
+      "trigger_weight": 1.1
+    },
+    "lora_stack": [
+      {
+        "enabled": true,
+        "lora": "faces/susana_head_sdxl_pony.safetensors",
+        "strength": 0.65
+      },
+      {
+        "enabled": true,
+        "lora": "faces/susana_head_sdxl_pony.safetensors",
+        "strength": 0.65
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      },
+      {
+        "enabled": false,
+        "lora": "",
+        "strength": 0.8
+      }
+    ],
+    "prompt": "hetero, 1girl, 1boy, (sex from behind, doggystyle:1.3), (his hands gripping her waist, his thighs and torso behind her:1.2), (photorealistic photo:1.2), (thirty year old:1.2) woman on all fours, large almond eyes, (eyes rolled back, orgasm expression:1.1), (head turned away, looking down:1.2), (thick translucent drool dripping from her mouth:1.1), slim naked body, (plump firm breasts:1.1), one hand squeezing her own nipple between thumb and forefinger, soft window light, 85mm, (natural skin texture:1.2), "
+  },
+  "_saved": "2026-09-22 16:37:51"
+}

@@ -1,7 +1,7 @@
 {
   "id": "6a0df4ee-8830-4b1c-8fc2-31906e2623ef",
   "revision": 0,
-  "last_node_id": 40,
+  "last_node_id": 44,
   "last_link_id": 84,
   "nodes": [
     {
@@ -17,7 +17,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 0,
       "mode": 0,
@@ -44,7 +44,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 1,
       "mode": 0,
@@ -71,7 +71,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 2,
       "mode": 0,
@@ -143,7 +143,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 3,
       "mode": 0,
@@ -200,7 +200,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 4,
       "mode": 0,
@@ -227,7 +227,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 17,
       "mode": 0,
@@ -326,7 +326,7 @@
         "Node name for S&R": "FreedomFaceShelf"
       },
       "widgets_values": [
-        0.9,
+        0.6,
         "susana_head_sdxl_pony",
         true,
         1.1,
@@ -345,7 +345,7 @@
         700
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 15,
       "mode": 0,
@@ -938,7 +938,7 @@
         700
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 18,
       "mode": 0,
@@ -1231,7 +1231,7 @@
         700
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 20,
       "mode": 0,
@@ -1464,7 +1464,7 @@
         700
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 5,
       "mode": 0,
@@ -1718,7 +1718,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 22,
       "mode": 0,
@@ -1779,7 +1779,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 6,
       "mode": 0,
@@ -1806,7 +1806,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 19,
       "mode": 0,
@@ -2212,10 +2212,10 @@
       "widgets_values": [
         true,
         "faces/susana_head_sdxl_pony.safetensors",
-        0.9,
-        false,
-        "",
-        0.8,
+        0.65,
+        true,
+        "faces/susana_head_sdxl_pony.safetensors",
+        0.65,
         false,
         "",
         0.8,
@@ -2262,7 +2262,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 7,
       "mode": 0,
@@ -2289,7 +2289,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 16,
       "mode": 0,
@@ -2319,7 +2319,7 @@
         "Node name for S&R": "PrimitiveStringMultiline"
       },
       "widgets_values": [
-        "hetero, 1girl, 1boy, (sex from behind, doggystyle:1.3), (his hands gripping her waist, his thighs and torso behind her:1.2), (photorealistic photo:1.2), (thirty year old:1.2) woman on all fours, large almond eyes, (eyes rolled back, orgasm expression:1.1), (head turned away, looking down:1.2), (thick translucent drool dripping from her mouth:1.2), slim naked body, (plump firm breasts:1.1), one hand squeezing her own nipple between thumb and forefinger, soft window light, 85mm, natural skin texture, "
+        "hetero, 1girl, 1boy, (sex from behind, doggystyle:1.3), (his hands gripping her waist, his thighs and torso behind her:1.2), (photorealistic photo:1.2), (thirty year old:1.2) woman on all fours, large almond eyes, (eyes rolled back, orgasm expression:1.1), (head turned away, looking down:1.2), (thick translucent drool dripping from her mouth:1.1), slim naked body, (plump firm breasts:1.1), one hand squeezing her own nipple between thumb and forefinger, soft window light, 85mm, (natural skin texture:1.2), "
       ],
       "color": "#232",
       "bgcolor": "#353"
@@ -2337,7 +2337,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 8,
       "mode": 0,
@@ -2364,7 +2364,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 21,
       "mode": 0,
@@ -2421,7 +2421,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 9,
       "mode": 0,
@@ -2448,7 +2448,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 14,
       "mode": 0,
@@ -2518,7 +2518,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 10,
       "mode": 0,
@@ -2545,7 +2545,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 25,
       "mode": 0,
@@ -2646,8 +2646,8 @@
         "ver": "0.33.0"
       },
       "widgets_values": [
-        1743360928,
-        "randomize",
+        930312207,
+        "fixed",
         26,
         6,
         "dpmpp_2m",
@@ -2668,7 +2668,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 11,
       "mode": 0,
@@ -2695,7 +2695,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 26,
       "mode": 0,
@@ -2744,7 +2744,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 12,
       "mode": 0,
@@ -2771,7 +2771,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 27,
       "mode": 0,
@@ -2826,7 +2826,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 13,
       "mode": 0,
@@ -2853,7 +2853,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 23,
       "mode": 0,
@@ -2920,7 +2920,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 24,
       "mode": 0,
@@ -2977,7 +2977,7 @@
       ],
       "flags": {
         "pinned": true,
-        "collapsed": true
+        "collapsed": false
       },
       "order": 28,
       "mode": 0,
@@ -3027,7 +3027,7 @@
         700
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 0,
       "mode": 0,
@@ -3217,7 +3217,7 @@
         700
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 0,
       "mode": 0,
@@ -3450,7 +3450,7 @@
         700
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 0,
       "mode": 0,
@@ -3512,7 +3512,7 @@
         90
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 29,
       "mode": 0,
@@ -3553,7 +3553,7 @@
         60
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 30,
       "mode": 0,
@@ -3590,7 +3590,7 @@
         520
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 31,
       "mode": 0,
@@ -3686,8 +3686,8 @@
         1024,
         true,
         1024,
-        480957299,
-        "randomize",
+        1736114183,
+        "fixed",
         26,
         6,
         "dpmpp_2m",
@@ -3723,7 +3723,7 @@
         80
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 32,
       "mode": 0,
@@ -3773,7 +3773,7 @@
         780
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 33,
       "mode": 0,
@@ -3799,7 +3799,7 @@
         90
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 25,
       "mode": 0,
@@ -3836,7 +3836,7 @@
         90
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 25,
       "mode": 0,
@@ -3884,7 +3884,7 @@
         90
       ],
       "flags": {
-        "collapsed": true
+        "collapsed": false
       },
       "order": 25,
       "mode": 0,
@@ -3919,6 +3919,168 @@
       ],
       "color": "#223",
       "bgcolor": "#335"
+    },
+    {
+      "id": 41,
+      "type": "MarkdownNote",
+      "pos": [
+        900,
+        -1600
+      ],
+      "size": [
+        889.96875,
+        240
+      ],
+      "flags": {
+        "pinned": true,
+        "collapsed": false
+      },
+      "order": 34,
+      "mode": 0,
+      "color": "#233",
+      "bgcolor": "#355",
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "**Your saved prompts**\n\nThis is a shelf. Each place on the shelf is called a **slot**, and each slot holds one whole prompt that you saved earlier.\n\n**The dial** is the number at the top. Press the little arrows to go up or down. Slot 1 is the first prompt you ever saved, slot 2 the second, and so on. As you turn the dial, the name and the text underneath change to show you what is sitting in that slot.\n\n**The name box** is what that saved prompt is called. Give it a name that tells you what it is - *headshot, soft window light* is a good name, *prompt 3* is not.\n\n**The window** underneath shows the saved text. You cannot type in it. It is a window, not a notepad - you look through it, and you do your editing up in the STEP 7 box where you normally type.\n\n**The five buttons**\n\n- **Load** takes the prompt you are dialled to and drops it into your STEP 7 box. Whatever was in that box is replaced. Edit it up there.\n- **Save (overwrite)** goes the other way. It takes whatever is in your STEP 7 box right now and writes it over the slot you are dialled to. The old text in that slot is gone. Use this when you tweaked a saved prompt and want to keep the tweak.\n- **Save as** puts what is in your STEP 7 box onto the shelf as a **brand new** slot at the end. Type a name in the name box first, or it will tell you off. The dial then jumps to the new slot so you can see it landed.\n- **Create new** empties your STEP 7 box so you can start writing from nothing, and parks the dial on the next free slot. Because this throws away what you typed, you have to click it **twice** - the first click just asks *are you sure*. Click anything else and it forgets you asked.\n- **Delete** takes the prompt you are dialled to off the shelf for good. It also asks twice. Afterwards, everything that sat below it moves up one slot - so if you delete slot 2, the old slot 3 becomes slot 2.\n\n**Save phrase** is explained on the phrase shelf, STEP 7b.\n\n**Where it all lives:** a plain file at `user/default/freedom_prompt_slots.json`. It is not inside the workflow, so your shelf stays put even if you load a different workflow, and it is still there tomorrow.\n\n**On your phone:** your phone can open this server two ways, and they are not the same.\n\nThe mobile app (the `/mobile` address) draws only plain fields. The dial, the name and the window appear there, but the buttons do not, and turning the dial will not change what the window shows - the code that does that is the same code the mobile app leaves out.\n\nComfyUI's own address - the plain one, with no `/mobile` on the end - gives you the whole shelf on your phone: every button, and a dial that fills the window as you turn it. It is the same page the PC uses, so you are working the node itself."
+      ],
+      "title": "STEP 7a - your saved prompts"
+    },
+    {
+      "id": 42,
+      "type": "FreedomPromptSlots",
+      "pos": [
+        900,
+        -1310
+      ],
+      "size": [
+        889.96875,
+        360
+      ],
+      "flags": {
+        "pinned": true,
+        "collapsed": false
+      },
+      "order": 35,
+      "mode": 0,
+      "color": "#232",
+      "bgcolor": "#353",
+      "inputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "INT",
+          "widget": {
+            "name": "slot"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "name",
+          "name": "name",
+          "type": "STRING",
+          "widget": {
+            "name": "name"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "saved_prompt",
+          "name": "saved_prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "saved_prompt"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "FreedomPromptSlots"
+      },
+      "widgets_values": [
+        1,
+        "",
+        ""
+      ],
+      "title": "STEP 7a  -  FreedomPromptSlots  -  Your saved prompts"
+    },
+    {
+      "id": 43,
+      "type": "MarkdownNote",
+      "pos": [
+        900,
+        -900
+      ],
+      "size": [
+        889.96875,
+        240
+      ],
+      "flags": {
+        "pinned": true,
+        "collapsed": false
+      },
+      "order": 36,
+      "mode": 0,
+      "color": "#233",
+      "bgcolor": "#355",
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "**Your saved phrases**\n\nThe STEP 7a shelf holds whole prompts. This one holds **pieces** - a few words you keep reaching for, like `(soft window light:1.2)` or `85mm, natural skin texture`. Build up a collection and stop retyping them.\n\n**How to put something on this shelf**\n\n1. Highlight the words you want, with your mouse. You can do this in **either** place: your STEP 7 prompt box, or the read-only window on the STEP 7a prompt shelf.\n2. Press **Save phrase**. There is one of these buttons right under your STEP 7 box, one on the STEP 7a prompt shelf, and one here - they all do the same thing, so use whichever is nearest.\n3. The dial here jumps to the phrase that just landed, so you can see it worked.\n\nYou do not have to press the button the instant you highlight. Each box quietly remembers the last stretch of words you highlighted in it, so clicking away first is fine. Saving the same phrase twice does nothing - it just points you at the copy you already have.\n\n**How to use one again**\n\n**The dial** walks you through your phrases one at a time. **The window** shows the one you are on. When the one you want appears, press **Copy phrase**, then click into your STEP 7 box, put the cursor where you want it, and paste - Ctrl and V together.\n\n**Delete** takes the phrase you are dialled to off the shelf for good. It asks twice - the first click only changes the button to say so. Afterwards everything below it moves up one slot.\n\nIf your browser blocks the copy, the shelf will say so. Highlight the phrase in the window and press Ctrl and C instead; that always works.\n\n**Where it all lives:** a plain file at `user/default/freedom_phrases.json`.\n\n**On your phone:** same as STEP 7a. In the mobile app the dial and the window appear but the two buttons do not, and the dial will not refresh the window. Open this server at its plain address instead, without `/mobile`, and both buttons are there.\n\nOne thing the mobile app does give you: every text box in it has its own copy button, so you can copy a phrase from the window even there."
+      ],
+      "title": "STEP 7b - your saved phrases"
+    },
+    {
+      "id": 44,
+      "type": "FreedomPhraseSlots",
+      "pos": [
+        900,
+        -610
+      ],
+      "size": [
+        889.96875,
+        260
+      ],
+      "flags": {
+        "pinned": true,
+        "collapsed": false
+      },
+      "order": 37,
+      "mode": 0,
+      "color": "#232",
+      "bgcolor": "#353",
+      "inputs": [
+        {
+          "localized_name": "slot",
+          "name": "slot",
+          "type": "INT",
+          "widget": {
+            "name": "slot"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "phrase",
+          "name": "phrase",
+          "type": "STRING",
+          "widget": {
+            "name": "phrase"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "FreedomPhraseSlots"
+      },
+      "widgets_values": [
+        1,
+        ""
+      ],
+      "title": "STEP 7b  -  FreedomPhraseSlots  -  Your saved phrases"
     }
   ],
   "links": [
@@ -4261,9 +4423,9 @@
       "title": "STEP 7",
       "bounding": [
         890,
-        -360,
+        -1660,
         919.96875,
-        1283.953125
+        3030
       ],
       "color": "#3f789e",
       "flags": {}
@@ -4381,7 +4543,7 @@
     "VHS_KeepIntermediate": true,
     "mobile_lineage": {
       "lineage": "lin-1wskpq0ol8lmtrfrfnc",
-      "member": "lin-d2mm5u0c1x7mubr1oyt"
+      "member": "lin-707g3rnq5z5mud7lxlw"
     },
     "freedom_note": "v06: the radio buttons on STEP 4 are gone. Every choice is now a real dropdown on node 4a, so the PC, the phone and a raw API call all send the same settings."
   },

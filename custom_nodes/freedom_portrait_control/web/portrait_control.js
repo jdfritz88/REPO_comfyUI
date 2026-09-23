@@ -14,12 +14,32 @@
 // choices. Every choice is now a REAL dropdown on node 4a, so it travels with the
 // workflow to any client. The controls below read and write those widgets.
 //
+// A preset saved on STEP 4a carries more than Portrait Master dials: it also holds
+// the RECIPE - both seeds with their after-generate setting, the face LoRA and its
+// strength, the LoRA stack, and the prompt text. See "THE RECIPE" further down.
+//
 // Everything the server must obey is mirrored into STEP 4a's hidden "state" field,
 // because ComfyUI sends a node's input values to the server and nothing else.
 // =============================================================================
 import { app } from "../../scripts/app.js";
 
 const CONTROL_NODE = "FreedomPortraitUserPreset";
+
+// STEP 3 on screen - the Face Shelf, the node that loads her trained face. It gets
+// its own preset drawer, separate from Portrait Master's, holding the same payload.
+const TRAINED_FACE_NODE = "FreedomFaceShelf";
+const TRAINED_FACE_SCOPE = "trained_face";
+
+// Every preset saved from here on says where it was born. Portrait Master's are
+// named pm_something, the trained face's tl_something. The prefix goes on at
+// "Save as" only: a preset that already exists keeps the name it has, because the
+// prefixes start from now. Typing the prefix yourself does not double it.
+const prefixFor = (scope) => (scope === TRAINED_FACE_SCOPE ? "tl_" : "pm_");
+function withPrefix(scope, name) {
+  const p = prefixFor(scope);
+  const clean = String(name || "").trim();
+  return clean.toLowerCase().startsWith(p) ? clean : p + clean;
+}
 
 const MODE_PRESET_WINS = "preset wins - dials locked";
 const MODE_PRESET_UNLOCKED = "preset loaded - dials unlocked";
@@ -83,7 +103,13 @@ const EXPLANATION =
   "      Use this node's preset (default) - dials locked, no buttons.\n" +
   "      Load preset, unlock dials        - save, save as, delete available.\n" +
   "      Ignore presets, unlock dials     - save as and delete available.\n" +
-  "Factory reset works only in the last one.";
+  "Factory reset works only in the last one.\n" +
+  "A preset saved on 4a also carries the RECIPE: both seeds and their\n" +
+  "after-generate setting, the face LoRA and its strength, every switched-on\n" +
+  "slot of the LoRA stack, and the words in your STEP 7 box. Loading it puts\n" +
+  "all of that back, so a saved look can be reproduced exactly.\n" +
+  "New presets saved here are named pm_something. STEP 3 - her trained face -\n" +
+  "has its own drawer, named tl_something, holding exactly the same things.";
 
 const CONFLICT =
   "These two cannot be used together. The developer: \"Face Generator is a " +
@@ -236,6 +262,271 @@ function refreshAll() {
 }
 
 // Applying a 4a preset to what the screen shows, so the dials always show what is used.
+// --------------------------------------------------------------------------- //
+// THE RECIPE
+// --------------------------------------------------------------------------- //
+// A preset used to hold Portrait Master dials and nothing else. Seeds were
+// deliberately left out - `seed` and `control_after_generate` are in HOUSEKEEPING
+// above, so writeDials() skips them, and it still does. The recipe below is
+// gathered and written SEPARATELY, on purpose, so that turning a dial can never
+// quietly move a seed.
+//
+// What a recipe holds, and why each piece:
+//   - both seeds, with their after-generate setting. Without the seed pinned you
+//     cannot get the same picture back; without the setting you cannot tell
+//     whether it will hold still.
+//   - the face LoRA: its strength, which face is picked, and the trigger weight.
+//     A strength without the file it applies to means nothing.
+//   - every switched-on slot of the LoRA stack, with its file and strength. Her
+//     likeness currently comes from three passes of the same file, so the stack
+//     is part of the recipe, not scenery.
+//   - the words in your STEP 7 box.
+//
+// Presets saved before this existed simply have no recipe in them; they load as
+// they always did.
+const RECIPE_SAMPLER = "KSampler";
+const RECIPE_DETAILER = "FaceDetailer";
+const RECIPE_SHELF = "FreedomFaceShelf";
+const RECIPE_STACK = "FreedomLoraStack";
+const STACK_SLOTS = 12;
+
+// Write one widget directly. writeDials() cannot be used here: it filters to
+// Portrait Master dials and skips everything in HOUSEKEEPING, seeds included.
+function setWidgetValue(node, name, value) {
+  const w = widget(node, name);
+  if (!w || value === undefined || value === null || w.value === value) return 0;
+  w.value = value;
+  w.callback?.(value);
+  return 1;
+}
+
+// Your prompt box, found by following the wire rather than by node id - ids do
+// not match the STEP numbers on screen.
+function recipePromptBox() {
+  const graph = app.graph;
+  if (!graph) return null;
+  for (const node of graph._nodes || []) {
+    if (node.type !== "StringConcatenate") continue;
+    const slot = (node.inputs || []).findIndex((i) => i.name === "string_b");
+    if (slot < 0) continue;
+    let origin = null;
+    try { origin = node.getInputNode?.(slot); } catch (e) { origin = null; }
+    if (origin) return origin;
+  }
+  return (graph._nodes || []).find((n) => n.type === "PrimitiveStringMultiline") || null;
+}
+
+function gatherRecipe() {
+  const recipe = {};
+  const sampler = graphNodes(RECIPE_SAMPLER)[0];
+  if (sampler) {
+    recipe.ksampler = {
+      seed: widget(sampler, "seed")?.value,
+      control_after_generate: widget(sampler, "control_after_generate")?.value,
+    };
+  }
+  const detailer = graphNodes(RECIPE_DETAILER)[0];
+  if (detailer) {
+    recipe.facedetailer = {
+      seed: widget(detailer, "seed")?.value,
+      control_after_generate: widget(detailer, "control_after_generate")?.value,
+    };
+  }
+  const shelf = graphNodes(RECIPE_SHELF)[0];
+  if (shelf) {
+    recipe.face_shelf = {
+      strength: widget(shelf, "strength")?.value,
+      selected: widget(shelf, "selected")?.value,
+      enabled: widget(shelf, "enabled")?.value,
+      trigger_weight: widget(shelf, "trigger_weight")?.value,
+    };
+  }
+  const stack = graphNodes(RECIPE_STACK)[0];
+  if (stack) {
+    recipe.lora_stack = [];
+    for (let i = 1; i <= STACK_SLOTS; i++) {
+      recipe.lora_stack.push({
+        enabled: widget(stack, `enabled_${i}`)?.value,
+        lora: widget(stack, `lora_${i}`)?.value,
+        strength: widget(stack, `strength_${i}`)?.value,
+      });
+    }
+  }
+  const box = recipePromptBox();
+  if (box) recipe.prompt = widget(box, "value")?.value;
+  return recipe;
+}
+
+function applyRecipe(recipe) {
+  if (!recipe) return 0;
+  let n = 0;
+  const sampler = graphNodes(RECIPE_SAMPLER)[0];
+  if (sampler && recipe.ksampler) {
+    n += setWidgetValue(sampler, "seed", recipe.ksampler.seed);
+    n += setWidgetValue(sampler, "control_after_generate", recipe.ksampler.control_after_generate);
+  }
+  const detailer = graphNodes(RECIPE_DETAILER)[0];
+  if (detailer && recipe.facedetailer) {
+    n += setWidgetValue(detailer, "seed", recipe.facedetailer.seed);
+    n += setWidgetValue(detailer, "control_after_generate", recipe.facedetailer.control_after_generate);
+  }
+  const shelf = graphNodes(RECIPE_SHELF)[0];
+  if (shelf && recipe.face_shelf) {
+    for (const k of ["strength", "selected", "enabled", "trigger_weight"]) {
+      n += setWidgetValue(shelf, k, recipe.face_shelf[k]);
+    }
+  }
+  const stack = graphNodes(RECIPE_STACK)[0];
+  if (stack && Array.isArray(recipe.lora_stack)) {
+    recipe.lora_stack.forEach((slot, idx) => {
+      const i = idx + 1;
+      n += setWidgetValue(stack, `enabled_${i}`, slot?.enabled);
+      n += setWidgetValue(stack, `lora_${i}`, slot?.lora);
+      n += setWidgetValue(stack, `strength_${i}`, slot?.strength);
+    });
+  }
+  const box = recipePromptBox();
+  if (box && typeof recipe.prompt === "string") {
+    n += setWidgetValue(box, "value", recipe.prompt);
+    const w = widget(box, "value");
+    const elx = w && (w.element || w.inputEl || w.domElement);
+    const ta = elx && (elx.tagName === "TEXTAREA" ? elx : elx.querySelector?.("textarea"));
+    if (ta) ta.value = recipe.prompt;
+  }
+  queueRedraw();
+  return n;
+}
+
+// Both drawers store and restore exactly the same thing: every Portrait Master
+// dial, 4a's switches, and the recipe.
+function gatherEverything() {
+  const nodes = {};
+  for (const c of PM_CLASSES) {
+    const n = graphNodes(c)[0];
+    if (n) nodes[c] = readDials(n);
+  }
+  return { nodes, switches: { ...state.switches }, recipe: gatherRecipe() };
+}
+
+function applyEverything(data) {
+  if (!data) return 0;
+  let n = 0;
+  if (data.switches) Object.assign(state.switches, data.switches);
+  for (const cls of PM_CLASSES) {
+    const values = data.nodes?.[cls];
+    if (!values) continue;
+    for (const node of graphNodes(cls)) n += writeDials(node, values);
+  }
+  n += applyRecipe(data.recipe);
+  refreshAll();
+  return n;
+}
+
+// --------------------------------------------------------------------------- //
+// STEP 3 - her trained face - its own preset drawer
+// --------------------------------------------------------------------------- //
+function buildTrainedFacePanel(node) {
+  const scope = TRAINED_FACE_SCOPE;
+  const root = el("div", { className: "freedom-tf" });
+  root.style.cssText =
+    "font:12px system-ui,sans-serif;display:flex;flex-direction:column;gap:5px;" +
+    "padding:7px;color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;";
+  for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"]) {
+    root.addEventListener(ev, (e) => e.stopPropagation());
+  }
+
+  const heading = el("div", { textContent: "HER RECIPES - saved settings for this face" });
+  heading.style.cssText = "font-weight:700;color:#cde3ff;font-size:10px;letter-spacing:.3px;";
+  const note = el("div", {
+    textContent: "A recipe here holds both seeds and whether they are fixed, her LoRA " +
+                 "and its strength, the trigger weight, every switched-on slot of the " +
+                 "LoRA stack, the words in your STEP 7 box, and every Portrait Master " +
+                 "dial. Loading one puts all of it back.",
+  });
+  note.style.cssText = "color:#9a9a9a;font-size:9.5px;line-height:1.35;";
+
+  const select = el("select");
+  select.style.cssText = "background:#222;color:#ddd;border:1px solid #555;padding:2px;";
+  const nameBox = el("input", { type: "text", placeholder: "new recipe name (tl_ is added for you)" });
+  nameBox.style.cssText = "background:#222;color:#ddd;border:1px solid #555;padding:2px;";
+  const row = el("div");
+  row.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
+  const say = el("div");
+  say.style.cssText = "color:#9cc4ff;min-height:13px;font-size:10px;";
+
+  const mk = (label, fn) => {
+    const b = el("button", { textContent: label });
+    b.style.cssText = "background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;" +
+                      "padding:3px 9px;cursor:pointer;font-size:10.5px;";
+    b.onclick = fn;
+    row.append(b);
+    return b;
+  };
+
+  const btnSave = mk("Save", async () => {
+    const name = select.value;
+    if (!name || name === NO_PRESET) { say.textContent = "Pick a recipe to save over."; return; }
+    const res = await api.save(scope, name, gatherEverything(), true);
+    say.textContent = res.ok ? `Saved '${name}'.` : res.error;
+    await refreshLists();
+  });
+
+  const btnSaveAs = mk("Save as", async () => {
+    if (!nameBox.value.trim()) { say.textContent = "Type a name first."; return; }
+    const name = withPrefix(scope, nameBox.value);
+    const res = await api.save(scope, name, gatherEverything(), false);
+    say.textContent = res.ok ? `Saved '${name}'.` : res.error;
+    if (res.ok) {
+      nameBox.value = "";
+      await refreshLists();
+      select.value = name;
+      refresh();
+    }
+  });
+
+  const btnDelete = mk("Delete", async () => {
+    const name = select.value;
+    if (!name || name === NO_PRESET) { say.textContent = "Pick a recipe to delete."; return; }
+    const res = await api.remove(scope, name);
+    say.textContent = res.ok ? `Deleted '${name}'.` : res.error;
+    await refreshLists();
+  });
+
+  select.onchange = async () => {
+    const name = select.value;
+    refresh();
+    if (!name || name === NO_PRESET) { say.textContent = ""; return; }
+    const found = await api.read(scope, name);
+    if (!found?.data) { say.textContent = `Could not read '${name}'.`; return; }
+    const changed = applyEverything(found.data);
+    say.textContent = `Loaded '${name}' - ${changed} setting${changed === 1 ? "" : "s"} put back.`;
+  };
+
+  function refresh() {
+    const chosen = select.value && select.value !== NO_PRESET;
+    btnSave.disabled = !chosen;
+    btnDelete.disabled = !chosen;
+  }
+
+  async function refreshLists() {
+    let presets = [];
+    try { presets = await api.list(scope); } catch (e) { presets = []; }
+    const chosen = select.value;
+    select.replaceChildren(el("option", { value: NO_PRESET, textContent: NO_PRESET }));
+    for (const p of presets) select.append(el("option", { value: p.name, textContent: p.name }));
+    select.value = presets.some((p) => p.name === chosen) ? chosen : NO_PRESET;
+    refresh();
+  }
+
+  root.append(heading, note, select, nameBox, row, say);
+  node.addDOMWidget("freedom_tf_presets", "div", root, { serialize: false, hideOnZoom: false });
+
+  const panel = { node, cls: TRAINED_FACE_NODE, refresh, refreshLists };
+  panels.push(panel);
+  refreshLists();
+  return panel;
+}
+
 async function applyControlPreset() {
   const c = controlNode();
   const name = widget(c, "preset")?.value;
@@ -260,6 +551,7 @@ async function applyControlPreset() {
       }
     }
   }
+  applyRecipe(found.data.recipe);
   refreshAll();
 }
 
@@ -386,15 +678,7 @@ function buildPanel(node, cls) {
   const say = el("div");
   say.style.cssText = "color:#9c9;min-height:14px;";
 
-  const gather = () => {
-    if (!isControl) return readDials(node);
-    const nodes = {};
-    for (const c of PM_CLASSES) {
-      const n = graphNodes(c)[0];
-      if (n) nodes[c] = readDials(n);
-    }
-    return { nodes, switches: { ...state.switches } };
-  };
+  const gather = () => (isControl ? gatherEverything() : readDials(node));
 
   const btnSave = mkButton("Save", async () => {
     const name = select.value;
@@ -404,8 +688,8 @@ function buildPanel(node, cls) {
     await refreshLists();
   });
   const btnSaveAs = mkButton("Save as", async () => {
-    const name = nameBox.value.trim();
-    if (!name) { say.textContent = "Type a name first."; return; }
+    if (!nameBox.value.trim()) { say.textContent = "Type a name first."; return; }
+    const name = withPrefix(scope, nameBox.value);
     const res = await api.save(scope, name, gather(), false);
     say.textContent = res.ok ? `Saved '${name}'.` : res.error;
     if (res.ok) { nameBox.value = ""; await refreshLists(); select.value = name; select.dispatchEvent(new Event("change")); }
@@ -503,6 +787,10 @@ app.registerExtension({
 
   async nodeCreated(node) {
     const cls = node.comfyClass || node.type;
+    if (cls === TRAINED_FACE_NODE) {
+      setTimeout(() => buildTrainedFacePanel(node), 0);
+      return;
+    }
     if (cls !== CONTROL_NODE && !PM_CLASSES.includes(cls)) return;
 
     if (cls === CONTROL_NODE) {
