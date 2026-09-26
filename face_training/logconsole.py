@@ -51,13 +51,18 @@ def _console_filter(record: logging.LogRecord) -> bool:
     return record.levelno >= logging.WARNING or record.name.startswith(OWN_LOGGERS)
 
 
-def start_logging_console(name: str) -> str:
+def start_logging_console(name: str, log_dir: str | None = None) -> str:
     """Install the file (+ console when there is one) handlers and the crash
-    hooks for this process. Returns the log file path."""
-    os.makedirs(LOG_DIR, exist_ok=True)
+    hooks for this process. Returns the log file path.
+
+    log_dir: where the file goes. A run for one person passes that person's own
+    logs folder (Profile.logs_dir, user 2026-09-26); without it the file goes to
+    LOG_DIR."""
+    where = log_dir or LOG_DIR
+    os.makedirs(where, exist_ok=True)
     safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", name)
     path = os.path.join(
-        LOG_DIR, f"{safe}_{time.strftime('%Y%m%d_%H%M%S')}_{os.getpid()}.log")
+        where, f"{safe}_{time.strftime('%Y%m%d_%H%M%S')}_{os.getpid()}.log")
 
     root = logging.getLogger()
     root.setLevel(logging.INFO)                       # libraries: INFO and up

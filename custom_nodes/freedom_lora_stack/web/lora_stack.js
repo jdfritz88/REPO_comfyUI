@@ -1,8 +1,7 @@
 // ==========================================================================
 // FREEDOM SYSTEM - LoRA Stack panel
-// A growing list of LoRA rows (on/off, file, strength) on the node. Starts
-// with 3 rows; "+ Add LoRA" appends another (up to MAX_ROWS); each row has
-// its own X to delete it. Never lists or applies a face LoRA - those are
+// Four LoRA rows (on/off, file, strength) on the node, always shown, with a
+// gap between rows; each row's X empties it. Never lists or applies a face LoRA - those are
 // picked from the Face Shelf node instead.
 //
 // The real per-row values live in hidden native widgets (enabled_i / lora_i /
@@ -21,7 +20,7 @@ const CSS = `
 .fls-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:3px 9px;cursor:pointer;font-size:10px}
 .fls-btn:hover{background:#3a3a3a}
 .fls-row{background:#161616;border:1px solid #333;border-radius:5px;padding:5px 6px;
-  display:flex;gap:6px;align-items:center}
+  display:flex;gap:6px;align-items:center;margin-bottom:10px}
 .fls-row select{flex:1;min-width:0;background:#111;color:#ddd;border:1px solid #444;border-radius:4px;font-size:10.5px;padding:2px}
 .fls-row .strength{width:52px;background:#111;color:#ddd;border:1px solid #444;border-radius:4px;font-size:10.5px;padding:2px 4px}
 .fls-row .x{color:#a66;cursor:pointer;font-size:12px;padding:0 3px;flex-shrink:0}
@@ -41,8 +40,10 @@ function css() {
   }
 }
 
-const MAX_ROWS = 12;
-const STARTER_ROWS = 3;
+// Limited to 4 by the user (2026-09-25); all 4 rows are always shown and a
+// row's X empties it instead of removing it.
+const MAX_ROWS = 4;
+const STARTER_ROWS = 4;
 
 class Stack {
   constructor(node) {
@@ -52,7 +53,8 @@ class Stack {
     this.root.className = "fls-root";
     this.root.innerHTML = `
       <div class="fls-bar">
-        <span class="t">LORA STACK - everything except her face</span>
+        <span class="t">GENERAL LORA STACK - both face modes, never her face</span>
+        <button class="fls-btn allonoff" title="Switch every row off, or every row back on">All OFF</button>
         <button class="fls-btn refresh">Refresh list</button>
       </div>
       <div class="fls-compat"></div>
@@ -64,6 +66,15 @@ class Stack {
     this.compatEl = this.root.querySelector(".fls-compat");
     this.warnEl = this.root.querySelector(".fls-warn");
     this.root.querySelector(".refresh").onclick = () => this.loadChoices(true);
+    // All ON / All OFF at the top (user, 2026-09-25): any row ON -> switch all off;
+    // all off -> switch all on. Each row keeps its own tick box as well.
+    this.allBtn = this.root.querySelector(".allonoff");
+    this.allBtn.onclick = () => {
+      const turnOn = !this.rows.some(r => r.enabled);
+      this.rows.forEach(r => { r.enabled = turnOn; });
+      this.sync();
+      this.render();
+    };
     this.addBtn.onclick = () => this.addRow();
     for (const ev of ["pointerdown", "wheel", "contextmenu"])
       this.root.addEventListener(ev, e => e.stopPropagation());
@@ -208,7 +219,7 @@ class Stack {
   }
 
   deleteRow(idx) {
-    this.rows.splice(idx, 1);
+    this.rows[idx] = { enabled: true, lora: "", strength: 0.8 };    // empty it; the row stays, ON like a new row
     this.sync();
     this.render();
   }
@@ -278,14 +289,15 @@ class Stack {
 
       const x = document.createElement("span");
       x.className = "x";
-      x.title = "remove this row";
+      x.title = "empty this row";
       x.textContent = "✕";
       x.onclick = () => this.deleteRow(idx);
 
       el.appendChild(cb); el.appendChild(sel); el.appendChild(st); el.appendChild(x);
       this.rowsEl.appendChild(el);
     });
-    this.addBtn.style.display = this.rows.length >= MAX_ROWS ? "none" : "";
+    this.addBtn.style.display = "none";        // all MAX_ROWS rows are always shown
+    this.allBtn.textContent = this.rows.some(r => r.enabled) ? "All OFF" : "All ON";
     this.sync();
   }
 }
@@ -314,5 +326,23 @@ app.registerExtension({
         this.__fls.render();
       }
     };
+    // Re-filter when this stack is wired to something new (a different model
+    // feeding it), so the list always follows the checkpoint actually upstream.
+    const onConn = nodeType.prototype.onConnectionsChange;
+    nodeType.prototype.onConnectionsChange = function () {
+      const r = onConn ? onConn.apply(this, arguments) : undefined;
+      if (this.__fls && !app.configuringGraph) this.__fls.loadChoices(true);
+      return r;
+    };
+  },
+  // The list used to be fetched only when the node was created - before a
+  // loaded workflow's wires exist - so it never found the checkpoint and
+  // showed every LoRA unfiltered (found 2026-09-25; Refresh fixed it by hand).
+  // Frontend 1.53.6 runs this hook once the whole graph, wires included, is
+  // loaded (invokeExtensionsAsync("afterConfigureGraph") in its loadGraphData).
+  async afterConfigureGraph() {
+    for (const node of app.graph?.nodes || []) {
+      if (node.__fls) await node.__fls.loadChoices(true);
+    }
   },
 });

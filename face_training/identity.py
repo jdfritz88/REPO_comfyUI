@@ -6,7 +6,8 @@ the list of reference faces it was built from. It is stored in a profile's
 ``identity/`` folder as plain files so it persists and can be inspected.
 
   build_identity(seed_folder, best_photo)  -> Identity
-  Identity.match(face)                     -> cosine similarity 0..1
+  Identity.match(face)                     -> cosine similarity, -1..1 (the dot
+                                              product of unit vectors; can be negative)
   Identity.save(dir) / Identity.load(dir)
 
 Runs in the OneTrainer venv (insightface, onnxruntime, opencv, numpy, PIL).

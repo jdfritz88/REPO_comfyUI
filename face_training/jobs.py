@@ -3,8 +3,9 @@ The job table: which (architecture family x crop) LoRAs get trained for each
 person, and in what order.
 
 Every enabled row produces one LoRA file and one shelf thumbnail. Adding a
-future architecture is one new entry here plus one entry in
-face_training/otrain.py FAMILIES - the rest of the pipeline is model-agnostic.
+future architecture is one new entry here, one entry in face_training/otrain.py
+FAMILIES, and one entry in face_training/thumbs.py FAMILY_CKPT (without it the
+thumbnail falls back to the SDXL checkpoint).
 
 Order matters: jobs run one at a time, top to bottom, so the whole graphics
 card is free for each.

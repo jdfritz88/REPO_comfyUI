@@ -188,13 +188,106 @@ class FreedomPhraseSlots:
         return ()
 
 
+# --------------------------------------------------------------------------- #
+# STEP 7 in two boxes (2026-09-24)
+#
+# The positive prompt split in two: PHYSICAL (how she looks - body, face, hair,
+# skin, clothing) and EVERYTHING ELSE (pose, action, scene, camera, light,
+# style). Her trigger word from STEP 5 comes in on a wire. The three are joined
+# into the finished prompt, in that order - trigger first, as the old
+# StringConcatenate did.
+#
+# Each box has its OWN shelf (user's choice), so any saved look can be paired
+# with any saved scene. Each shelf has the same package as the prompt shelf:
+# dial, name, read-only window, Load, Save (overwrite), Save as, Create new,
+# Delete, Save phrase. The buttons are drawn by web/prompt_slots.js.
+# --------------------------------------------------------------------------- #
+PART_FILES = {
+    "physical": _store("freedom_physical_slots.json"),
+    "scene": _store("freedom_scene_slots.json"),
+}
+
+
+def _read_parts(kind):
+    out = []
+    for entry in _read(PART_FILES[kind], "items"):
+        if isinstance(entry, dict):
+            out.append({"name": str(entry.get("name", "")),
+                        "text": str(entry.get("text", ""))})
+    return out
+
+
+def _shelf_inputs(prefix, what, box_tip):
+    return {
+        prefix + "_slot": ("INT", {
+            "default": 1, "min": 1, "max": MAX_PROMPT_SLOTS, "step": 1,
+            "tooltip": "The dial for your saved " + what + ". Turn it to walk "
+                       "through them; the name and window below change to match.",
+        }),
+        prefix + "_name": ("STRING", {
+            "default": "", "multiline": False,
+            "tooltip": "What this saved " + what + " is called. Type a name, then "
+                       "press Save as to put the box's text on the shelf.",
+        }),
+        prefix + "_saved": ("STRING", {
+            "default": "", "multiline": True,
+            "tooltip": "A window onto the saved " + what + " you are dialled to. "
+                       "Read-only - press Load to put it in the box below.",
+        }),
+    }
+
+
+class FreedomPromptParts:
+    """STEP 7 - the positive prompt in two boxes, each with its own shelf."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        required = {}
+        required.update(_shelf_inputs("physical", "looks", ""))
+        required["physical"] = ("STRING", {
+            "default": "", "multiline": True,
+            "tooltip": "PHYSICAL - how she looks: body, face, hair, skin, "
+                       "clothing. Type here.",
+        })
+        required.update(_shelf_inputs("scene", "everything-else texts", ""))
+        required["everything_else"] = ("STRING", {
+            "default": "", "multiline": True,
+            "tooltip": "EVERYTHING ELSE - pose, action, scene, camera, lighting, "
+                       "style. Type here.",
+        })
+        return {
+            "required": required,
+            "optional": {
+                "trigger": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Her trigger word, wired from STEP 5. Goes first.",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "combine"
+    CATEGORY = "Freedom"
+    DESCRIPTION = ("Your positive prompt in two boxes - physical, and everything "
+                   "else - each with its own saved shelf. Joined with her trigger "
+                   "word into the finished prompt.")
+
+    def combine(self, physical="", everything_else="", trigger="", **_shelf):
+        parts = [p.strip() for p in (trigger, physical, everything_else)
+                 if isinstance(p, str) and p.strip()]
+        return (", ".join(parts),)
+
+
 NODE_CLASS_MAPPINGS = {
     "FreedomPromptSlots": FreedomPromptSlots,
     "FreedomPhraseSlots": FreedomPhraseSlots,
+    "FreedomPromptParts": FreedomPromptParts,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FreedomPromptSlots": "Freedom Prompt Slots",
     "FreedomPhraseSlots": "Freedom Phrase Slots",
+    "FreedomPromptParts": "Freedom Prompt - physical + everything else",
 }
 
 
@@ -245,6 +338,28 @@ if _HAS_SERVER:
         _write(PROMPTS_FILE, "prompts", prompts)
         return web.json_response({"ok": True, "slot": len(prompts), "prompts": prompts})
 
+    @routes.post("/freedom/promptslots/rename")
+    async def _prompts_rename(request):
+        """Give the slot the dial is on a new name. Its text is left alone."""
+        body = await request.json()
+        try:
+            slot = int(body.get("slot", 0))
+        except (TypeError, ValueError):
+            return web.json_response({"ok": False,
+                                      "error": "that slot number is not a number"})
+        name = str(body.get("name", "")).strip()
+        if not name:
+            return web.json_response({"ok": False,
+                                      "error": "type the new name in the name box first"})
+        prompts = _read_prompts()
+        if slot < 1 or slot > len(prompts):
+            return web.json_response({"ok": False,
+                                      "error": "slot " + str(slot) + " is empty"})
+        old = prompts[slot - 1]["name"]
+        prompts[slot - 1]["name"] = name
+        _write(PROMPTS_FILE, "prompts", prompts)
+        return web.json_response({"ok": True, "slot": slot, "old": old, "prompts": prompts})
+
     @routes.post("/freedom/promptslots/delete")
     async def _prompts_delete(request):
         """Take one prompt off the shelf. Everything after it moves up a slot."""
@@ -261,6 +376,106 @@ if _HAS_SERVER:
         gone = prompts.pop(slot - 1)
         _write(PROMPTS_FILE, "prompts", prompts)
         return web.json_response({"ok": True, "deleted": gone["name"], "prompts": prompts})
+
+    # ---- the two STEP 7 box shelves: /freedom/partslots/<physical|scene>/... ----
+    def _kind(request):
+        kind = request.match_info.get("kind", "")
+        return kind if kind in PART_FILES else None
+
+    def _slot_of(body):
+        try:
+            return int(body.get("slot", 0))
+        except (TypeError, ValueError):
+            return None
+
+    @routes.get("/freedom/partslots/{kind}/list")
+    async def _parts_list(request):
+        kind = _kind(request)
+        if not kind:
+            return web.json_response({"ok": False, "error": "unknown shelf"})
+        return web.json_response({"ok": True, "items": _read_parts(kind)})
+
+    @routes.post("/freedom/partslots/{kind}/save")
+    async def _parts_save(request):
+        kind = _kind(request)
+        if not kind:
+            return web.json_response({"ok": False, "error": "unknown shelf"})
+        body = await request.json()
+        slot = _slot_of(body)
+        if slot is None:
+            return web.json_response({"ok": False,
+                                      "error": "that slot number is not a number"})
+        items = _read_parts(kind)
+        if slot < 1 or slot > len(items):
+            return web.json_response({"ok": False,
+                                      "error": "slot " + str(slot) +
+                                               " is empty - use Save as instead"})
+        name = str(body.get("name", "")).strip()
+        items[slot - 1] = {"name": name or items[slot - 1]["name"],
+                           "text": str(body.get("text", ""))}
+        _write(PART_FILES[kind], "items", items)
+        return web.json_response({"ok": True, "slot": slot, "items": items})
+
+    @routes.post("/freedom/partslots/{kind}/saveas")
+    async def _parts_saveas(request):
+        kind = _kind(request)
+        if not kind:
+            return web.json_response({"ok": False, "error": "unknown shelf"})
+        body = await request.json()
+        name = str(body.get("name", "")).strip()
+        if not name:
+            return web.json_response({"ok": False,
+                                      "error": "type a name in the name box first"})
+        items = _read_parts(kind)
+        if len(items) >= MAX_PROMPT_SLOTS:
+            return web.json_response({"ok": False,
+                                      "error": "the shelf is full at " +
+                                               str(MAX_PROMPT_SLOTS)})
+        items.append({"name": name, "text": str(body.get("text", ""))})
+        _write(PART_FILES[kind], "items", items)
+        return web.json_response({"ok": True, "slot": len(items), "items": items})
+
+    @routes.post("/freedom/partslots/{kind}/rename")
+    async def _parts_rename(request):
+        """Give the slot the dial is on a new name. Its text is left alone."""
+        kind = _kind(request)
+        if not kind:
+            return web.json_response({"ok": False, "error": "unknown shelf"})
+        body = await request.json()
+        slot = _slot_of(body)
+        if slot is None:
+            return web.json_response({"ok": False,
+                                      "error": "that slot number is not a number"})
+        name = str(body.get("name", "")).strip()
+        if not name:
+            return web.json_response({"ok": False,
+                                      "error": "type the new name in the name box first"})
+        items = _read_parts(kind)
+        if slot < 1 or slot > len(items):
+            return web.json_response({"ok": False,
+                                      "error": "slot " + str(slot) + " is empty"})
+        old = items[slot - 1]["name"]
+        items[slot - 1]["name"] = name
+        _write(PART_FILES[kind], "items", items)
+        return web.json_response({"ok": True, "slot": slot, "old": old, "items": items})
+
+    @routes.post("/freedom/partslots/{kind}/delete")
+    async def _parts_delete(request):
+        kind = _kind(request)
+        if not kind:
+            return web.json_response({"ok": False, "error": "unknown shelf"})
+        body = await request.json()
+        slot = _slot_of(body)
+        if slot is None:
+            return web.json_response({"ok": False,
+                                      "error": "that slot number is not a number"})
+        items = _read_parts(kind)
+        if slot < 1 or slot > len(items):
+            return web.json_response({"ok": False,
+                                      "error": "slot " + str(slot) + " is already empty"})
+        gone = items.pop(slot - 1)
+        _write(PART_FILES[kind], "items", items)
+        return web.json_response({"ok": True, "deleted": gone["name"], "items": items})
 
     @routes.get("/freedom/phrases/list")
     async def _phrases_list(request):
@@ -286,6 +501,32 @@ if _HAS_SERVER:
         _write(PHRASES_FILE, "phrases", phrases)
         return web.json_response({"ok": True, "slot": len(phrases), "phrases": phrases})
 
+
+    @routes.post("/freedom/phrases/rename")
+    async def _phrases_rename(request):
+        """A phrase has no separate name - the words ARE its name. Renaming one
+        changes its words, in place, at the same slot."""
+        body = await request.json()
+        try:
+            slot = int(body.get("slot", 0))
+        except (TypeError, ValueError):
+            return web.json_response({"ok": False,
+                                      "error": "that slot number is not a number"})
+        text = str(body.get("text", "")).strip()
+        if not text:
+            return web.json_response({"ok": False, "error": "the new words are empty"})
+        phrases = _read_phrases()
+        if slot < 1 or slot > len(phrases):
+            return web.json_response({"ok": False,
+                                      "error": "slot " + str(slot) + " is empty"})
+        if text in phrases and phrases.index(text) != slot - 1:
+            return web.json_response({"ok": False,
+                                      "error": "that phrase is already on the shelf at slot "
+                                               + str(phrases.index(text) + 1)})
+        old = phrases[slot - 1]
+        phrases[slot - 1] = text
+        _write(PHRASES_FILE, "phrases", phrases)
+        return web.json_response({"ok": True, "slot": slot, "old": old, "phrases": phrases})
 
     @routes.post("/freedom/phrases/delete")
     async def _phrases_delete(request):

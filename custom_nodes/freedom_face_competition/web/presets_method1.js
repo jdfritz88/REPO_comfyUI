@@ -51,6 +51,7 @@ class Presets1Panel {
       <div class="fp1-row">
         <button class="fp1-btn dup">Duplicate Loaded Preset</button>
         <button class="fp1-btn new">New Preset</button>
+        <button class="fp1-btn rename">Rename</button>
       </div>
       <div class="fp1-status"></div>
     `;
@@ -63,6 +64,17 @@ class Presets1Panel {
     this.root.querySelector(".save").onclick = () => this.saveLoaded();
     this.root.querySelector(".dup").onclick = () => this.duplicateLoaded();
     this.root.querySelector(".new").onclick = () => this.newPreset();
+    // Renaming already happened on Enter in the name box; this is the same
+    // thing as a button you can see.
+    this.root.querySelector(".rename").onclick = () => {
+      const newName = this.nameEl.value.trim();
+      if (!newName || newName === this.pickerEl.value) {
+        this.say("type the new name in the name box first", true);
+        this.focusNameForRename();
+        return;
+      }
+      this.renameIfChanged();
+    };
     this.pickerEl.onchange = () => { this.nameEl.value = this.pickerEl.value; };
     this.nameEl.onchange = () => this.renameIfChanged();
     for (const ev of ["pointerdown","mousedown","wheel","contextmenu"]) this.root.addEventListener(ev, e=>e.stopPropagation());

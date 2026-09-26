@@ -4,9 +4,12 @@ Content-hashed face-detection cache for Seek.
 Detecting faces in a big photo library is the slow part (2-4 s per image on the
 CPU). This caches the result of every image by its content, so:
 
-  - a second Seek run only scans files that are new or changed
-  - renaming or moving a file does not trigger a rescan
-  - a stopped scan resumes exactly where it left off (the DB is the state)
+  - a file already scanned is not scanned again, and renaming or moving a
+    file does not trigger a rescan
+  - a folder that finished scanning is skipped whole on a later run, so a file
+    added to it afterwards is NOT picked up (scan_folder, skip_finished)
+  - a stopped scan resumes where it left off for photos; a video stopped
+    halfway is read again from its start (the DB is the state)
 
 One SQLite database per profile, at <profile>/scan_cache/faces.db.
 
@@ -118,7 +121,7 @@ def scan_video_frames(folder: str, recursive: bool, cache: "ScanCache",
                       stop_check=lambda: False) -> dict:
     """
     For every video under `folder` not already done (by content hash), choose
-    its frames in memory (video_frames.scan_frames - the original method) and
+    its frames in memory (video_frames.scan_frames - one frame in every 24) and
     record each one's faces in the cache as a frame row. No frame is written to
     disk.
     A video's frames and its "done" mark are committed together, so a video
@@ -144,7 +147,7 @@ def scan_video_frames(folder: str, recursive: bool, cache: "ScanCache",
             cache.record(frame_key(vhash, fr["idx"]), frame_ref(v, fr["idx"]),
                          fr["faces"], fr["shape"], size=st.st_size, mtime=st.st_mtime,
                          commit=False)
-        cache.mark_video_done(vhash, v, r.get("scenes", 0), len(r["frames"]),
+        cache.mark_video_done(vhash, v, r.get("checked", 0), len(r["frames"]),
                               r.get("error", ""))
         read += 1
         recorded += len(r["frames"])

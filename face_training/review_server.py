@@ -69,7 +69,24 @@ log = logging.getLogger("face_training.review_server")
 
 REPO = os.path.dirname(_HERE)
 PAGE = os.path.join(_HERE, "review_page.html")
-TRAIN_LOG_DIR = os.path.join(REPO, "logs", "face_training")
+RULES = os.path.join(_HERE, "FACE_TOOL_RULES.md")   # the user's rule list (2026-09-26)
+
+
+def face_tool_rules() -> list[dict]:
+    """The user's standing rules, read from FACE_TOOL_RULES.md every time so the
+    review page always shows what the file says: [{"step", "rules": [text]}]."""
+    out = []
+    try:
+        with open(RULES, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.rstrip()
+                if line.startswith("## "):
+                    out.append({"step": line[3:].strip(), "rules": []})
+                elif out and re.match(r"^\d+\. ", line):
+                    out[-1]["rules"].append(line.split(". ", 1)[1])
+    except OSError:
+        log.exception("could not read %s", RULES)
+    return out
 CROP_EXTS = (".jpg", ".jpeg", ".png")
 # The server stays up while the training it started runs, so the page can keep
 # showing how it is going, then closes this long after the run ends.
@@ -99,6 +116,20 @@ BLUR_PADS = (0.10, 0.35, 0.60)
 UNDO_DEPTH = 10
 UNDO_DIR = "_undo"
 UNDO_PENDING = "pending.json"
+
+
+def crop_stamp(path: str) -> str:
+    """A crop's fingerprint for the "already been through it" mark: how big the
+    file is and when it was last written.
+
+    Not a content hash on purpose. This is read for every crop on every poll of
+    the page - hashing hundreds of pictures that often would make the page
+    crawl - and size plus last-written time already changes whenever the file
+    is rewritten, which is all the mark needs to notice. face_groups.py stamps
+    its measurements the same way.
+    """
+    st = os.stat(path)
+    return f"{st.st_size}:{int(st.st_mtime)}"
 
 
 _TRAIN_WHICH = re.compile(r"\[(\d+)/(\d+)\] training (\S+)")
@@ -193,6 +224,36 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
+def stop_running(prof: P.Profile, wait_s: float = 15.0) -> str:
+    """Shut down this person's review program, if one is open (user, 2026-09-26:
+    the Face Tool's Close must also close it, not instead of what Close does).
+
+    It is asked to shut down first, which carries out answers still waiting for
+    Undo and removes review_server.json. A program started before this existed
+    does not know the request, so if it is still alive after wait_s it is ended;
+    its waiting answers stay in the undo file and the next review page carries
+    them out when it starts. A training run is its own program and keeps going.
+    -> what happened, in a few words."""
+    info = find_running(prof)
+    if not info:
+        return "none open"
+    pid = int(info["pid"])
+    try:
+        req = urllib.request.Request(info["url"] + "api/shutdown", data=b"{}", method="POST",
+                                     headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=3).read()
+    except Exception:                                          # noqa: BLE001
+        pass                                   # an older program: it will be ended below
+    end = time.time() + wait_s
+    while time.time() < end and _pid_alive(pid):
+        time.sleep(0.3)
+    if not _pid_alive(pid):
+        return "closed"
+    subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
+    time.sleep(0.5)
+    return "ended (it did not know how to close itself)" if not _pid_alive(pid)         else "could NOT be closed"
+
+
 def find_running(prof: P.Profile) -> dict | None:
     """The review page already open for this person, if its server is alive."""
     try:
@@ -231,6 +292,8 @@ class Review:
         self.finishing: dict | None = None
         # finding her face in each crop, for the review page's grouping
         self.measuring: dict | None = None
+        # set by main(): stops the server when the Face Tool closes
+        self.request_shutdown = None
 
     # always re-read from disk: never write back a stale copy of profile.json
     def _prof(self) -> P.Profile:
@@ -313,10 +376,12 @@ class Review:
                 if not name.lower().endswith(CROP_EXTS):
                     continue
                 p = os.path.join(d, name)
-                c = hist.crop(f"{kind}/{name}") or {}
+                rel = f"{kind}/{name}"
+                c = hist.crop(rel) or {}
                 rows.append({"kind": kind, "name": name,
                              "v": int(os.path.getmtime(p) * 1000),
                              "others": int(c.get("others_remain", 0)),
+                             "reviewed": hist.is_reviewed(rel, crop_stamp(p)),
                              "source": c.get("source", "")})
             items[kind] = rows
         tr = self.training or self._recover_training(prof)
@@ -388,6 +453,13 @@ class Review:
         """
         staged, kind, answer = e.get("staged"), e.get("kind"), e.get("answer")
         name = e.get("name", "")
+        if kind == "video" and answer in ("appears", "face_box") and e.get("hash"):
+            # she is in this video - into her her-list (user, 2026-09-26)
+            hist = SH.History(self._prof().history_path)
+            hist.mark_her(e["hash"], name=name,
+                          how="video answered " + ("She appears here" if answer == "appears"
+                                                   else "Find the face"))
+            hist.save()
         if not staged or not os.path.isfile(staged):
             self._drop_ref_dir(e)
             return
@@ -396,6 +468,19 @@ class Review:
         if kind == "photo" and answer in ("yes", "not_her"):
             from face_training import facebank as FB
             from face_training import seek as SK
+            if answer == "not_her":
+                # into her not-her list, like a deleted crop (user, 2026-09-26)
+                cap = hist.capture(name) or {}
+                hist.mark_not_her(cap.get("hash") or _content_hash(staged),
+                                  source=cap.get("source", ""), name=name,
+                                  how="uncertain photo answered Not her")
+                hist.set_outcome(name, "not_her_user")
+                hist.save()
+            if answer == "yes":
+                cap = hist.capture(name) or {}
+                hist.mark_her(cap.get("hash") or _content_hash(staged), name=name,
+                              source=cap.get("source", ""), how="photo answered Yes, it's her")
+                hist.save()
             sc = FB.scores_for(self.slug, staged)
             if answer == "yes":
                 os.makedirs(prof.review_approved_dir, exist_ok=True)
@@ -415,6 +500,16 @@ class Review:
             hist.save()
             recycle([staged])
         elif kind == "video" and answer == "not_her":
+            # into her not-her list, so no later search pulls it (user, 2026-09-26)
+            hist.mark_not_her(_content_hash(staged), name=name,
+                              how="uncertain video answered Not her")
+            hist.save()
+            recycle([staged])
+        elif kind == "video" and answer == "her_unused":
+            hist.mark_not_used(_content_hash(staged), reason="her_unused", name=name)
+            hist.log("uncertain_video_not_used", video=name,
+                     meaning="her, not used: not pulled by a later search; copy deleted")
+            hist.save()
             recycle([staged])
         else:
             # nothing was staged for this answer (a video mark): nothing to do
@@ -525,8 +620,87 @@ class Review:
                 "name": (last or {}).get("name", "")}
 
     # --- uncertain videos and photos -----------------------------------
+    def _face_box_answer(self, hist, path: str, name: str, ref: str, seconds, box) -> dict:
+        """"Find the face" (user, 2026-09-25): the person drew a box around her face
+        on the frame showing in the player.
+
+        The face inside the box becomes the reference for THIS video only (user's
+        choice): when the video is pulled, a face counts as her if it matches this
+        one (seek.SEED_MATCH) or her profile's own rule. It is recorded as a "She
+        appears here" answer at that moment, so the pull starts there, Undo takes it
+        back, and the video leaves this page like any other marked video. Nothing
+        about her profile changes."""
+        try:
+            b = {k: float(box[k]) for k in ("x", "y", "w", "h")}
+        except (TypeError, KeyError, ValueError):
+            raise ValueError("the box did not arrive - draw it again")
+        if seconds is None:
+            raise ValueError("the moment in the video did not arrive - try again")
+        cap = cv2.VideoCapture(path)
+        fps = cap.get(cv2.CAP_PROP_FPS) or 0
+        cap.release()
+        if not fps:
+            raise ValueError(f"{name}: could not read its frame rate")
+        frame_no = max(0, int(round(float(seconds) * fps)))
+        from face_training.video_frames import read_frames
+        from face_training.sort_photos import _detect, _get_app
+        img = read_frames(path, [frame_no]).get(frame_no)
+        if img is None:
+            raise ValueError(f"{name}: frame {frame_no} could not be read")
+        H, W = img.shape[:2]
+        x1, y1 = max(0, int(b["x"] * W)), max(0, int(b["y"] * H))
+        x2, y2 = min(W, int((b["x"] + b["w"]) * W)), min(H, int((b["y"] + b["h"]) * H))
+        if x2 - x1 < 8 or y2 - y1 < 8:
+            raise ValueError("the box is too small - draw it around her whole face")
+        app = _get_app()
+
+        def inside(f):
+            fx1, fy1, fx2, fy2 = f.bbox
+            ix = max(0.0, min(fx2, x2) - max(fx1, x1))
+            iy = max(0.0, min(fy2, y2) - max(fy1, y1))
+            area = max(1.0, (fx2 - fx1) * (fy2 - fy1))
+            return ix * iy / area             # share of the face that is in the box
+
+        faces = [f for f in _detect(app, img) if inside(f) >= 0.5]
+        how = "whole frame"
+        if not faces:
+            # the face may be too small or turned for the whole frame; look again
+            # at just the box, with room around it
+            px, py = (x2 - x1) // 2, (y2 - y1) // 2
+            cx1, cy1 = max(0, x1 - px), max(0, y1 - py)
+            crop = img[cy1:min(H, y2 + py), cx1:min(W, x2 + px)]
+            for f in _detect(app, crop):
+                f.bbox = f.bbox + np.array([cx1, cy1, cx1, cy1], dtype=f.bbox.dtype)
+                if inside(f) >= 0.5:
+                    faces.append(f)
+            how = "the box, looked at closer"
+        if not faces:
+            raise ValueError("no face was found inside the box. Draw it a little bigger, "
+                             "around her whole face, or try a frame where her face is "
+                             "turned more toward the camera")
+        face = max(faces, key=inside)
+        seed = [round(float(v), 6) for v in face.normed_embedding]
+        prof = self._prof()
+        ident = Identity.load(prof.identity_dir)
+        like_profile = float(ident.match_emb(face.normed_embedding))
+        fb = [int(v) for v in face.bbox]
+        said = (f"{name}: face saved from frame {frame_no} ({float(seconds):.2f}s). The next "
+                f"search starts there and follows that face through the video")
+        hist.log("uncertain_video_answered", video=name, answer="in it",
+                 seconds=round(float(seconds), 3), start_frame=frame_no,
+                 fps=round(float(fps), 3), ref=ref, face_box=fb, found_in=how,
+                 like_her_profile=round(like_profile, 3), seed=seed,
+                 meaning="she appears here; the face in the box is the reference "
+                         "for this video only")
+        hist.save()
+        self._stage({"ref": ref, "kind": "video", "name": name, "answer": "face_box",
+                     "said": said, "hash": _content_hash(path)}, None)
+        return {"ok": True, "name": name, "start_frame": frame_no, "face_box": fb,
+                "like_her_profile": round(like_profile, 3), "said": said,
+                "undo": self.undo_state()}
+
     def unsure_answer(self, kind: str, name: str, answer: str, seconds=None,
-                      fps=None) -> dict:
+                      fps=None, box=None) -> dict:
         """One answer about an uncertain video or photo.
 
         The answer is written into her search history straight away. What it
@@ -574,7 +748,8 @@ class Review:
                              meaning="the next search starts this video here")
                     hist.save()
                     self._stage({"ref": ref, "kind": kind, "name": name,
-                                 "answer": answer, "said": said}, None)
+                                 "answer": answer, "said": said,
+                                 "hash": _content_hash(path)}, None)
                     return {"ok": True, "name": name, "start_frame": frame,
                             "seconds": seconds, "said": said, "undo": self.undo_state()}
                 if answer == "not_her":
@@ -587,6 +762,22 @@ class Review:
                                  "answer": answer, "said": said}, path)
                     return {"ok": True, "name": name, "said": said,
                             "undo": self.undo_state()}
+                if answer == "her_unused":
+                    # Her, but not wanted (user, 2026-09-25): recorded only. The copy
+                    # is deleted once out of Undo's reach, the video is written
+                    # into not_used so no later search pulls it, and nothing is
+                    # learned from it.
+                    said = f"{name}: her, but not used - recorded only, nothing learned from it"
+                    hist.log("uncertain_video_answered", video=name, answer="her, not used",
+                             ref=ref, meaning="her, not to be used; the copy is deleted "
+                                              "and the video is not pulled again")
+                    hist.save()
+                    self._stage({"ref": ref, "kind": kind, "name": name,
+                                 "answer": answer, "said": said}, path)
+                    return {"ok": True, "name": name, "said": said,
+                            "undo": self.undo_state()}
+                if answer == "face_box":
+                    return self._face_box_answer(hist, path, name, ref, seconds, box)
                 raise ValueError(f"unknown answer {answer!r}")
 
             if kind == "photo":
@@ -717,6 +908,27 @@ class Review:
 
         threading.Thread(target=work, daemon=True).start()
 
+    # --- already been through it ---------------------------------------
+    def _mark_seen(self, hist, kind: str, name: str):
+        """Put the "looked at" mark on one crop. Caller already holds the lock.
+
+        Acting on a crop is looking at it, so anything you rotate, blur or
+        settle gets the mark, with the file's size and time as it stands AFTER
+        the action - a rotate rewrites the picture.
+        """
+        try:
+            p = os.path.join(self.sub[kind], name)
+            if os.path.isfile(p):
+                hist.mark_reviewed(f"{kind}/{name}", crop_stamp(p))
+        except Exception:                                      # noqa: BLE001
+            log.debug("could not mark %s/%s as looked at", kind, name, exc_info=True)
+
+    def _all_crops(self) -> list[tuple[str, str]]:
+        return [(kind, name)
+                for kind, d in self.sub.items()
+                for name in (sorted(os.listdir(d)) if os.path.isdir(d) else [])
+                if name.lower().endswith(CROP_EXTS)]
+
     def _settled_counts(self) -> dict:
         """How many groups in each section you have already dealt with.
 
@@ -747,6 +959,9 @@ class Review:
         """Take one group off the queue and write down what happened to it."""
         with self.lock:
             hist = self._history()
+            for m in members:
+                kind, _, name = m.partition("/")
+                self._mark_seen(hist, kind, name)     # a settled group has been looked at
             hist.log("duplicate_group_settled", members=sorted(members), outcome=outcome,
                      kept=kept, size=len(members),
                      meaning={"kept_all": "looked at and every picture kept",
@@ -808,6 +1023,7 @@ class Review:
                 if c is not None:
                     c["others_remain"] = len(left)
                     c["others_blurred"] = c.get("others_blurred", 0) + len(others)
+                self._mark_seen(hist, it.get("kind"), it.get("name"))  # rewritten, and looked at
                 hist.log("others_blurred_in_review", crop=rel, blurred=len(others),
                          others_remain=len(left), source=(c or {}).get("source", ""),
                          meaning="other people's faces blurred out; the crop is kept")
@@ -903,6 +1119,7 @@ class Review:
                     c["turns_clockwise"] = (c.get("turns_clockwise", 0) + (1 if direction == "right" else -1)) % 4
                     if her is not None:
                         c["others_remain"] = len(others)
+                self._mark_seen(hist, it.get("kind"), it.get("name"))  # rewritten, and looked at
                 hist.log(f"rotated_{direction}_in_review", crop=rel,
                          source=(c or {}).get("source", ""),
                          caption_remeasured=her is not None, caption=caption)
@@ -942,8 +1159,8 @@ class Review:
             if finished:
                 cmd.append("--retrain")      # replace the existing LoRAs as each new one finishes
 
-            os.makedirs(TRAIN_LOG_DIR, exist_ok=True)
-            log_path = os.path.join(TRAIN_LOG_DIR,
+            os.makedirs(prof.logs_dir, exist_ok=True)       # the person's own logs
+            log_path = os.path.join(prof.logs_dir,
                                     f"train_{prof.slug}_{time.strftime('%Y%m%d_%H%M%S')}.log")
             fh = open(log_path, "w", encoding="utf-8")
             flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -953,7 +1170,15 @@ class Review:
             prof.set_review_pending(False)
             prof.save()
             hist = SH.History(prof.history_path)
+            # Proceed is the end of a pass: everything still standing has been
+            # through your hands, so it is marked looked-at and will not be put
+            # in front of you again (user, 2026-09-22). The crops are untouched
+            # on disk - training uses them exactly as before.
+            seen = self._all_crops()
+            for kind, name in seen:
+                self._mark_seen(hist, kind, name)
             hist.log("review_proceed", head=head, body=body, retrain=bool(finished),
+                     marked_reviewed=len(seen),
                      training_pid=proc.pid, training_log=log_path)
             hist.save()
             self.training = {"pid": proc.pid, "log": log_path, "started": time.strftime("%H:%M:%S"),
@@ -980,7 +1205,7 @@ class Review:
                 pid = int(fh.read().strip())
         except Exception:                                      # noqa: BLE001
             return None
-        logs = sorted(glob.glob(os.path.join(TRAIN_LOG_DIR, f"train_{self.slug}_*.log")))
+        logs = sorted(glob.glob(os.path.join(prof.logs_dir, f"train_{self.slug}_*.log")))
         if not logs:
             return None
         newest = logs[-1]
@@ -1121,6 +1346,8 @@ def _handler(rv: Review):
                         return self._send(200, fh.read(), "text/html; charset=utf-8")
                 if path == "/api/ping":
                     return self._json(200, {"ok": True})
+                if path == "/api/rules":
+                    return self._json(200, {"steps": face_tool_rules()})
                 if path == "/api/state":
                     return self._json(200, rv.state())
                 if path.startswith("/img/"):
@@ -1159,6 +1386,13 @@ def _handler(rv: Review):
             try:
                 n = int(self.headers.get("Content-Length", "0"))
                 body = json.loads(self.rfile.read(n) or b"{}")
+                if path == "/api/shutdown":
+                    # the Face Tool is closing (user, 2026-09-26): answer first,
+                    # then stop; the finally in main() carries out waiting answers
+                    self._json(200, {"ok": True})
+                    if rv.request_shutdown:
+                        rv.request_shutdown()
+                    return None
                 if path == "/api/delete":
                     return self._json(200, rv.delete(body.get("items", [])))
                 if path == "/api/duplicate_scan":
@@ -1183,7 +1417,8 @@ def _handler(rv: Review):
                 if path == "/api/unsure":
                     return self._json(200, rv.unsure_answer(
                         body.get("kind"), body.get("name"), body.get("answer"),
-                        seconds=body.get("seconds"), fps=body.get("fps")))
+                        seconds=body.get("seconds"), fps=body.get("fps"),
+                        box=body.get("box")))
             except Exception as e:                             # noqa: BLE001
                 log.exception("POST %s failed", path)
                 return self._json(400, {"error": str(e)})
@@ -1213,7 +1448,7 @@ def main():
     a = ap.parse_args()
 
     from face_training.logconsole import start_logging_console
-    start_logging_console(f"review_{a.profile}")
+    start_logging_console(f"review_{a.profile}", P.Profile(a.profile).logs_dir)
 
     prof = P.Profile(a.profile)
     running = find_running(prof)
@@ -1235,6 +1470,7 @@ def main():
     with open(prof.review_server_file, "w", encoding="utf-8") as fh:
         json.dump({"pid": os.getpid(), "url": url, "started": time.strftime("%Y-%m-%dT%H:%M:%S")}, fh)
     rv.on_training_end = lambda: threading.Timer(SHUTDOWN_AFTER_TRAINING_S, server.shutdown).start()
+    rv.request_shutdown = lambda: threading.Thread(target=server.shutdown, daemon=True).start()
     log.info("review page for %s: %s", a.profile, url)
     print(f"review page: {url}", flush=True) if sys.stdout else None
     if not a.no_browser:

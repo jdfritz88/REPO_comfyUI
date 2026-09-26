@@ -1,23 +1,27 @@
 """
-The learning layer shared by every face profile.
+The learning layer for ONE face profile - each person has their own, in their
+own folder, and nothing is shared between people (user, 2026-09-26).
 
-Three things make the tool sharper the more people it processes:
+Three things make the tool sharper for that person the more it works on them:
 
-1. A growing bank of "other people" face fingerprints. Every face Seek decides
-   is NOT the target person is added here. The per-person match cutoff is then
+1. A growing bank of "other people" face fingerprints: the other faces in a
+   picture where Seek found her, and a solo face that scores clearly below the
+   cutoff (more than 0.10 under it). The per-person match cutoff is then
    set from how close the nearest OTHER face is - loose when the bank is small,
    tight when it is large.
 
-2. A feedback log. When Seek cannot tell whether a face is the person, it sets
-   the copy aside in needs_review and logs its scores (by="auto"). A person's
-   answer in Needs review is logged with those scores (by="user") and is a
-   labeled example. Seek's own unsure guesses are never examples.
+2. A feedback log. When Seek cannot tell whether a face is the person, it logs
+   its scores (by="auto"); in the clean stage the copy is also set aside in
+   needs_review. A person's answer on the review page is logged with those
+   scores (by="user") and is a labeled example. Seek's own unsure guesses are
+   never examples.
 
 3. A small trained judge (logistic regression over a few similarity numbers),
    fitted to a person's answers only. Once there are enough of them it
    replaces the fixed cutoff.
 
-Everything lives as plain files under _face_profiles/_global/ .
+Everything lives as plain files in that person's own <profile>/learning/
+folder. Nothing is shared between people (user, 2026-09-26).
 
 stdlib + numpy. The judge uses a tiny hand-rolled logistic fit (no sklearn
 dependency).
@@ -33,12 +37,30 @@ import numpy as np
 
 from face_training.profiles import PROFILES_ROOT
 
-GLOBAL_DIR = os.path.join(PROFILES_ROOT, "_global")
-OTHER_NPY = os.path.join(GLOBAL_DIR, "other_faces.npy")
-OTHER_META = os.path.join(GLOBAL_DIR, "other_faces_meta.jsonl")
-FEEDBACK = os.path.join(GLOBAL_DIR, "feedback.jsonl")
-JUDGE = os.path.join(GLOBAL_DIR, "judge.json")
-CROP_PREFS = os.path.join(GLOBAL_DIR, "crop_prefs.json")
+# Everything here belongs to ONE person and lives in that person's own folder,
+# <profile>/learning/ (user, 2026-09-26: "NOTHING about an individual profile
+# should be shared with another profile"). There is no shared folder: searching
+# for David never sees Susana's bank, answers, judge or crop margins, even when
+# they are in the same photos. (It used to be _face_profiles/_global, shared by
+# every person - a second person's own face could sit in it as "not them".)
+LEARNING = "learning"
+
+
+def learning_dir(slug: str) -> str:
+    if not slug or os.path.basename(slug) != slug or slug.startswith("_"):
+        raise ValueError(f"bad profile name {slug!r}")
+    return os.path.join(PROFILES_ROOT, slug, LEARNING)
+
+
+def _p(slug: str, name: str) -> str:
+    return os.path.join(learning_dir(slug), name)
+
+
+def OTHER_NPY(slug): return _p(slug, "other_faces.npy")
+def OTHER_META(slug): return _p(slug, "other_faces_meta.jsonl")
+def FEEDBACK(slug): return _p(slug, "feedback.jsonl")
+def JUDGE(slug): return _p(slug, "judge.json")
+def CROP_PREFS(slug): return _p(slug, "crop_prefs.json")
 
 BASE_THRESHOLD = 0.32
 BORDERLINE = 0.06          # decisions within this of the cutoff are logged for review
@@ -46,26 +68,26 @@ JUDGE_MIN_ROWS = 200      # feedback rows needed before the judge takes over
 _DEDUP_SIM = 0.97          # near-identical embeddings are not added twice
 
 
-def _ensure():
-    os.makedirs(GLOBAL_DIR, exist_ok=True)
+def _ensure(slug: str):
+    os.makedirs(learning_dir(slug), exist_ok=True)
 
 
 # --------------------------------------------------------------------------- #
 # the "other people" bank
 # --------------------------------------------------------------------------- #
-def _load_bank() -> np.ndarray:
-    if os.path.isfile(OTHER_NPY):
-        return np.load(OTHER_NPY).astype(np.float32)
+def _load_bank(slug: str) -> np.ndarray:
+    if os.path.isfile(OTHER_NPY(slug)):
+        return np.load(OTHER_NPY(slug)).astype(np.float32)
     return np.zeros((0, 512), dtype=np.float32)
 
 
 def add_others(embs, profile_slug: str, source: str = ""):
-    """embs: iterable of unit 512-vectors known to be a different person."""
-    _ensure()
+    """embs: iterable of unit 512-vectors known not to be this person."""
+    _ensure(profile_slug)
     embs = [np.asarray(e, dtype=np.float32) for e in embs if e is not None]
     if not embs:
         return 0
-    bank = _load_bank()
+    bank = _load_bank(profile_slug)
     added = 0
     rows = []
     for e in embs:
@@ -78,23 +100,24 @@ def add_others(embs, profile_slug: str, source: str = ""):
                      "at": time.strftime("%Y-%m-%dT%H:%M:%S")})
         added += 1
     if added:
-        np.save(OTHER_NPY, bank.astype(np.float16))
-        with open(OTHER_META, "a", encoding="utf-8") as fh:
+        np.save(OTHER_NPY(profile_slug), bank.astype(np.float16))
+        with open(OTHER_META(profile_slug), "a", encoding="utf-8") as fh:
             for r in rows:
                 fh.write(json.dumps(r) + "\n")
     return added
 
 
-def bank_size() -> int:
-    return len(_load_bank())
+def bank_size(slug: str) -> int:
+    return len(_load_bank(slug))
 
 
-def adaptive_threshold(identity_mean: np.ndarray, self_sims: np.ndarray | None = None) -> float:
+def adaptive_threshold(slug: str, identity_mean: np.ndarray,
+                       self_sims: np.ndarray | None = None) -> float:
     """
     cutoff = safely between the closest OTHER face and the person's own faces.
     Falls back to BASE_THRESHOLD when the bank is too small to be informative.
     """
-    bank = _load_bank()
+    bank = _load_bank(slug)
     if len(bank) < 25:
         return BASE_THRESHOLD
     m = identity_mean / (np.linalg.norm(identity_mean) + 1e-9)
@@ -115,7 +138,7 @@ def adaptive_threshold(identity_mean: np.ndarray, self_sims: np.ndarray | None =
 def log_decision(profile_slug: str, sim: float, second: float, multi: bool,
                  kept: bool, source: str, decided_by: str = "auto",
                  borderline: bool = False):
-    _ensure()
+    _ensure(profile_slug)
     # `source` is kept as the bare filename because every row ever written
     # used that, and the user/auto rows for one photo have to keep matching
     # each other. But a filename alone cannot find the photo again: 17 of
@@ -145,7 +168,7 @@ def log_decision(profile_slug: str, sim: float, second: float, multi: bool,
            "path": full,
            "by": decided_by, "borderline": bool(borderline),
            "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
-    with open(FEEDBACK, "a", encoding="utf-8") as fh:
+    with open(FEEDBACK(profile_slug), "a", encoding="utf-8") as fh:
         fh.write(json.dumps(row) + "\n")
 
 
@@ -159,11 +182,11 @@ def scores_for(profile_slug: str, source: str):
     makes it a training example - "at these readings, the answer was her".
     Without it a confirmation teaches nothing.
     """
-    if not os.path.isfile(FEEDBACK):
+    if not os.path.isfile(FEEDBACK(profile_slug)):
         return None
     base = os.path.basename(source)
     best = None
-    with open(FEEDBACK, encoding="utf-8") as fh:
+    with open(FEEDBACK(profile_slug), encoding="utf-8") as fh:
         for line in fh:
             try:
                 r = json.loads(line)
@@ -182,7 +205,7 @@ def apply_review(profile_slug: str, source: str, keep: bool,
                  sim: float, second: float, multi: bool):
     log_decision(profile_slug, sim, second, multi, keep, source,
                  decided_by="user", borderline=False)
-    train_judge()          # refit whenever new ground truth arrives
+    train_judge(profile_slug)          # refit whenever new ground truth arrives
 
 
 # --------------------------------------------------------------------------- #
@@ -192,8 +215,9 @@ def _features(sim: float, second: float, multi: bool) -> np.ndarray:
     return np.array([1.0, sim, sim * sim, second, sim - second, 1.0 if multi else 0.0])
 
 
-def train_judge() -> bool:
-    """Fit the judge to a person's answers - and ONLY to a person's answers.
+def train_judge(slug: str) -> bool:
+    """Fit THIS person's judge to the user's answers about this person - and ONLY
+    to the user's answers.
 
     Seek logs the calls it is not sure about (by="auto"). Those rows record a
     guess, not the truth: the photo is set aside precisely because Seek could
@@ -205,10 +229,10 @@ def train_judge() -> bool:
     Auto rows are still written: an answer in Needs review takes its scores
     from them (scores_for), which is what makes the answer a usable example.
     """
-    if not os.path.isfile(FEEDBACK):
+    if not os.path.isfile(FEEDBACK(slug)):
         return False
     X, y = [], []
-    with open(FEEDBACK, encoding="utf-8") as fh:
+    with open(FEEDBACK(slug), encoding="utf-8") as fh:
         for line in fh:
             try:
                 r = json.loads(line)
@@ -235,33 +259,33 @@ def train_judge() -> bool:
         p = 1.0 / (1.0 + np.exp(-Xs @ w))
         w -= 0.1 * (Xs.T @ (p - y)) / len(y)
 
-    _ensure()
-    with open(JUDGE, "w", encoding="utf-8") as fh:
+    _ensure(slug)
+    with open(JUDGE(slug), "w", encoding="utf-8") as fh:
         json.dump({"w": w.tolist(), "mu": mu.tolist(), "sd": sd.tolist(),
                    "rows": len(y), "trained_at": time.strftime("%Y-%m-%dT%H:%M:%S")}, fh)
+    _JUDGE_CACHE.pop(slug, None)
     return True
 
 
-_JUDGE_CACHE = None
+_JUDGE_CACHE: dict = {}          # one judge per person, never shared
 
 
-def judge_prob(sim: float, second: float, multi: bool) -> float | None:
-    global _JUDGE_CACHE
-    if _JUDGE_CACHE is None:
-        if not os.path.isfile(JUDGE):
+def judge_prob(slug: str, sim: float, second: float, multi: bool) -> float | None:
+    j = _JUDGE_CACHE.get(slug)
+    if j is None:
+        if not os.path.isfile(JUDGE(slug)):
             return None
-        with open(JUDGE, encoding="utf-8") as fh:
-            _JUDGE_CACHE = json.load(fh)
-    j = _JUDGE_CACHE
+        with open(JUDGE(slug), encoding="utf-8") as fh:
+            j = _JUDGE_CACHE[slug] = json.load(fh)
     x = _features(sim, second, multi)
     x[1:] = (x[1:] - np.array(j["mu"])) / np.array(j["sd"])
     return float(1.0 / (1.0 + np.exp(-np.dot(np.array(j["w"]), x))))
 
 
-def judge_info() -> dict | None:
-    if not os.path.isfile(JUDGE):
+def judge_info(slug: str) -> dict | None:
+    if not os.path.isfile(JUDGE(slug)):
         return None
-    with open(JUDGE, encoding="utf-8") as fh:
+    with open(JUDGE(slug), encoding="utf-8") as fh:
         j = json.load(fh)
     return {"rows": j["rows"], "trained_at": j["trained_at"]}
 
@@ -269,21 +293,22 @@ def judge_info() -> dict | None:
 # --------------------------------------------------------------------------- #
 # crop-margin preferences  (nudged by which crops the user keeps vs deletes)
 # --------------------------------------------------------------------------- #
-def load_crop_prefs() -> dict:
-    if os.path.isfile(CROP_PREFS):
+def load_crop_prefs(slug: str) -> dict:
+    if os.path.isfile(CROP_PREFS(slug)):
         try:
-            with open(CROP_PREFS, encoding="utf-8") as fh:
+            with open(CROP_PREFS(slug), encoding="utf-8") as fh:
                 return json.load(fh)
         except (OSError, ValueError):
             pass
     return {}
 
 
-def nudge_crop_prefs(kept: int, deleted_head: int, deleted_body: int):
-    """A person deleting many head crops -> widen the head margin a little;
-    deleting many body crops -> widen the body strip. Small steps, clamped."""
-    _ensure()
-    p = load_crop_prefs()
+def nudge_crop_prefs(slug: str, kept: int, deleted_head: int, deleted_body: int):
+    """The user deleting many of THIS person's head crops -> widen this person's
+    head margin a little; many body crops -> widen the body strip. Small steps,
+    clamped."""
+    _ensure(slug)
+    p = load_crop_prefs(slug)
     total = kept + deleted_head + deleted_body
     if total < 15:
         return
@@ -298,16 +323,17 @@ def nudge_crop_prefs(kept: int, deleted_head: int, deleted_body: int):
     p.update({"head_expand": he, "body_side_pad": bsp,
               "updated_from": p.get("updated_from", 0) + total,
               "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S")})
-    with open(CROP_PREFS, "w", encoding="utf-8") as fh:
+    with open(CROP_PREFS(slug), "w", encoding="utf-8") as fh:
         json.dump(p, fh, indent=2)
 
 
-def decide(sim: float, second: float, multi: bool, cutoff: float) -> tuple[bool, bool]:
+def decide(slug: str, sim: float, second: float, multi: bool,
+           cutoff: float) -> tuple[bool, bool]:
     """
-    The single "is this her?" decision, used everywhere in Seek.
+    The single "is this her?" decision for this person, used everywhere in Seek.
     Returns (is_her, is_borderline).
     """
-    prob = judge_prob(sim, second, multi)
+    prob = judge_prob(slug, sim, second, multi)
     if prob is not None:
         is_her = prob >= 0.5
         borderline = 0.35 <= prob <= 0.65

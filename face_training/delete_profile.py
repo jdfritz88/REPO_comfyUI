@@ -15,7 +15,7 @@ The parts, by key:
                   processed/, needs_review/, videos/, uncertain/ - the copies
                   Seek gathered, the videos it kept and the frames it pulled
   crops           clean/head + clean/body - the cropped training photos
-  learning        identity/, scan_cache/, search_history.json - what the app
+  learning        identity/, scan_cache/, search_history.json, learning/ - what the app
                   learned about this person and where it had got to
   backups         backup/ - the 5 rotating snapshots
   runs            _face_runs/<slug> - OneTrainer's working folders
@@ -35,11 +35,12 @@ from face_training import profiles as P
 from face_training.recycle import recycle
 
 # key -> (what it is called on screen, how to list its paths)
-ORDER = ("photos_videos", "crops", "learning", "backups", "runs", "loras", "profile")
+ORDER = ("photos_videos", "crops", "learning", "logs", "backups", "runs", "loras", "profile")
 LABELS = {
     "photos_videos": "Copied photos, videos and pulled frames",
     "crops": "Cropped training photos (clean set)",
-    "learning": "What it learned: identity, scan cache, search history",
+    "learning": "What it learned: identity, scan cache, search history, learning folder",
+    "logs": "Search, review and training logs",
     "backups": "Backup snapshots",
     "runs": "Training work folders (_face_runs)",
     "loras": "Trained LoRA files, thumbnails and the face-shelf entry",
@@ -54,7 +55,10 @@ def _paths(prof: P.Profile, key: str) -> list[str]:
     if key == "crops":
         return [os.path.join(prof.dir, "clean")]
     if key == "learning":
-        return [prof.identity_dir, prof.scan_cache_dir, prof.history_path]
+        return [prof.identity_dir, prof.scan_cache_dir, prof.history_path,
+                prof.learning_dir]
+    if key == "logs":
+        return [prof.logs_dir]
     if key == "backups":
         return [prof.backup_dir]
     if key == "runs":

@@ -8,12 +8,16 @@ A small tkinter window listing every face profile with its status
                       search starts at once
   Seek / Resume seek- mine a folder for photos of that person; Resume continues
                       a stopped search from where it saved
-  Review crops      - the mandatory browser review (face_training/review_server.py);
-                      training starts only from its Proceed button
+  Review            - the mandatory browser review (face_training/review_server.py),
+                      shown when something is waiting; training starts only from
+                      its Proceed button
   Train             - opens the review while one is pending
   Stop              - ask a running Seek/Train to stop and save its work
 
-Launched by the stack launcher (option 4) with OneTrainer's pythonw.exe so it
+Close (and the window X) backs up every profile, then closes every person's
+review page program (user, 2026-09-26).
+
+Launched by the stack launcher (option 6) with OneTrainer's pythonw.exe so it
 runs in the environment that has insightface / torch / OneTrainer.
 
 Runs in the OneTrainer venv.
@@ -173,6 +177,19 @@ class FaceTool(tk.Tk):
             self._logline(f"Backed up {len(done)} profile(s) before closing.")
         except Exception as e:
             self._logline(f"backup on close failed: {e}")
+        # Close also closes every review page's program (user, 2026-09-26: "also -
+        # NOT INSTEAD OF"). Otherwise it keeps running unseen with the code it
+        # started with, and Review reopens that old one.
+        try:
+            from face_training import review_server as RS
+            for prof in P.all_profiles():
+                what = RS.stop_running(prof)
+                if what != "none open":
+                    self._logline(f"'{prof.data.get('display_name', prof.slug)}': review page {what}.")
+                    log.info("close: review program for %s %s", prof.slug, what)
+        except Exception as e:
+            log.exception("could not close the review programs")
+            self._logline(f"could not close the review programs: {e}")
         self.destroy()
 
     # --- the list ------------------------------------------------------
@@ -204,7 +221,7 @@ class FaceTool(tk.Tk):
             for prof in profs:
                 k, dh, db = prof.clean_deletions()
                 if dh + db >= 5:
-                    FB.nudge_crop_prefs(k, dh, db)
+                    FB.nudge_crop_prefs(prof.slug, k, dh, db)
                     prof.snapshot_clean()
         except Exception:
             pass

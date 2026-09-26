@@ -22,7 +22,7 @@ import json
 import logging
 
 from .presets import (NODE_CLASSES, all_factory_defaults, delete_preset, factory_defaults,
-                      list_presets, read_preset, user_root, write_preset)
+                      list_presets, read_preset, rename_preset, user_root, write_preset)
 
 log = logging.getLogger("freedom_portrait_control")
 
@@ -385,6 +385,13 @@ if _HAS_SERVER and PromptServer.instance is not None:
         body = await request.json()
         result = delete_preset(body.get("scope", "user"), body.get("name", ""))
         return web.json_response(result, status=200 if result.get("ok") else 404)
+
+    @routes.post("/freedom/pm/preset/rename")
+    async def _rename(request):
+        body = await request.json()
+        result = rename_preset(body.get("scope", "user"), body.get("name", ""),
+                               body.get("new_name", ""))
+        return web.json_response(result, status=200 if result.get("ok") else 400)
 
     @routes.get("/freedom/pm/defaults")
     async def _defaults(request):

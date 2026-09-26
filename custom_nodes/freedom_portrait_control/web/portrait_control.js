@@ -15,8 +15,9 @@
 // workflow to any client. The controls below read and write those widgets.
 //
 // A preset saved on STEP 4a carries more than Portrait Master dials: it also holds
-// the RECIPE - both seeds with their after-generate setting, the face LoRA and its
-// strength, the LoRA stack, and the prompt text. See "THE RECIPE" further down.
+// the RECIPE - the FaceDetailer seed with its after-generate setting, the face
+// LoRA and its strength, the LoRA stack, and the prompt text. The KSampler is
+// left out on purpose. See "THE RECIPE" further down.
 //
 // Everything the server must obey is mirrored into STEP 4a's hidden "state" field,
 // because ComfyUI sends a node's input values to the server and nothing else.
@@ -104,10 +105,11 @@ const EXPLANATION =
   "      Load preset, unlock dials        - save, save as, delete available.\n" +
   "      Ignore presets, unlock dials     - save as and delete available.\n" +
   "Factory reset works only in the last one.\n" +
-  "A preset saved on 4a also carries the RECIPE: both seeds and their\n" +
+  "A preset saved on 4a also carries the RECIPE: the FaceDetailer seed and its\n" +
   "after-generate setting, the face LoRA and its strength, every switched-on\n" +
   "slot of the LoRA stack, and the words in your STEP 7 box. Loading it puts\n" +
-  "all of that back, so a saved look can be reproduced exactly.\n" +
+  "all of that back. The KSampler is NOT saved and NOT touched: pinning it is\n" +
+  "what made every batch come back the same, so it is left to the canvas.\n" +
   "New presets saved here are named pm_something. STEP 3 - her trained face -\n" +
   "has its own drawer, named tl_something, holding exactly the same things.";
 
@@ -133,6 +135,13 @@ const api = {
     const r = await fetch("/freedom/pm/preset/save", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scope, name, data, overwrite }),
+    });
+    return await r.json();
+  },
+  async rename(scope, name, new_name) {
+    const r = await fetch("/freedom/pm/preset/rename", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope, name, new_name }),
     });
     return await r.json();
   },
@@ -272,9 +281,16 @@ function refreshAll() {
 // quietly move a seed.
 //
 // What a recipe holds, and why each piece:
-//   - both seeds, with their after-generate setting. Without the seed pinned you
-//     cannot get the same picture back; without the setting you cannot tell
-//     whether it will hold still.
+//   - the FaceDetailer seed, with its after-generate setting. The repaint of her
+//     face is the part that has to hold still between runs.
+//
+//     The KSampler is deliberately NOT in here (user, 2026-09-23). It used to be,
+//     and it is what made every batch come back the same: one seed makes the
+//     noise for a whole batch, so a pinned KSampler gives you the same four
+//     pictures in the same order, run after run. Two batches were identical
+//     because of it. A preset now leaves the KSampler alone entirely - it keeps
+//     whatever seed and after-generate setting the canvas already has, and
+//     loading a preset can never re-pin it.
 //   - the face LoRA: its strength, which face is picked, and the trigger weight.
 //     A strength without the file it applies to means nothing.
 //   - every switched-on slot of the LoRA stack, with its file and strength. Her
@@ -284,11 +300,12 @@ function refreshAll() {
 //
 // Presets saved before this existed simply have no recipe in them; they load as
 // they always did.
-const RECIPE_SAMPLER = "KSampler";
 const RECIPE_DETAILER = "FaceDetailer";
 const RECIPE_SHELF = "FreedomFaceShelf";
 const RECIPE_STACK = "FreedomLoraStack";
-const STACK_SLOTS = 12;
+// The general LoRA stack has 4 slots since 2026-09-25 (was 12). A recipe saved
+// before then may hold 12; applyRecipe skips slots the node no longer has.
+const STACK_SLOTS = 4;
 
 // Write one widget directly. writeDials() cannot be used here: it filters to
 // Portrait Master dials and skips everything in HOUSEKEEPING, seeds included.
@@ -318,13 +335,7 @@ function recipePromptBox() {
 
 function gatherRecipe() {
   const recipe = {};
-  const sampler = graphNodes(RECIPE_SAMPLER)[0];
-  if (sampler) {
-    recipe.ksampler = {
-      seed: widget(sampler, "seed")?.value,
-      control_after_generate: widget(sampler, "control_after_generate")?.value,
-    };
-  }
+  // No KSampler here on purpose - see THE RECIPE above.
   const detailer = graphNodes(RECIPE_DETAILER)[0];
   if (detailer) {
     recipe.facedetailer = {
@@ -360,11 +371,8 @@ function gatherRecipe() {
 function applyRecipe(recipe) {
   if (!recipe) return 0;
   let n = 0;
-  const sampler = graphNodes(RECIPE_SAMPLER)[0];
-  if (sampler && recipe.ksampler) {
-    n += setWidgetValue(sampler, "seed", recipe.ksampler.seed);
-    n += setWidgetValue(sampler, "control_after_generate", recipe.ksampler.control_after_generate);
-  }
+  // recipe.ksampler is ignored even when an older preset still carries one, so a
+  // preset saved before 2026-09-23 can never re-pin the KSampler seed.
   const detailer = graphNodes(RECIPE_DETAILER)[0];
   if (detailer && recipe.facedetailer) {
     n += setWidgetValue(detailer, "seed", recipe.facedetailer.seed);
@@ -438,10 +446,11 @@ function buildTrainedFacePanel(node) {
   const heading = el("div", { textContent: "HER RECIPES - saved settings for this face" });
   heading.style.cssText = "font-weight:700;color:#cde3ff;font-size:10px;letter-spacing:.3px;";
   const note = el("div", {
-    textContent: "A recipe here holds both seeds and whether they are fixed, her LoRA " +
-                 "and its strength, the trigger weight, every switched-on slot of the " +
-                 "LoRA stack, the words in your STEP 7 box, and every Portrait Master " +
-                 "dial. Loading one puts all of it back.",
+    textContent: "A recipe here holds the FaceDetailer seed and whether it is fixed, " +
+                 "her LoRA and its strength, the trigger weight, every switched-on slot " +
+                 "of the LoRA stack, the words in your STEP 7 box, and every Portrait " +
+                 "Master dial. Loading one puts all of it back. The KSampler seed is " +
+                 "left alone, so loading a recipe never stops your batches varying.",
   });
   note.style.cssText = "color:#9a9a9a;font-size:9.5px;line-height:1.35;";
 
@@ -484,6 +493,21 @@ function buildTrainedFacePanel(node) {
     }
   });
 
+  const btnRename = mk("Rename", async () => {
+    const name = select.value;
+    if (!name || name === NO_PRESET) { say.textContent = "Pick a recipe to rename."; return; }
+    if (!nameBox.value.trim()) { say.textContent = "Type the new name in the name box first."; return; }
+    const newName = withPrefix(scope, nameBox.value);
+    const res = await api.rename(scope, name, newName);
+    say.textContent = res.ok ? `Renamed '${name}' to '${newName}'.` : res.error;
+    if (res.ok) {
+      nameBox.value = "";
+      await refreshLists();
+      select.value = newName;
+      refresh();
+    }
+  });
+
   const btnDelete = mk("Delete", async () => {
     const name = select.value;
     if (!name || name === NO_PRESET) { say.textContent = "Pick a recipe to delete."; return; }
@@ -505,6 +529,7 @@ function buildTrainedFacePanel(node) {
   function refresh() {
     const chosen = select.value && select.value !== NO_PRESET;
     btnSave.disabled = !chosen;
+    btnRename.disabled = !chosen;
     btnDelete.disabled = !chosen;
   }
 
@@ -694,6 +719,27 @@ function buildPanel(node, cls) {
     say.textContent = res.ok ? `Saved '${name}'.` : res.error;
     if (res.ok) { nameBox.value = ""; await refreshLists(); select.value = name; select.dispatchEvent(new Event("change")); }
   });
+  const btnRename = mkButton("Rename", async () => {
+    const name = select.value;
+    if (!name || name === NO_PRESET) { say.textContent = "Pick a preset to rename."; return; }
+    if (!nameBox.value.trim()) { say.textContent = "Type the new name in the name box first."; return; }
+    const newName = withPrefix(scope, nameBox.value);
+    const res = await api.rename(scope, name, newName);
+    say.textContent = res.ok ? `Renamed '${name}' to '${newName}'.` : res.error;
+    if (!res.ok) return;
+    nameBox.value = "";
+    // Anything that was pointing at the old name follows it to the new one.
+    if (isControl) {
+      const w = widget(node, "preset");
+      if (w && w.value === name) { w.value = newName; w.callback?.(newName); }
+    } else if (state.nodes[cls]?.preset === name) {
+      state.nodes[cls].preset = newName;
+      setCtrl(STEP_OF[cls] + "_preset", newName);
+    }
+    await refreshLists();
+    select.value = newName;
+    refreshAll();
+  });
   const btnDelete = mkButton("Delete", async () => {
     const name = select.value;
     if (!name || name === NO_PRESET) { say.textContent = "Pick a preset to delete."; return; }
@@ -739,6 +785,7 @@ function buildPanel(node, cls) {
       select.disabled = ignoring;
       btnSave.disabled = ignoring;
       btnSaveAs.disabled = ignoring;
+      btnRename.disabled = ignoring;
       btnDelete.disabled = ignoring;
       btnReset.disabled = !ignoring;          // reset-all only when presets are ignored
       const w = widget(node, "preset");
@@ -754,6 +801,7 @@ function buildPanel(node, cls) {
       btnSave.disabled = s.buttons !== "all";
       btnSaveAs.disabled = !(s.buttons === "all" || s.buttons === "saveas_delete");
       btnDelete.disabled = !(s.buttons === "all" || s.buttons === "saveas_delete");
+      btnRename.disabled = btnDelete.disabled;       // rename follows the same rule as delete
       btnReset.disabled = !s.reset;
       lockDials(node, s.dialsLocked);
       root.style.opacity = s.dialsLocked && controlMode() === MODE_PRESET_WINS ? "0.75" : "1";
@@ -813,7 +861,106 @@ app.registerExtension({
         }
       }
       setTimeout(() => { pullState(); refreshAll(); }, 50);
+      // 4a: built at once, then laid out top-first (see layoutTopFirst).
+      buildPanel(node, cls);
+      layoutTopFirst(node, { gaps: true });
+      return;
     }
-    setTimeout(() => buildPanel(node, cls), 0);
+    // 4b-4g: the same - our panel, then Portrait Master's own preset controls, on top.
+    buildPanel(node, cls);
+    layoutTopFirst(node, { top: ["load_preset", "save_preset_as", "save_preset"] });
   },
 });
+
+// --------------------------------------------------------------------------- //
+// 4a layout (user, 2026-09-24): "in charge" and every save / preset / load
+// control at the TOP, and a gap between the 4b, 4c ... sections.
+//
+// The saved workflow keeps the ORIGINAL order - the real values in nodes.py order
+// with the panel's empty slot last - because v04-v07 were saved that way and the
+// phone reads values in nodes.py order. Only the screen order changes: values are
+// put back by NAME when a workflow loads, and written in the original order when
+// it saves.
+// --------------------------------------------------------------------------- //
+function layoutTopFirst(node, { top = [], gaps = false } = {}) {
+  const ws = node.widgets || [];
+  const isExtra = (w) => w.name === "freedom_pm_panel" || String(w.name).startsWith("freedom_gap_");
+  // The original order, as the node was declared (the panel was added last).
+  const realOrder = ws.filter((w) => !isExtra(w)).map((w) => w.name);
+  node.__freedomRealOrder = realOrder;          // the declared order, kept for checks
+  const byName = Object.fromEntries(ws.map((w) => [w.name, w]));
+  let order;
+
+  if (gaps) {
+    // 4a: gaps between the sections, each with the section's name so you can find it
+    const SECTIONS = { n4c: "4c Face Generator", n4d: "4d Skin Details", n4e: "4e Style & Pose",
+                       n4f: "4f Make-up", n4g: "4g Prompt Styler" };
+    for (const [step, label] of Object.entries(SECTIONS)) {
+      const gap = el("div", { textContent: label });
+      gap.style.cssText = "margin-top:10px;padding-top:4px;border-top:1px solid #555;" +
+                          "color:#9ecbff;font:600 10px system-ui,sans-serif;letter-spacing:.3px;";
+      byName["freedom_gap_" + step] =
+        node.addDOMWidget("freedom_gap_" + step, "div", gap, { serialize: false, hideOnZoom: false });
+    }
+    const tail = el("div");
+    tail.style.cssText = "margin-top:10px;border-top:1px solid #555;";
+    byName.freedom_gap_switches =
+      node.addDOMWidget("freedom_gap_switches", "div", tail, { serialize: false, hideOnZoom: false });
+    order = ["freedom_pm_panel", "mode", "preset", "state", "n4b_mode", "n4b_preset"];
+    for (const step of Object.keys(SECTIONS)) order.push("freedom_gap_" + step, step + "_mode", step + "_preset");
+    order.push("freedom_gap_switches", "active_of_pair", "prompt_styler_switch");
+  } else {
+    // 4b-4g: our panel, then the developer's preset controls, then every dial as before
+    order = ["freedom_pm_panel", ...top, ...realOrder.filter((n) => !top.includes(n))];
+  }
+
+  const all = node.widgets || [];
+  const lookup = Object.fromEntries(all.map((w) => [w.name, w]));
+  const placed = order.filter((n) => lookup[n]).map((n) => lookup[n]);
+  const rest = all.filter((w) => !placed.includes(w));     // anything new stays, at the end
+  all.splice(0, all.length, ...placed, ...rest);
+
+  // save in the original order: real values by name, then the panel's empty slot
+  const onSerialize = node.onSerialize;
+  node.onSerialize = function (o) {
+    const r = onSerialize ? onSerialize.apply(this, arguments) : undefined;
+    if (o && Array.isArray(o.widgets_values)) {
+      const val = Object.fromEntries((this.widgets || []).map((w, i) => [w.name, o.widgets_values[i]]));
+      o.widgets_values = realOrder.map((n) => val[n]).concat([""]);
+    }
+    return r;
+  };
+
+  // load: let ComfyUI restore however it does (by name, or by position against the
+  // NEW screen order - frontend 1.53.6 does either, see settingStore
+  // createWidgetRestorationState), then put every value back BY NAME. Tested
+  // 2026-09-24: without this, 4g's style came back as `true`.
+  const configure = node.configure;
+  node.configure = function (info) {
+    const r = configure.call(this, info);
+    restoreByName(this, info, realOrder);
+    return r;
+  };
+}
+
+// The right value for each real widget, whichever way the file was written:
+//  - a named copy (widgets_values_named) - written by the current frontend;
+//  - otherwise the list in the ORIGINAL order (older frontends, and our own saves).
+function restoreByName(node, info, realOrder) {
+  if (!info) return;
+  const named = info.widgets_values_named;
+  const vals = info.widgets_values;
+  let want = null;
+  if (named && typeof named === "object" && !Array.isArray(named)) want = named;
+  else if (Array.isArray(vals) && vals.length) {
+    // Older saves can be SHORTER than today's node (Portrait Master and 4a gained
+    // settings since). Before the reorder, those values landed on the first
+    // widgets in declared order and the rest kept their defaults - do the same.
+    want = Object.fromEntries(realOrder.slice(0, vals.length).map((n, i) => [n, vals[i]]));
+  }
+  if (!want) return;
+  for (const w of node.widgets || []) {
+    if (!realOrder.includes(w.name) || !(w.name in want) || want[w.name] === undefined) continue;
+    w.value = want[w.name];
+  }
+}

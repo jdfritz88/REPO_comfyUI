@@ -3,26 +3,41 @@ Face Seek's search history for one person.
 
 What it records, in <profile>/search_history.json:
 
-  captures    every photo or video frame Seek copied into found/ - the copy's
-              name, the original it was copied from, that original's content
-              hash, and which stage found it (group or search)
+  captures    every photo Seek copied into found/ and every video frame it kept
+              - the copy's name, the original it came from, that original's
+              content hash, and which stage found it (group, search, frames or
+              approved_video); "unsure" when it was copied on a close call, and
+              "outcome" once it has been processed
   crops       every finished crop in clean/head and clean/body - which capture it
               was cut from, and whether other people's faces were still in it
               after the crop was trimmed (shown framed in yellow on review)
   not_person  originals the person reviewing said are not this person, keyed by
               content hash, so a later search never captures them again
+  reviewed    crops you have already been through on the review page, keyed
+              "<kind>/<name>", so they are not put in front of you a second time
+              (user, 2026-09-22). Nothing is deleted and nothing is moved to
+              earn this mark - the crop stays where it is and only stops being
+              shown. It is stored with the file's size and last-written time, so
+              a crop that changes afterwards comes back to be looked at again
   not_used    originals the person reviewing said ARE this person but chose not
               to use - "Yes, but don't use it" and "Duplicate" (user,
               2026-09-17), keyed by content hash, so a later search does not
               offer them again. Nothing here changes what the app believes her
               face looks like: the decision is recorded, not learned from
+  her         every picture decided as her, keyed by content hash (user,
+              2026-09-26): "Yes, it's her" on a photo, "She appears here" and
+              "Find the face" on a video, and every video frame kept of her.
+              The partner of not_person; the latest decision wins, so a picture
+              is never on both lists
   events      what happened during review and processing, in order: deletions,
               rotations, duplicates removed
 
 Why its own file and not profile.json: Seek rewrites profile.json constantly
-while it runs, and the review page writes here while Seek is not running.
-Nothing in this file teaches the face judge - review decisions are recorded,
-not learned from (user, 2026-09-13).
+while it runs.
+Nothing in this file teaches the face judge (facebank) - that learns only from
+the answers in its own feedback log. But reteach reads the captures here to
+rebuild her face profile: a capture marked "unsure" counts only once its outcome
+is "cropped", i.e. after the user said yes on the review page (2026-09-26).
 
 stdlib only.
 """
@@ -35,7 +50,8 @@ import time
 
 from face_training.safe_replace import read_text, replace_file
 
-EMPTY = {"captures": {}, "crops": {}, "not_person": {}, "not_used": {}, "events": []}
+EMPTY = {"captures": {}, "crops": {}, "not_person": {}, "not_used": {},
+         "reviewed": {}, "her": {}, "events": []}
 
 
 def _now() -> str:
@@ -64,9 +80,14 @@ class History:
         replace_file(tmp, self.path)        # a backup copy may be reading it - safe_replace.py
 
     # --- captures ------------------------------------------------------
-    def add_capture(self, name: str, source: str, hsh: str, stage: str, video: str = ""):
+    def add_capture(self, name: str, source: str, hsh: str, stage: str, video: str = "",
+                    unsure: bool = False):
         self.data["captures"][name] = {"source": source, "hash": hsh, "stage": stage,
                                        "video": video, "at": _now()}
+        if unsure:
+            # copied on a close call: it teaches nothing until the user says yes
+            # (user, 2026-09-14, carried into reteach 2026-09-26)
+            self.data["captures"][name]["unsure"] = True
         if hsh:
             self._captured.add(hsh)
 
@@ -96,6 +117,26 @@ class History:
 
     def forget_crop(self, rel: str):
         self.data["crops"].pop(rel, None)
+
+    # --- already been through it ---------------------------------------
+    def mark_reviewed(self, rel: str, stamp: str):
+        """You have looked at this crop. It stays exactly where it is - this is
+        a note in the log, not a deletion and not a move (user, 2026-09-22)."""
+        self.data["reviewed"][rel] = {"stamp": stamp, "at": _now()}
+
+    def is_reviewed(self, rel: str, stamp: str) -> bool:
+        """True only if the crop is the same file you looked at. Rewriting it -
+        a rotate, a blur, a fresh cut under the same name - changes the stamp,
+        and it comes back to be looked at again."""
+        r = self.data["reviewed"].get(rel)
+        return bool(r) and r.get("stamp") == stamp
+
+    def forget_reviewed(self, rel: str):
+        """Put it back in front of me."""
+        self.data["reviewed"].pop(rel, None)
+
+    def reviewed_names(self) -> set[str]:
+        return set(self.data["reviewed"])
 
     # --- review decisions ----------------------------------------------
     def excluded(self, hsh: str) -> bool:
@@ -135,6 +176,27 @@ class History:
         if hsh:
             self.data["not_person"][hsh] = {"source": c.get("source", ""), "crop": rel,
                                             "at": _now()}
+            self.data["her"].pop(hsh, None)
+        return hsh
+
+    def mark_not_her(self, hsh: str, source: str = "", name: str = "", how: str = ""):
+        """The user said "Not her" to an uncertain photo or video on the review page
+        (user, 2026-09-26: every "not her" answer is recorded in this person's
+        not-her list, not only crop deletions). Keyed by content hash, so no later
+        search copies it again and reteach never learns from it."""
+        if hsh:
+            self.data["not_person"][hsh] = {"source": source, "photo": name, "how": how,
+                                            "at": _now()}
+            self.data["her"].pop(hsh, None)
+        return hsh
+
+    def mark_her(self, hsh: str, name: str = "", source: str = "", how: str = ""):
+        """A picture decided as her - the her list, partner of the not-her list
+        (user, 2026-09-26). The latest decision wins: it comes off not_person."""
+        if hsh:
+            self.data["her"][hsh] = {"name": name, "source": source, "how": how,
+                                     "at": _now()}
+            self.data["not_person"].pop(hsh, None)
         return hsh
 
     def log(self, kind: str, **kv):

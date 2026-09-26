@@ -1,5 +1,7 @@
 """
-The last step of every "write a .tmp, then swap it in" save in face_training -
+The last step of the "write a .tmp, then swap it in" saves in face_training (a
+few, e.g. face_groups.save_points and the review page's undo file, still call
+os.replace directly) -
 and, below replace_file(), the reading side: how to read or copy one of those
 files while another process may be swapping it in (read_text, copy_file).
 

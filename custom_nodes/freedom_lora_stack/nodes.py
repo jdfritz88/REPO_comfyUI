@@ -1,8 +1,8 @@
 # =============================================================================
 # FREEDOM SYSTEM - LoRA Stack
 # A general-purpose LoRA loader for the "everything except her face" LoRAs -
-# clothing, styles, poses, objects, whatever. Starts with 3 rows on the node;
-# the panel has a "+" to add more and a X to delete any row. Deliberately
+# clothing, styles, poses, objects, whatever. Four rows, always shown (limit
+# set by the user 2026-09-25); a row's X empties it. Deliberately
 # excludes anything under models/loras/faces/ - those are the trained face
 # identities and are picked from the Face Shelf node instead, never from here.
 #
@@ -15,6 +15,7 @@
 # carries no training metadata) so a Flux or Wan Video LoRA can never be picked
 # for an SDXL checkpoint and silently fail at run time.
 # =============================================================================
+import logging
 import os
 import time
 
@@ -34,8 +35,9 @@ try:
 except Exception:                       # pragma: no cover
     _HAS_SERVER = False
 
-MAX_ROWS = 12
-STARTER_ROWS = 3
+# Limited to 4 by the user (2026-09-25); all 4 rows are always shown.
+MAX_ROWS = 4
+STARTER_ROWS = 4
 
 
 def _is_face_lora(name: str) -> bool:
@@ -166,7 +168,8 @@ class FreedomLoraStack:
         req = {"model": ("MODEL",), "clip": ("CLIP",)}
         opt = {}
         for i in range(1, MAX_ROWS + 1):
-            opt[f"enabled_{i}"] = ("BOOLEAN", {"default": False})
+            # ON by default (user, 2026-09-25); an ON row with no LoRA picked does nothing.
+            opt[f"enabled_{i}"] = ("BOOLEAN", {"default": True})
             opt[f"lora_{i}"] = ("STRING", {"default": "", "multiline": False})
             opt[f"strength_{i}"] = ("FLOAT", {"default": 0.8, "min": -2.0, "max": 2.0, "step": 0.05})
         return {"required": req, "optional": opt}
@@ -178,6 +181,7 @@ class FreedomLoraStack:
 
     def run(self, model, clip, **kw):
         m, c = model, clip
+        applied, refused = [], []
         for i in range(1, MAX_ROWS + 1):
             if not kw.get(f"enabled_{i}"):
                 continue
@@ -186,6 +190,7 @@ class FreedomLoraStack:
             if not name or not strength:
                 continue
             if _is_face_lora(name):
+                refused.append(name)
                 continue          # defensive: never apply a face LoRA from here
             try:
                 path = folder_paths.get_full_path_or_raise("loras", name)
@@ -193,11 +198,18 @@ class FreedomLoraStack:
                 continue          # a stale/renamed file - skip it, don't fail the whole queue
             lora, meta = comfy.utils.load_torch_file(path, safe_load=True, return_metadata=True)
             m, c = comfy.sd.load_lora_for_models(m, c, lora, strength, strength, lora_metadata=meta)
+            applied.append(f"{name} @ {strength:g}")
+        # One line per run, so the log shows what this stack really did - a face
+        # LoRA typed into a row was once silently ignored for days (2026-09-25).
+        logging.info("[Freedom] General LoRA Stack: applied %s; refused face LoRAs %s",
+                     applied or "none", refused or "none")
         return (m, c)
 
 
 NODE_CLASS_MAPPINGS = {"FreedomLoraStack": FreedomLoraStack}
-NODE_DISPLAY_NAME_MAPPINGS = {"FreedomLoraStack": "Freedom LoRA Stack"}
+# Display name only - the class name stays FreedomLoraStack so every saved
+# workflow (v02-v07) still finds the node.
+NODE_DISPLAY_NAME_MAPPINGS = {"FreedomLoraStack": "Freedom General LoRA Stack (trained face and random face)"}
 
 
 # --------------------------------------------------------------------------- #

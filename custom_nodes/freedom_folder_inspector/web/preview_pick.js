@@ -72,6 +72,10 @@ class PickPanel {
               <button class="tovideo setfolder" title="Send the ticked pictures to the 9-slot video queue">Send to Video Queue</button>
               <span class="lbl" style="opacity:.8">To send an image to the video generation queue, click the image (or several for a batch), then click this button.</span>
             </div>
+            <div class="pp-row">
+              <button class="b-archive setfolder" title="Open output/freedom_archive in Explorer - every picture, kept automatically">Open Archive Folder</button>
+              <span class="lbl archive-line" style="opacity:.8">Auto-save keeps a copy of every picture in output/freedom_archive (switch below).</span>
+            </div>
           </div>`;
         this.grid = this.root.querySelector(".pp-grid");
         this.saveBtn = this.root.querySelector(".save");
@@ -80,6 +84,10 @@ class PickPanel {
         this.root.querySelector(".setfolder").onclick = () => this.setFolder();
         this.root.querySelector(".tovideo").onclick = () => this.sendToVideoQueue();
         this.root.querySelector(".b-open").onclick = () => postJSON("/freedom/save/open", { folder: this.folder() });
+        // The same GET route the old "about AUTO-SAVE" note linked to.
+        this.root.querySelector(".b-archive").onclick = () =>
+            api.fetchApi("/freedom/save/open_folder?sub=freedom_archive");
+        this.archiveLine = this.root.querySelector(".archive-line");
         this.root.querySelector(".b-all").onclick = () => this.setAll(true);
         this.root.querySelector(".b-none").onclick = () => this.setAll(false);
         this.saveBtn.onclick = () => this.save();
@@ -123,6 +131,12 @@ class PickPanel {
             if (!this.folder()) this.setWidget(resolved); else this.refreshFolderDisplay();
         }
         if (message && message.freedom_prefix && message.freedom_prefix[0]) this.prefix = message.freedom_prefix[0];
+        if (message && Array.isArray(message.freedom_archived)) {
+            const a = message.freedom_archived;
+            this.archiveLine.textContent = a.length
+                ? `Auto-saved ${a.length} to output/${a[0].subfolder || ""} (${a[0].filename}${a.length > 1 ? " ... " + a[a.length - 1].filename : ""}).`
+                : "Auto-save is off - this run was not archived.";
+        }
         this.files = files.map(f => ({ ...f, on: files.length === 1 }));
         this.grid.innerHTML = "";
         if (!files.length) {
@@ -213,7 +227,24 @@ app.registerExtension({
             const panel = new PickPanel(this);
             this.__pp = panel;
             this.addDOMWidget("preview_pick", "FREEDOM_PREVIEW_PICK", panel.root, { serialize: false, hideOnZoom: false });
-            this.setSize([640, 680]);
+            // One picture display, not two: the server still reports the pictures
+            // under "images" (the phone and /history need that), but the desktop
+            // must not draw them a second time under the picker. hideOutputImages
+            // is the frontend's own switch for this (used by its ImageCompositor).
+            this.hideOutputImages = true;
+            // auto_save is created from INPUT_TYPES BEFORE the picker panel, but
+            // workflows saved before it existed store [prefix, folder, <panel>].
+            // Keep the panel's slot third so those old values land where they
+            // belong and auto_save falls back to its default (on).
+            // Same for archive_prefix: both new settings go after the panel, in
+            // this order, so old saves never shift into them.
+            const ws = this.widgets || [];
+            for (const name of ["auto_save", "archive_prefix"]) {
+                const ai = ws.findIndex(x => x.name === name);
+                const pi = ws.findIndex(x => x.name === "preview_pick");
+                if (ai !== -1 && pi !== -1 && ai < pi) ws.push(ws.splice(ai, 1)[0]);
+            }
+            this.setSize([640, 720]);
             // keep the folder line in sync if the user edits the widget text directly
             const w = (this.widgets || []).find(x => x.name === "save_folder");
             if (w) {

@@ -5,35 +5,42 @@ Stages, run in order, each one checkpointed so a Stop is always safe and a
 Resume picks up at the first unfinished stage:
 
   scan     detect faces in every photo under the seek folder -> the cache; read
-           every video in memory (the original sharpest-per-scene method) and
-           record its frames' faces - no frame is saved. When group or search
-           matches her in a video, that video is read again closely and every
-           distinct angle and expression of her is saved into found/
-           (video_frames.her_segments + pull_her_frames), and the frames stage
-           prunes them
+           every video in memory, faces looked for on one frame in every 24, and
+           record those frames' faces - no frame is saved. When group or search
+           matches her in a video, that video is copied into its own
+           video_and_frames/<video>__<hash8>/ folder and read again: faces on one
+           frame in every 12 find the stretches she is on screen, and every frame
+           of them - blurry and duplicate alike - is written there
+           (video_frames.her_segments + pull_her_frames); the frames stage prunes
+           them
   learn    fold the confident solo matches into the identity model
   group    find her in multi-person photos, COPY each original into  found/
-  reteach  rebuild the identity from the two chosen photos + her face in every capture
+  reteach  rebuild the identity from the two chosen photos + her face in every capture,
+           except captures copied on a close call until the user says yes
   search   copy every other original photo she appears in into  found/
   frames   prune the frames pulled from her videos: every blurred, unfocused,
            duplicate and near-duplicate frame is deleted, the sharpest of each
            angle and expression is kept
-  clean    crop each  found/  photo (head + body) into the Clean set; every crop
-           is checked for other people's faces and trimmed, or flagged
+  clean    judge each  found/  photo again and crop it (head + body) into the
+           Clean set, with the kept video frames; a close call goes to
+           needs_review/, a clear non-match to processed/not_her; every crop is
+           checked for other people's faces and trimmed, or flagged
   dedupe   remove exact and near-identical crops, keeping the larger, sharper one
 
 Nothing is cut from a library photo directly and no original is ever moved or
-edited: every photo and video Seek finds is copied into found/ first (user,
-2026-09-13). Every capture and crop is written to search_history.json.
+edited: every photo Seek finds is copied into found/ first (user, 2026-09-13),
+and every video she is in is copied into its video_and_frames/ folder (or into
+uncertain/ when the search could not call it). Every capture and crop is
+written to search_history.json.
 
 When a run finishes processing, the profile is marked "review pending": nothing
 trains until the person reviews the crops in the browser and clicks Proceed
 (face_training/review_server.py). A background library run defers that to the
 end of the whole run (--defer-review).
 
-Progress and the stop flag live in the profile's profile.json, so the window
-(a separate process) can ask a running Seek to stop, and a later run knows
-exactly where to resume.
+Progress lives in the profile's profile.json and the stop flag is a STOP file
+in the profile folder, so the window (a separate process) can ask a running
+Seek to stop, and a later run knows exactly where to resume.
 
 Runs in the OneTrainer venv.
 """
@@ -75,8 +82,13 @@ from face_training.video_frames import (VIDEO_EXTS, her_segments, prune_her_fram
 log = logging.getLogger("face_training.seek")
 
 LEARN_SIM = 0.45           # only very confident solo matches feed the identity
+SEED_MATCH = 0.40          # "Find the face": a face this alike to the one the user boxed
+                           # counts as her in THAT video. 0.4 is InsightFace's documented
+                           # default cosine threshold (server user guide). Measured
+                           # 2026-09-25 with a boxed face from each clip: her other
+                           # checks 0.49-0.72, everyone else 0.13 or less.
 
-STAGES = P.SEEK_STAGES     # ("scan","learn","group","reteach","search","clean")
+STAGES = P.SEEK_STAGES     # scan, learn, group, reteach, search, frames, clean, dedupe
 
 
 # --------------------------------------------------------------------------- #
@@ -265,7 +277,7 @@ class Seek:
             if ":f" in (c.get("hash") or "")}
         self._refresh_cutoff()
         # apply any learned crop-margin preferences
-        cp = FB.load_crop_prefs()
+        cp = FB.load_crop_prefs(self.prof.slug)
         if cp:
             import face_training.sort_photos as _S
             if "head_expand" in cp:
@@ -276,7 +288,7 @@ class Seek:
     def _refresh_cutoff(self):
         self_sims = (self.ident.ref_embeds @ self.ident.mean
                      if self.ident.ref_embeds is not None else None)
-        self.cutoff = FB.adaptive_threshold(self.ident.mean, self_sims)
+        self.cutoff = FB.adaptive_threshold(self.prof.slug, self.ident.mean, self_sims)
 
     def _judge(self, embs, source, multi_override=None):
         """-> (idx, is_her, borderline). Logs borderline calls, banks other faces."""
@@ -284,7 +296,7 @@ class Seek:
         if idx < 0:
             return -1, False, False
         multi = (len(embs) > 1) if multi_override is None else multi_override
-        is_her, borderline = FB.decide(best, second, multi, self.cutoff)
+        is_her, borderline = FB.decide(self.prof.slug, best, second, multi, self.cutoff)
         if borderline:
             FB.log_decision(self.prof.slug, best, second, multi,
                             kept=is_her, source=source, borderline=True)
@@ -369,8 +381,8 @@ class Seek:
             self.prof.save()
             self.prof.clear_stop()
             self.cache.close()
-            if FB.train_judge():
-                self.say(f"  judge retrained from {FB.judge_info()['rows']} of your Needs review answers")
+            if FB.train_judge(self.prof.slug):
+                self.say(f"  judge retrained from {FB.judge_info(self.prof.slug)['rows']} of your Needs review answers")
             BK.backup_profile(self.prof.dir)
             self.say("  tracking state backed up")
 
@@ -420,10 +432,11 @@ class Seek:
         photos = d.get("best_photos") or ([d["best_photo"]] if d.get("best_photo") else [])
         return d.get("seed_folder", "") or "", photos
 
-    def _capture(self, hsh: str, path: str, stage: str) -> bool:
+    def _capture(self, hsh: str, path: str, stage: str, unsure: bool = False) -> bool:
         """Copy one original photo into found/ and write it down.
 
-        A copy, always: the original is never moved, renamed or edited."""
+        A copy, always: the original is never moved, renamed or edited. `unsure`
+        marks a close call, which reteach leaves out until the user says yes."""
         if not os.path.isfile(path):
             return False
         os.makedirs(self.prof.found_dir, exist_ok=True)
@@ -437,17 +450,23 @@ class Seek:
             log.warning("could not copy %s into found/: %s", path, e)
             return False
         self.history.add_capture(os.path.basename(dst), source=path, hsh=hsh,
-                                 stage=stage, video="")
+                                 stage=stage, video="", unsure=unsure)
         self.history.save()          # written at once, so a Stop never loses a capture
         return True
 
-    def _take(self, hsh: str, path: str, stage: str, done: set) -> int:
-        """A match: copy the photo now, or queue the video frame. -> photos/frames saved."""
+    def _take(self, hsh: str, path: str, stage: str, done: set, unsure: bool = False) -> int:
+        """A match: copy the photo now, or queue the video frame. -> photos/frames saved.
+
+        An unsure video frame still queues its video for the closer look (user's
+        choice (b), 2026-09-26): that pass keeps only frames that are clearly her,
+        and sends the video to review if it finds only maybes."""
         ref = parse_frame_ref(path)
         if ref is None:
-            return 1 if self._capture(hsh, path, stage) else 0
+            return 1 if self._capture(hsh, path, stage, unsure=unsure) else 0
         if hsh.rsplit(":f", 1)[0] in self._her_videos:
             return 0            # this video's frames of her are already taken
+        if self.history.skipped(hsh.rsplit(":f", 1)[0]):
+            return 0            # the user said "not her" or "her, but don't use it"
         saved = 0
         if self._fq_video is not None and self._fq_video != ref[0]:
             saved = self._flush_frames(done)
@@ -481,7 +500,7 @@ class Seek:
                 shutil.copy2(video, dst)
                 return dst
             except OSError as e:
-                log.warning("could not copy video %s into found/: %s", video, e)
+                log.warning("could not copy video %s into %s: %s", video, dest_dir, e)
                 return None
         return None
 
@@ -496,7 +515,7 @@ class Seek:
         i, best, second = _pick_her(embs, self.ident)
         if i < 0:
             return -1, False
-        is_her, borderline = FB.decide(best, second, len(embs) > 1, self.cutoff)
+        is_her, borderline = FB.decide(self.prof.slug, best, second, len(embs) > 1, self.cutoff)
         return (i if (is_her and not borderline) else -1), bool(borderline)
 
     def _frames_dir_for(self, video: str, video_hash: str) -> str:
@@ -505,11 +524,11 @@ class Seek:
 
     def _flush_frames(self, done: set) -> int:
         """Pull every frame of the stretches she is in, from the one video
-        queued, into its own folder under video_frames/ (user, 2026-09-15).
+        queued, into its own folder under video_and_frames/ (user, 2026-09-15).
 
         The scan matched her in at least one of this video's frames. The video
-        is copied into found/, then read again: faces are looked for twice a
-        second to find where she is on screen, and EVERY frame of those
+        is copied into that folder, then read again: faces are looked for on one
+        frame in every 12 to find where she is on screen, and EVERY frame of those
         stretches is written out - blurry and duplicate alike. The frames stage
         prunes them after the search. If she is never clearly there, nothing is
         pulled: a face that does not look like her is not her. If the video
@@ -590,10 +609,10 @@ class Seek:
                 continue        # not this person, or her but not to be used,
                                 # or already copied
             embs = [f[2] for f in faces]
-            idx, is_her, _borderline = self._judge(embs, path, multi_override=True)
+            idx, is_her, borderline = self._judge(embs, path, multi_override=True)
             if not is_her:
                 continue
-            copied += self._take(hsh, path, "group", done)
+            copied += self._take(hsh, path, "group", done, unsure=borderline)
         copied += self._flush_frames(done)
         self._mark("group", hashes=list(done), copied=copied)
         self.say(f"  group photos -> {copied} copied into found/ (photos; her videos "
@@ -604,8 +623,34 @@ class Seek:
     def _stage_reteach(self):
         """Rebuild the identity from the chosen photos plus her face in every
         capture so far (her face picked by the current identity from the cached
-        faces - the crops do not exist yet at this point)."""
-        caps = self.history.captured_hashes()
+        faces - the crops do not exist yet at this point).
+
+        A capture copied on a close call is left out until the user has said
+        "Yes, it's her" and it was cut (outcome "cropped"). The user decided on
+        2026-09-14 that the app learns only from the user's answers, never from
+        its own unsure guesses; that reached the judge then and reaches reteach
+        from 2026-09-26 (user's choice (b)). Captures written before then carry
+        no mark and still count."""
+        # Never learn from a picture that is not her (user, 2026-09-26: "this was
+        # always the rule"): anything on her not-her list (a crop deleted on the
+        # review page, or Not her answered to an uncertain photo or video), and
+        # anything the clean stage itself found not to be her or set aside as a
+        # close call and nobody has approved since.
+        not_her = self.history.data.get("not_person", {})
+        caps, held, refused = set(), 0, 0
+        for c in self.history.data["captures"].values():
+            hsh = c.get("hash")
+            if not hsh:
+                continue
+            base = hsh.rsplit(":f", 1)[0]
+            if (hsh in not_her or base in not_her
+                    or c.get("outcome") in ("not_her", "not_her_user")):
+                refused += 1
+                continue
+            if (c.get("unsure") or c.get("outcome") == "needs_review")                     and c.get("outcome") != "cropped":
+                held += 1
+                continue
+            caps.add(hsh)
         embs = []
         for hsh, path, ih, iw, faces in self.cache.iter_scanned():
             if hsh not in caps or not faces:
@@ -619,7 +664,9 @@ class Seek:
         self.prof.data["identity"] = {"n_refs": self.ident.n_refs, "built_at": P._now()}
         self._refresh_cutoff()
         self.say(f"  identity rebuilt from {self.ident.n_refs} faces "
-                 f"(match cutoff {self.cutoff:.2f}, bank {FB.bank_size()})")
+                 f"(match cutoff {self.cutoff:.2f}, bank {FB.bank_size(self.prof.slug)})"
+                 + (f"; {held} unsure copies left out until you answer" if held else "")
+                 + (f"; {refused} not-her pictures left out" if refused else ""))
         self._done("reteach")
 
     def _stage_search(self):
@@ -637,17 +684,34 @@ class Seek:
                 continue        # not this person, or her but not to be used,
                                 # or already copied
             embs = [f[2] for f in faces]
-            idx, is_her, _borderline = self._judge(embs, path)
+            idx, is_her, borderline = self._judge(embs, path)
             if not is_her:
                 continue
-            copied += self._take(hsh, path, "search", seen)
+            copied += self._take(hsh, path, "search", seen, unsure=borderline)
         copied += self._flush_frames(seen)
         self._mark("search", hashes=list(seen), copied=copied)
         n_videos = len({c.get("video") for c in self.history.data["captures"].values()
                         if c.get("video")})
-        self.say(f"  search -> {copied} photos and video frames copied into found/"
+        self.say(f"  search -> {copied} photos copied into found/ and video frames pulled"
                  + (f" (from {n_videos} video(s) so far)" if n_videos else ""))
         self._done("search")
+
+    def _seed_picker(self, seed):
+        """Her face in one video the user boxed her in ("Find the face").
+
+        A face counts as her if it matches the boxed face (SEED_MATCH) or passes
+        her profile's own rule. The boxed face is used for this video only and
+        never changes her profile (user's choice, 2026-09-25)."""
+        ref = np.asarray(seed, np.float32)
+        ref /= max(1e-9, float(np.linalg.norm(ref)))
+
+        def pick(embs):
+            sims = [float(np.dot(e, ref)) for e in embs]
+            best = int(np.argmax(sims))
+            if sims[best] >= SEED_MATCH:
+                return best, False
+            return self._her_index(embs)
+        return pick
 
     def _video_marks(self) -> dict:
         """{video file name: frame to start at} from the review page.
@@ -691,7 +755,9 @@ class Seek:
             out_dir = self._frames_dir_for(src, vhash)
             local = self._video_copy(src, vhash, out_dir)
             read_from = local or src
-            r = her_segments(read_from, self._her_index, stop_check=self._stopping,
+            seed = (standing_marks(self.history).get(name) or {}).get("seed")
+            pick = self._her_index if seed is None else self._seed_picker(seed)
+            r = her_segments(read_from, pick, stop_check=self._stopping,
                              start_at=start_at)
             if r.get("error") or r.get("stopped"):
                 continue
@@ -752,6 +818,9 @@ class Seek:
                                              source=frame_ref(video, idx) if video else path,
                                              hsh=frame_key(vhash, idx), stage="frames",
                                              video=os.path.basename(video))
+                    self.history.mark_her(frame_key(vhash, idx), name=os.path.basename(path),
+                                          source=frame_ref(video, idx) if video else path,
+                                          how="video frame kept of her")
                 self.history.log("video_frames_pruned", folder=name, started=r["started"],
                                  blurry_removed=r["blurry_removed"],
                                  duplicates_removed=r["duplicates_removed"], kept=r["kept"])
@@ -783,12 +852,11 @@ class Seek:
         if not files and not entries:
             self._done("clean")
             return
-        # Videos travel the same path, but the frames she was matched in were
-        # already read out of them and saved into found/ by the group and search
-        # stages, and those frames are cropped as stills like any other photo.
-        # So the video itself has nothing left to cut; it just needs to finish
-        # its journey and be filed with everything else rather than sitting in
-        # found/ for ever.
+        # A video sitting in found/ is left over from runs before 2026-09-15,
+        # when videos were copied there. Videos now go to video_and_frames/ and
+        # their frames are cropped from there (above). One left in found/ has
+        # nothing left to cut; it is filed with everything else rather than
+        # sitting in found/ for ever.
         vids = [f for f in entries if f.lower().endswith(VIDEO_EXTS)]
         for vf in vids:
             _retire(self.prof, os.path.join(self.prof.found_dir, vf), "cropped")
@@ -1013,6 +1081,9 @@ def finish_approved(prof, say=lambda s: None, on_step=lambda *a: None) -> dict:
                                          source=frame_ref(video, idx) if video else path,
                                          hsh=frame_key(vhash, idx), stage="approved_video",
                                          video=os.path.basename(video))
+                seek.history.mark_her(frame_key(vhash, idx), name=os.path.basename(path),
+                                      source=frame_ref(video, idx) if video else path,
+                                      how="video frame kept of her (a video you marked)")
                 try:
                     process_one(prof, path)
                 except Exception as exc:                       # noqa: BLE001
@@ -1065,7 +1136,7 @@ if __name__ == "__main__":
                     help="do not mark the review pending (a library run marks it once at the end)")
     a = ap.parse_args()
     from face_training.logconsole import start_logging_console
-    start_logging_console(f"seek_{a.profile}")
+    start_logging_console(f"seek_{a.profile}", P.Profile(a.profile).logs_dir)
     log.debug("seek start: profile=%s folder=%s recursive=%s resume=%s defer_review=%s",
               a.profile, a.seek_folder, not a.flat, a.resume, a.defer_review)
     r = run_seek(a.profile, a.seek_folder, not a.flat, a.resume,

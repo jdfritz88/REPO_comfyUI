@@ -12,8 +12,9 @@ What survives an interruption, in three layers:
   * every image      - scan_cache commits to SQLite after each file
   * every folder     - scan_cache.folders_done skips a finished folder without
                        opening a single file in it
-  * every year       - progress.json here records which folders are done, so a
-                       restart begins at the first one that is not
+  * every year       - <profile>/logs/library_run/<profile>_progress.json
+                       records which folders are done, so a restart begins at
+                       the first one that is not
 
 Each folder runs as its own child process. A crash on one bad file takes that
 folder down, not the whole run - the loop notes the failure and carries on.
@@ -26,8 +27,9 @@ scan cache is what actually makes it resumable.
   python -m face_training.seek_library --profile susana \
       --root "\\\\PersonalCloud\\Public\\Photos & Videos"
 
-Stop it cleanly by creating a file called STOP next to progress.json - it
-finishes the folder it is on, then halts.
+Stop it cleanly by creating a file called STOP in <profile>/logs/library_run/
+(next to the progress file), or with the Face Tool's Stop for that person - it finishes the
+folder it is on, then halts.
 """
 
 from __future__ import annotations
@@ -110,9 +112,11 @@ def main():
     from face_training import profiles as P
     from face_training.seek import EXIT_STOPPED
 
-    os.makedirs(LOG_DIR, exist_ok=True)
-    stop_file = os.path.join(LOG_DIR, "STOP")
-    main_log = os.path.join(LOG_DIR, f"{a.profile}_run.log")
+    # this person's own logs folder (user, 2026-09-26), not the repo's logs/
+    run_dir = os.path.join(P.Profile(a.profile).logs_dir, "library_run")
+    os.makedirs(run_dir, exist_ok=True)
+    stop_file = os.path.join(run_dir, "STOP")
+    main_log = os.path.join(run_dir, f"{a.profile}_run.log")
 
     def say(msg: str):
         line = f"{_now()}  {msg}"
@@ -132,7 +136,7 @@ def main():
 
     # after the crash hook, so a progress file that cannot be read is reported
     # in the run log instead of only on the console
-    prog = Progress(os.path.join(LOG_DIR, f"{a.profile}_progress.json"))
+    prog = Progress(os.path.join(run_dir, f"{a.profile}_progress.json"))
 
     folders = _folders(a.root, a.years_only)
     say(f"=== library run: {len(folders)} folders under {a.root}")
@@ -151,7 +155,7 @@ def main():
         say(f"[{i}/{len(todo)}] {name} - starting")
         prog.set(folder, state="running", started_at=_now())
         t0 = time.time()
-        folder_log = os.path.join(LOG_DIR, f"{a.profile}_{name}.log")
+        folder_log = os.path.join(run_dir, f"{a.profile}_{name}.log")
         try:
             with open(folder_log, "w", encoding="utf-8") as lf:
                 r = subprocess.run(

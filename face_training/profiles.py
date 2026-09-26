@@ -9,7 +9,8 @@ One folder per person under PROFILES_ROOT:
         clean/head/           final tight face crops + .txt captions
         clean/body/           final face+body crops + .txt captions
         found/               matched photos awaiting crop (staging; empties)
-        scan_cache/          content-hashed face-detection cache per seek run
+        scan_cache/          content-hashed face-detection cache (one faces.db
+                              per person, shared by every run)
         video_and_frames/     videos she was matched in and their frames, one
                               subfolder per video: every frame of the stretches
                               she appears in (blurry and duplicate alike, pruned
@@ -17,14 +18,20 @@ One folder per person under PROFILES_ROOT:
                               of the video itself, which stays
                               (older profiles have this as video_frames/)
         uncertain/            copies of videos the search could not call
+        logs/                 this person's search, review and training logs
+        learning/             this person's own "not this person" face bank, answers
+                              log, judge and crop margins (facebank.py) - nothing
+                              about one person is shared with another
         train/               OneTrainer run dirs + LoRA outputs
         backup/               5 rotating snapshots of profile.json, identity/,
-                              and scan_cache/faces.db (backup.py)
+                              scan_cache/faces.db and search_history.json (backup.py)
 
 The launch window reads status() for each profile to show
-"Updated" / "Resume" / "Start" and the list of trained LoRAs.
+"Updated" / "Resume" / "Start" / "Working" / "Review" and the list of trained
+LoRAs.
 
-stdlib only (the window and the launcher both import this).
+stdlib only at import time (the window and the launcher both import this);
+training_running() imports pipeline lazily, which needs the OneTrainer venv.
 """
 
 from __future__ import annotations
@@ -118,6 +125,18 @@ class Profile:
         return os.path.join(self.dir, "video_and_frames")
 
     @property
+    def logs_dir(self):
+        """This person's own logs - search, review, training, library runs. Logs
+        written while the app is used live with the person, not in the repo's
+        logs/ folder, which is for developing the app (user, 2026-09-26)."""
+        return os.path.join(self.dir, "logs")
+    @property
+    def learning_dir(self):
+        """This person's own learning files - the "not this person" face bank, the
+        answers log, the judge, crop margins (facebank.py). Never shared with
+        another person (user, 2026-09-26)."""
+        return os.path.join(self.dir, "learning")
+    @property
     def uncertain_dir(self):
         """Videos the search could not call: a copy goes here rather than being
         passed over, so a person can look (user, 2026-09-15)."""
@@ -183,6 +202,7 @@ class Profile:
                   p.found_dir, p.processed_dir, p.needs_review_dir,
                   p.review_approved_dir, p.videos_dir, p.backup_dir,
                   p.scan_cache_dir, p.video_frames_dir, p.uncertain_dir, p.train_dir,
+                  p.learning_dir, p.logs_dir,
                   *(os.path.join(p.processed_dir, o)
                     for o in ("cropped", "not_her", "no_face", "unreadable"))):
             os.makedirs(d, exist_ok=True)

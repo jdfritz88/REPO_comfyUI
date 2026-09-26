@@ -1,6 +1,7 @@
 """
 Rotating backup of a person's TRACKING state only:
-  profile.json, identity/ (mean.npy, refs.npy, refs.json), scan_cache/faces.db
+  profile.json, identity/ (mean.npy, refs.npy, refs.json), scan_cache/faces.db,
+  search_history.json
 
 NOT the cropped photos and NOT the trained LoRA files - those are handled
 separately.

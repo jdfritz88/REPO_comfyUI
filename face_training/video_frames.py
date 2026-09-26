@@ -5,53 +5,49 @@ Seek used to save every kept frame of every video as a .jpg in
 <profile>/video_frames, whether or not the person was in it: 14,526 files
 (2.67 GB) for one library before a single face had been compared. Now no frame
 is written during the scan, and a frame is saved only once Seek has matched her
-in it (user, 2026-09-14). Two passes, combined (user, 2026-09-15). The user's
-rules for both: look at EVERY frame of a video, seek the best frame, accept no
-duplicates or near-duplicates, but seek every different angle and expression
-if the picture is sharp; and a face that does not look like her is not her.
+in it (user, 2026-09-14). The user's rules are listed in FACE_TOOL_RULES.md.
+Three passes:
 
-1. scan_frames - every video, at scan time. The user's original method
-   (chosen 2026-09-07), except that nothing is written and every frame is
-   looked at (it used to look 2 times a second):
-     - every frame: a big grayscale-histogram correlation drop from the frame
-       before is a scene cut; the sharpest frame (Laplacian variance) of each
-       scene is kept. Both are measured on a copy shrunk to METRIC_WIDTH, which
-       keeps looking at every frame affordable.
-     - near-duplicate check across the video's kept frames: a DCT perceptual
-       hash first (PHASH_HAMMING_MAX), then, if a face is present, ArcFace
-       similarity (EMBED_SIM_MAX). Either match drops the frame. This is the
-       "video frame near-dupes" check the user said to keep where it is
-       (2026-09-13).
-   The kept frames' faces go into the scan cache; the search compares them.
+1. scan_frames - every video, at scan time. Nothing is written.
+     - faces are looked for on one frame in every FACE_CHECK_EVERY (24): frames
+       0, 24, 48, ... (user, 2026-09-25). This replaced the sharpest frame of
+       each scene (the user's 2026-09-07 method): 64% of the library's videos
+       were one scene, so each was judged on a single picture.
+     - no look-alike check here (user, 2026-09-26, "move my duplicate process
+       after finding the person like the community"). Every checked frame with
+       a face is recorded. Look-alikes are dropped only after she is found, by
+       the frames stage (pass 3) and the dedupe stage.
+   The recorded frames' faces go into the scan cache; the search compares them.
 
-2. her_frames - only for a video the search has matched her in. One sharpest
-   frame per scene cannot hold every angle and expression, so that video is
-   read again, every frame:
-     - her face is picked by the caller with Seek's own match rule; an unsure
-       call is not her
-     - faces are found again when her face changes (looked at where it was
-       last found, it no longer looks the same: look score < DUP_LOOK_MIN), at
-       a scene cut, and at least every FORCE_DETECT_S seconds (someone walking
-       in is caught). Finding faces costs ~2 s per frame on this CPU (measured
-       2026-09-15), which is why it is not run on frames where nothing changed
-       and why this pass runs only on videos she is in. On an unchanged frame
-       her face's sharpness is still measured, so the sharpest frame of each
-       angle and expression is the one kept.
-     - her face must be sharp: Laplacian variance of her face aligned to 112 px
-       >= MIN_HER_SHARPNESS. Measured 2026-09-15 on 33 frames of her in
-       IMG_3660.MP4, side by side: faces at 257+ were crisp, 202 slightly soft
-       but detailed, 137 and below visibly blurred, 89 and below a smear.
-     - a frame is a duplicate only if her face has a twin in a frame already
-       kept: same head angle (yaw/pitch change < DUP_YAW/DUP_PITCH, roll change
-       < DUP_ROLL degrees, from the five landmarks) and same look (the aligned
-       face, its eyes band and its mouth band each correlate >= DUP_LOOK_MIN).
-       Anything else is a different angle or expression and is kept; a sharper
-       twin replaces the kept one.
-   Twin thresholds from measuring 147 same-face pairs of consecutive frames of
-   two real videos side by side (2026-09-15): look >= 0.91 was the same pose
-   and expression; at 0.87 a smile had opened; at 0.86 and 0.77 the head had
-   turned (yaw change 0.24). ArcFace alone cannot make this call: it is built to
-   stay the same across angles and expressions.
+2. her_segments + pull_her_frames - only for a video the search matched her in,
+   or one the user marked on the review page.
+     - her_segments looks for faces on one frame in every SEGMENT_STEP_FRAMES
+       (12) (user, 2026-09-26; it was every 0.5 s). The caller picks her face:
+       Seek's own match rule, where an unsure call is not her, or - for a video
+       the user boxed her face in ("Find the face") - that face as well
+       (seek._seed_picker). A run of checks that found her is one stretch,
+       reaching half a step past the checks at each end. start_at skips frames
+       before a mark the user set.
+     - pull_her_frames writes EVERY frame of those stretches, blurry and
+       duplicate alike (user, 2026-09-15), with a manifest of her landmarks for
+       each frame, worked out in a straight line between the checks (_kps_at).
+       Finding faces costs 0.7-2.6 s a frame on this machine's processor
+       (measured 2026-09-25), which is why it is not run on every frame.
+
+3. prune_her_frames - the frames stage, after the search. Using the manifest,
+   so no face is looked for again:
+     - blurry: her face aligned to 112 px scores under MIN_HER_SHARPNESS
+       (Laplacian variance). Set 2026-09-15 from 33 frames of her in one video,
+       IMG_3660.MP4: 257+ crisp, 202 slightly soft but detailed, 137 and below
+       visibly blurred. One video only; the 2026-09-15 log calls it not settled.
+     - duplicate: her face has a twin in a frame already kept - same head angle
+       (yaw/pitch change < DUP_YAW/DUP_PITCH, roll < DUP_ROLL degrees) and same
+       look (aligned face, eyes band and mouth band each correlate >=
+       DUP_LOOK_MIN). The sharper twin is kept; anything else is a different
+       angle or expression and stays. Thresholds from 147 same-face pairs of
+       consecutive frames of two real videos (2026-09-15). ArcFace alone cannot
+       make this call: it is built to stay the same across angles and
+       expressions.
 
 Frames are identified by their decode index; read_frames returns them later.
 
@@ -64,7 +60,6 @@ import json
 import logging
 import math
 import os
-from collections import deque
 
 import cv2
 import numpy as np
@@ -76,24 +71,15 @@ log = logging.getLogger("face_training.video_frames")
 
 VIDEO_EXTS = (".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm")
 
-# both passes
-METRIC_WIDTH = 480              # scene-cut and sharpness measured on a copy this wide
-SCENE_CUT_DROP = 0.45           # histogram correlation drop that counts as a cut
-CUT_COMPARE_S = 0.5             # a frame is compared with the frame this long before it.
-# The original method looked 2 times a second and judged a cut across that gap.
-# Looking at every frame, the frame just before is nearly always the same
-# picture, so no cut was ever found (tested 2026-09-15: IMG_3567.MOV came out
-# as 6 scenes where the committed method keeps 33 frames).
-
-# pass 1 - scan (the original method)
-PHASH_HAMMING_MAX = 8           # <=8 of 64 bits different = near-duplicate
-EMBED_SIM_MAX = 0.93            # >=0.93 cosine on a face = near-duplicate
+# pass 1 - scan
+FACE_CHECK_EVERY = 24           # faces are looked for on one frame in every 24 (user, 2026-09-25)
 
 # pass 2 - her frames in a video she is in
-SEGMENT_STEP_S = 0.5            # how often faces are looked for while finding her stretches
-                                # (the original 2-a-second rate; at 2 s she was missed
-                                # entirely in IMG_3660.MP4, where she is on screen for
-                                # about a second)
+SEGMENT_STEP_FRAMES = 12        # faces looked for on one frame in every 12 while finding her
+                                # stretches (user, 2026-09-26). Was every 0.5 s (about 1 in 15 at
+                                # 30 fps), set 2026-09-15 on a ~2 s-a-frame cost claim; in
+                                # IMG_3768 her two clearest frames (25, 35) fell between those
+                                # checks (15, 30, 45) and nothing was pulled.
 MIN_HER_SHARPNESS = 200.0       # her face aligned to 112 px, Laplacian variance
 DUP_LOOK_MIN = 0.90             # aligned face, eyes band and mouth band all at least this alike
 DUP_YAW = 0.08                  # head turn change (nose offset / eye distance)
@@ -103,32 +89,6 @@ DUP_ROLL = 5.0                  # sideways lean change, degrees
 
 def _sharpness(gray: np.ndarray) -> float:
     return float(cv2.Laplacian(gray, cv2.CV_64F).var())
-
-
-def _phash(gray: np.ndarray) -> np.ndarray:
-    small = cv2.resize(gray, (32, 32), interpolation=cv2.INTER_AREA).astype(np.float32)
-    d = cv2.dct(small)
-    block = d[:8, :8]
-    med = np.median(block)
-    return (block > med).flatten()
-
-
-def _hamming(a: np.ndarray, b: np.ndarray) -> int:
-    return int(np.count_nonzero(a != b))
-
-
-def _hist(gray: np.ndarray) -> np.ndarray:
-    h = cv2.calcHist([gray], [0], None, [64], [0, 256])
-    cv2.normalize(h, h)
-    return h
-
-
-def _small_gray(frame: np.ndarray) -> np.ndarray:
-    h, w = frame.shape[:2]
-    if w > METRIC_WIDTH:
-        frame = cv2.resize(frame, (METRIC_WIDTH, max(1, round(h * METRIC_WIDTH / w))),
-                           interpolation=cv2.INTER_AREA)
-    return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
 
 def _open(video_path: str):
@@ -157,9 +117,8 @@ def _open(video_path: str):
 # --------------------------------------------------------------------------- #
 def scan_frames(video_path: str, stop_check=lambda: False) -> dict:
     """
-    The original selection, every frame looked at, in memory. Returns
-    {"frames": [...], "frames_looked_at", "scenes", "duplicates_dropped",
-     "no_face", "stopped", "error"?}.
+    One frame in every FACE_CHECK_EVERY, in memory. Returns
+    {"frames": [...], "frames_read", "checked", "no_face", "stopped", "error"?}.
     Only frames with a face are returned - the cache has no use for the rest.
 
     stop_check is asked on every frame: a 49-minute video is ~88,000 frames, and
@@ -167,79 +126,44 @@ def scan_frames(video_path: str, stop_check=lambda: False) -> dict:
     Stop looked broken mid-video, 2026-09-15). A stopped video reports
     "stopped": True so the caller does not mark it finished.
     """
-    empty = {"frames": [], "frames_looked_at": 0, "scenes": 0,
-             "duplicates_dropped": 0, "no_face": 0, "stopped": False}
+    empty = {"frames": [], "frames_read": 0, "checked": 0, "no_face": 0,
+             "stopped": False}
     cap, backend, rotation_tag, err = _open(video_path)
     if cap is None:
         log.error("%s: %s", video_path, err)
         return dict(empty, error=err)
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-    hists = deque(maxlen=max(1, round(fps * CUT_COMPARE_S)))
-    scene_best = None             # (sharpness, decode index, frame, small gray)
-    scenes_out: list[tuple] = []
-    looked = 0
+    app = _get_app()
+    out = dict(empty, frames=[])    # its own list: a Stop must return empty's, untouched
     idx = 0
-    stopped = False
     while cap.grab():
         if stop_check():
-            stopped = True
-            break
-        ok, frame = cap.retrieve()
-        if ok:
-            if looked == 0:
-                log.info("video %s: backend=%s fps=%.2f rotation_tag=%d frame=%dx%d",
-                         video_path, backend, fps, rotation_tag, frame.shape[1], frame.shape[0])
-            looked += 1
-            gray = _small_gray(frame)
-            hist = _hist(gray)
-            cut = (len(hists) == hists.maxlen and
-                   cv2.compareHist(hists[0], hist, cv2.HISTCMP_CORREL) < 1.0 - SCENE_CUT_DROP)
-            if cut:
-                hists.clear()         # the new scene is judged from its own start
-                if scene_best is not None:
-                    scenes_out.append(scene_best)
-                    scene_best = None
-            hists.append(hist)
-            sharp = _sharpness(gray)
-            if scene_best is None or sharp > scene_best[0]:
-                scene_best = (sharp, idx, frame.copy(), gray)
+            cap.release()
+            log.info("video %s: stop requested after %d frames - not recorded, will be "
+                     "read again on resume", video_path, idx)
+            return dict(empty, frames_read=idx, stopped=True)
+        if idx % FACE_CHECK_EVERY == 0:
+            ok, frame = cap.retrieve()
+            if ok:
+                if out["checked"] == 0:
+                    log.info("video %s: backend=%s fps=%.2f rotation_tag=%d frame=%dx%d",
+                             video_path, backend, fps, rotation_tag,
+                             frame.shape[1], frame.shape[0])
+                out["checked"] += 1
+                faces = _detect(app, frame)
+                if faces:
+                    out["frames"].append({"idx": idx, "faces": faces, "shape": frame.shape})
+                else:
+                    out["no_face"] += 1
         idx += 1
-    if scene_best is not None and not stopped:
-        scenes_out.append(scene_best)
     cap.release()
-    if stopped:
-        log.info("video %s: stop requested after %d frames - not recorded, will be "
-                 "read again on resume", video_path, looked)
-        return dict(empty, frames_looked_at=looked, stopped=True)
+    out["frames_read"] = idx
 
-    app = _get_app()
-    kept_phash: list[np.ndarray] = []
-    kept_embed: list[np.ndarray] = []
-    out = dict(empty, frames_looked_at=looked, scenes=len(scenes_out))
-    for _sharp, fidx, bgr, gray in scenes_out:
-        if stop_check():
-            return dict(out, stopped=True, frames=[])
-        ph = _phash(gray)
-        if any(_hamming(ph, k) <= PHASH_HAMMING_MAX for k in kept_phash):
-            out["duplicates_dropped"] += 1
-            continue
-        faces = _detect(app, bgr)
-        emb = faces[0].normed_embedding if faces else None
-        if emb is not None and any(float(np.dot(emb, k)) >= EMBED_SIM_MAX for k in kept_embed):
-            out["duplicates_dropped"] += 1
-            continue
-        kept_phash.append(ph)
-        if emb is None:
-            out["no_face"] += 1
-            continue
-        kept_embed.append(emb)
-        out["frames"].append({"idx": fidx, "faces": faces, "shape": bgr.shape})
-
-    log.info("video %s: %d frames looked at, %d scenes, %d frames with faces recorded, "
-             "%d near-duplicates dropped, %d without a face - nothing saved to disk",
-             video_path, looked, out["scenes"], len(out["frames"]),
-             out["duplicates_dropped"], out["no_face"])
+    log.info("video %s: %d frames read, %d checked for faces (1 in %d), %d frames with "
+             "faces recorded, %d without a face - no look-alike check here, nothing "
+             "saved to disk", video_path, idx, out["checked"], FACE_CHECK_EVERY,
+             len(out["frames"]), out["no_face"])
     return out
 
 
@@ -312,8 +236,8 @@ def her_segments(video_path: str, pick_her, stop_check=lambda: False,
     """
     Where she is on screen in one video.
 
-    Faces are found every SEGMENT_STEP_S seconds (they cost ~2 s a frame, so
-    not on every frame). pick_her(list of face embeddings) -> (index of her
+    Faces are found on one frame in every SEGMENT_STEP_FRAMES (0.7-2.6 s a
+    frame on this machine's processor, measured 2026-09-25). pick_her(list of face embeddings) -> (index of her
     face or -1, unsure). A run of checks that all found her becomes one stretch,
     reaching half a step past the checks at each end. Checks the caller called
     unsure are counted, so a video that is never clearly her but was unsure
@@ -336,7 +260,7 @@ def her_segments(video_path: str, pick_her, stop_check=lambda: False,
         log.error("%s: %s", video_path, err)
         return dict(stats, error=err)
     fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-    step = max(1, round(fps * SEGMENT_STEP_S))
+    step = SEGMENT_STEP_FRAMES
     app = _get_app()
     stats["fps"] = fps
 
@@ -385,8 +309,8 @@ def her_segments(video_path: str, pick_her, stop_check=lambda: False,
 def _kps_at(marks, idx):
     """Her landmarks at this frame, from the checks either side of it.
 
-    The checks are half a second apart and finding faces costs ~2 s a frame, so
-    every frame in between gets its landmarks by moving in a straight line from
+    The checks are SEGMENT_STEP_FRAMES frames apart and finding faces costs
+    0.7-2.6 s a frame, so every frame in between gets its landmarks by moving in a straight line from
     one check to the next. They are what lets the frames stage measure blur and
     spot duplicates later without looking for faces all over again."""
     before = after = None

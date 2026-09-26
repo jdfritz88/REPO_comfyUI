@@ -194,7 +194,9 @@ class FreedomFaceShelf:
             "required": {
                 "model": ("MODEL",),
                 "clip": ("CLIP",),
-                "strength": ("FLOAT", {"default": 0.9, "min": -2.0, "max": 2.0, "step": 0.05}),
+                # 0.4 by default (user, 2026-09-25): with STEP 3b's 0.3 / 0.2 / 0.1 the trained
+                # face adds up to 1.0 - see FACE_SHELF_DEFAULT / FACE_PASS_DEFAULTS below.
+                "strength": ("FLOAT", {"default": 0.4, "min": -2.0, "max": 2.0, "step": 0.05}),
                 # A LIST, not free text, so every client can draw a picker.
                 #
                 # The thumbnail shelf is a DOM widget this package's own
@@ -240,8 +242,12 @@ class FreedomFaceShelf:
             },
         }
 
-    RETURN_TYPES = ("MODEL", "CLIP", "STRING", "STRING")
-    RETURN_NAMES = ("model", "clip", "trigger", "person")
+    # "lora_file" was appended 2026-09-25, LAST, so every existing wire (which
+    # ComfyUI stores by output position) keeps pointing at the same output. It
+    # carries the selected face's LoRA file to the Selected Face LoRA Stack, and
+    # is "" whenever this node loaded no face.
+    RETURN_TYPES = ("MODEL", "CLIP", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("model", "clip", "trigger", "person", "lora_file")
     FUNCTION = "run"
     CATEGORY = "Freedom"
 
@@ -283,11 +289,11 @@ class FreedomFaceShelf:
         # The LoRA is not loaded at all - nothing to unload, no VRAM taken.
         # The chosen face stays in "selected" so switching back on restores it.
         if not enabled:
-            return (model, clip, "", "")
+            return (model, clip, "", "", "")
 
         card = _card(selected) if selected else None
         if not card or not card["lora_file"] or strength == 0:
-            return (model, clip, "", "")
+            return (model, clip, "", "", "")
 
         lora_path = folder_paths.get_full_path_or_raise("loras", card["lora_file"])
         if self._cache and self._cache[0] == lora_path:
@@ -299,11 +305,117 @@ class FreedomFaceShelf:
 
         m, c = comfy.sd.load_lora_for_models(
             model, clip, lora, strength, strength, lora_metadata=meta)
-        return (m, c, fmt_trigger(card["trigger"], trigger_weight), card["person"])
+        return (m, c, fmt_trigger(card["trigger"], trigger_weight), card["person"],
+                card["lora_file"])
 
 
-NODE_CLASS_MAPPINGS = {"FreedomFaceShelf": FreedomFaceShelf}
-NODE_DISPLAY_NAME_MAPPINGS = {"FreedomFaceShelf": "Freedom Face Shelf"}
+# --------------------------------------------------------------------------- #
+# Selected Face LoRA Stack (2026-09-25)
+#
+# Extra passes of the face the shelf has selected, and nothing else. It has no
+# file picker: the file arrives on a wire from the shelf's "lora_file" output,
+# so it can only ever apply the face that is actually chosen. Each row is an
+# on/off switch and a strength; every enabled row applies that same LoRA once
+# more, on top of the shelf's own pass.
+#
+# It obeys the same STEP 2 switch the shelf does. In anything but trained_face
+# it hands the model and CLIP back untouched and reads nothing from disk - the
+# random-face workflow never gets her LoRA from here.
+#
+# The general LoRA stack (freedom_lora_stack) deliberately refuses faces/ files,
+# so this node is the only place a face gets more than the shelf's one pass.
+# --------------------------------------------------------------------------- #
+FACE_STACK_ROWS = 3
+# Defaults - the user's choice (2026-09-25): the trained face adds up to 1.0 =
+# face shelf 0.4 + pass 1 0.3 + pass 2 0.2 + pass 3 0.1 (stronger first, each next
+# one 0.1 lower). web/selected_face_stack.js holds the same numbers for its notes
+# and its Reset to default button.
+FACE_SHELF_DEFAULT = 0.4
+FACE_PASS_DEFAULTS = (0.3, 0.2, 0.1)
+
+
+def _max_patch_depth(model) -> int:
+    """How many LoRA patches are stacked on the most-patched weight - i.e. how
+    many passes actually landed. Read from ComfyUI's ModelPatcher.patches (a
+    dict of weight key -> list of patches), so it is a fact about the model,
+    not a count of what this node meant to do."""
+    patches = getattr(model, "patches", None) or {}
+    return max((len(v) for v in patches.values()), default=0)
+
+
+class FreedomSelectedFaceLoraStack:
+    """Extra passes of the Face Shelf's selected face LoRA - trained face only."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        opt = {
+            "face_lora": ("STRING", {"forceInput": True,
+                                     "tooltip": "Wire from the Face Shelf's lora_file output."}),
+            "face_mode": ("STRING", {"forceInput": True,
+                                     "tooltip": "Wire from STEP 2's mode. Anything but "
+                                                "trained_face = this node does nothing."}),
+        }
+        for i in range(1, FACE_STACK_ROWS + 1):
+            # ON by default (user, 2026-09-25): the passes are meant to work as soon as
+            # a face is picked; each can still be switched off.
+            opt[f"enabled_{i}"] = ("BOOLEAN", {"default": True,
+                                               "label_on": f"pass {i} ON",
+                                               "label_off": f"pass {i} OFF"})
+            opt[f"strength_{i}"] = ("FLOAT", {"default": FACE_PASS_DEFAULTS[i - 1],
+                                              "min": -2.0, "max": 2.0, "step": 0.05})
+        return {"required": {"model": ("MODEL",), "clip": ("CLIP",)}, "optional": opt}
+
+    RETURN_TYPES = ("MODEL", "CLIP")
+    RETURN_NAMES = ("model", "clip")
+    FUNCTION = "run"
+    CATEGORY = "Freedom"
+
+    def __init__(self):
+        self._cache = None
+
+    def run(self, model, clip, face_lora="", face_mode="", **rows):
+        if face_mode != "trained_face":
+            log.info("[Freedom] Selected Face LoRA Stack: skipped - STEP 2 is %r, "
+                     "not trained_face; model passed through untouched", face_mode)
+            return (model, clip)
+        name = (face_lora or "").strip()
+        if not name:
+            log.info("[Freedom] Selected Face LoRA Stack: skipped - the shelf "
+                     "loaded no face, so there is nothing to repeat")
+            return (model, clip)
+
+        wanted = [(i, rows.get(f"strength_{i}", 0.0)) for i in range(1, FACE_STACK_ROWS + 1)
+                  if rows.get(f"enabled_{i}") and rows.get(f"strength_{i}", 0.0)]
+        if not wanted:
+            log.info("[Freedom] Selected Face LoRA Stack: no pass switched on - "
+                     "model passed through untouched")
+            return (model, clip)
+
+        path = folder_paths.get_full_path_or_raise("loras", name)
+        if self._cache and self._cache[0] == path:
+            lora, meta = self._cache[1], self._cache[2]
+        else:
+            lora, meta = comfy.utils.load_torch_file(path, safe_load=True, return_metadata=True)
+            self._cache = (path, lora, meta)
+
+        before = _max_patch_depth(model)
+        m, c = model, clip
+        for i, strength in wanted:
+            m, c = comfy.sd.load_lora_for_models(m, c, lora, strength, strength,
+                                                 lora_metadata=meta)
+        log.info("[Freedom] Selected Face LoRA Stack: applied %s %d more time(s) %s; "
+                 "patch depth on the model went %d -> %d",
+                 name, len(wanted), [f"pass {i} @ {s:g}" for i, s in wanted],
+                 before, _max_patch_depth(m))
+        return (m, c)
+
+
+NODE_CLASS_MAPPINGS = {"FreedomFaceShelf": FreedomFaceShelf,
+                       "FreedomSelectedFaceLoraStack": FreedomSelectedFaceLoraStack}
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "FreedomFaceShelf": "Freedom Face Shelf",
+    "FreedomSelectedFaceLoraStack": "Freedom Selected Face LoRA Stack (trained face only)",
+}
 
 
 # --------------------------------------------------------------------------- #

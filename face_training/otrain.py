@@ -9,8 +9,9 @@ layering three things:
   2. OneTrainer's built-in preset          (training_presets/<family>/..., upstream-maintained)
   3. this job's per-run values             (dataset folder, output path, trigger, step count)
 
-then run_job() writes the config / concepts / samples files and calls
-  venv/Scripts/python.exe scripts/train.py --config-path <config>
+build_config() also writes the concepts and samples files; then run_job()
+writes the config and runs this repo's entry point in OneTrainer's venv:
+  venv/Scripts/python.exe face_training/ot_train_entry.py --config-path <config>
 
 Runs inside the OneTrainer venv.
 """
@@ -30,6 +31,9 @@ OT_PY = os.path.join(OT_ROOT, "venv", "Scripts", "python.exe")
 OT_MKFILES = os.path.join(OT_ROOT, "scripts", "create_train_files.py")
 # our stop-aware entry point (mirrors OneTrainer/scripts/train.py + a STOP watcher)
 OT_TRAIN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ot_train_entry.py")
+# Training logs go in the person's own logs folder, one file per job (user,
+# 2026-09-26: logs written while the app is used live with the person; the repo's
+# logs/ folder is for developing the app). See run_job.
 
 # Family key -> (OneTrainer model_type, built-in preset relative path, base-model resolver)
 #
@@ -98,6 +102,8 @@ UNET_LEARNING_RATE = 3e-4                       # OneTrainer's shipped SDXL LoRA
 TEXT_ENCODER_LEARNING_RATE = UNET_LEARNING_RATE / 2
 TEXT_ENCODER_STOP_AFTER_EPOCHS = 30              # OneTrainer base default (not part of option c)
 
+from face_training.video_frames import FACE_CHECK_EVERY, SEGMENT_STEP_FRAMES  # set in one place
+
 TRAINING_SETTINGS_BANNER = f"""\
 ================================================================================
  TRAINING SETTINGS  -  text-encoder training is the user's choice (c), 2026-09-13
@@ -114,6 +120,11 @@ TRAINING_SETTINGS_BANNER = f"""\
    stop training them .... after {TEXT_ENCODER_STOP_AFTER_EPOCHS} epochs (OneTrainer's base default - option (c) did not name one)
    rank / alpha .......... 16 / 1
    random flip ........... off
+--------------------------------------------------------------------------------
+ VIDEO SCAN RULE  -  the user's rule, 2026-09-25
+   faces in videos ....... looked for on one frame in every {FACE_CHECK_EVERY} (frames 0, {FACE_CHECK_EVERY}, {2 * FACE_CHECK_EVERY}, ...)
+   look-alike frames ..... not dropped here; dropped after she is found (2026-09-26)
+   videos she is in ...... looked for on one frame in every {SEGMENT_STEP_FRAMES} to find her stretches (2026-09-26)
 ================================================================================"""
 
 
@@ -136,6 +147,8 @@ def training_settings_summary() -> dict:
         "rank": Job.__dataclass_fields__["lora_rank"].default,
         "alpha": Job.__dataclass_fields__["lora_alpha"].default,
         "random_flip": False,
+        "scan_face_check_every": FACE_CHECK_EVERY,   # the video scan rule (user, 2026-09-25)
+        "stretch_face_check_every": SEGMENT_STEP_FRAMES,  # videos she is in (user, 2026-09-26)
     }
 
 
@@ -393,7 +406,10 @@ def run_job(job: Job, on_line=None, stop_file: str | None = None) -> JobResult:
     job_dir = os.path.join(job.work_root, job.name)
     os.makedirs(job_dir, exist_ok=True)
     cfg_path = os.path.join(job_dir, "config.json")
-    log_path = os.path.join(job_dir, "train.log")
+    from face_training.profiles import Profile
+    person_logs = Profile(job.person).logs_dir     # the person's own logs (2026-09-26)
+    os.makedirs(person_logs, exist_ok=True)
+    log_path = os.path.join(person_logs, f"{job.name}_train.log")
     resumed = job.has_checkpoint()
 
     cfg = build_config(job)

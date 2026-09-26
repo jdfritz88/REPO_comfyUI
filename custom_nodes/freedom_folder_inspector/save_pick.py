@@ -102,6 +102,41 @@ def _next_name(folder, base):
 
 
 # --------------------------------------------------------------------------
+# the archive ("auto-save")
+# --------------------------------------------------------------------------
+# Exactly what ComfyUI's own SaveImage did in the old AUTO-SAVE box with
+# filename_prefix "freedom_archive/img" (nodes.py SaveImage.save_images): same
+# folder, same img_NNNNN_.png counter, same metadata, compress level 4.
+ARCHIVE_PREFIX = "freedom_archive/img"
+
+
+def _archive(images, prompt=None, extra_pnginfo=None, prefix=ARCHIVE_PREFIX):
+    out_dir = folder_paths.get_output_directory()
+    # get_save_image_path refuses a prefix that climbs out of the output folder,
+    # exactly as it did for the old SaveImage box.
+    full_folder, filename, counter, subfolder, _ = folder_paths.get_save_image_path(
+        prefix, out_dir, images[0].shape[1], images[0].shape[0])
+    saved = []
+    for batch_number, image in enumerate(images):
+        arr = 255.0 * image.cpu().numpy()
+        img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+        meta = None
+        if not args.disable_metadata:
+            meta = PngInfo()
+            if prompt is not None:
+                meta.add_text("prompt", json.dumps(prompt))
+            if extra_pnginfo is not None:
+                for k, v in extra_pnginfo.items():
+                    meta.add_text(k, json.dumps(v))
+        name = filename.replace("%batch_num%", str(batch_number))
+        fn = f"{name}_{counter:05}_.png"
+        img.save(os.path.join(full_folder, fn), pnginfo=meta, compress_level=4)
+        saved.append({"filename": fn, "subfolder": subfolder, "type": "output"})
+        counter += 1
+    return saved
+
+
+# --------------------------------------------------------------------------
 # the node
 # --------------------------------------------------------------------------
 class FreedomPreviewPick:
@@ -123,16 +158,44 @@ class FreedomPreviewPick:
                                "Saved inside the workflow.",
                 }),
             },
+            # Folded in from the separate AUTO-SAVE (SaveImage) box, 2026-09-24:
+            # one picture display instead of three. Optional and last, so older
+            # workflows that never had it simply get the default (on).
+            "optional": {
+                "auto_save": ("BOOLEAN", {
+                    "default": True,
+                    "label_on": "on - keep every picture",
+                    "label_off": "off",
+                    "tooltip": "Also save EVERY picture to output/" + ARCHIVE_PREFIX
+                               + "_NNNNN_.png, the moment it is made - the "
+                               "'never lose anything' pile. Same names the old "
+                               "AUTO-SAVE box used.",
+                }),
+                # The old AUTO-SAVE box's own filename_prefix box, carried over.
+                "archive_prefix": ("STRING", {
+                    "default": ARCHIVE_PREFIX,
+                    "tooltip": "Where auto-save writes, inside ComfyUI's output "
+                               "folder. 'freedom_archive/img' = output/freedom_archive/"
+                               "img_NNNNN_.png (the old AUTO-SAVE box's setting).",
+                }),
+            },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
-    RETURN_TYPES = ()
+    # The old AUTO-SAVE box passed the pictures on through an "images" output;
+    # this node now does too, so anything that hung off it still can.
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
     FUNCTION = "hold"
     OUTPUT_NODE = True
     CATEGORY = "Freedom"
 
     def hold(self, images, filename_prefix="freedom", save_folder="",
-             prompt=None, extra_pnginfo=None):
+             prompt=None, extra_pnginfo=None, auto_save=True,
+             archive_prefix=None):
+        archived = (_archive(images, prompt, extra_pnginfo,
+                             (archive_prefix or "").strip() or ARCHIVE_PREFIX)
+                    if auto_save else [])
         batch = uuid.uuid4().hex[:8]
         d = hold_dir()
         files = []
@@ -166,7 +229,9 @@ class FreedomPreviewPick:
         return {"ui": {"images": files,
                        "freedom_files": files,
                        "freedom_folder": [folder],
-                       "freedom_prefix": [_clean_prefix(filename_prefix)]}}
+                       "freedom_prefix": [_clean_prefix(filename_prefix)],
+                       "freedom_archived": archived},
+                "result": (images,)}
 
 
 # --------------------------------------------------------------------------

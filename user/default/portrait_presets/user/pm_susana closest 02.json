@@ -145,10 +145,6 @@
     "prompt_styler": false
   },
   "recipe": {
-    "ksampler": {
-      "seed": 930312207,
-      "control_after_generate": "fixed"
-    },
     "facedetailer": {
       "seed": 1736114183,
       "control_after_generate": "fixed"

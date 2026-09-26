@@ -3,9 +3,10 @@ Delete to the Recycle Bin, not for ever.
 
 Face Seek deletes things a person cannot get back any other way - crops, whole
 profiles, trained LoRAs - so every delete the app makes on the user's behalf
-goes through here and can be undone from the Recycle Bin. (The one exception is
-frames Seek pulled from a video itself: those are its own working files and are
-removed outright by the frames stage.)
+goes through here and can be undone from the Recycle Bin. Seek's own automatic
+clean-ups are the exceptions and delete outright: the frames stage removes
+pulled video frames, and the dedupe stage removes duplicate crops (with their
+captions) and duplicate pictures in needs_review/.
 
 stdlib only (ctypes), so the launcher, the Face Tool window and the review
 server can all import it.

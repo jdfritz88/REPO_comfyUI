@@ -134,6 +134,28 @@ def write_preset(scope: str, name: str, data: dict, overwrite: bool) -> dict:
     return {"ok": True, "name": name, "path": path}
 
 
+def rename_preset(scope: str, name: str, new_name: str) -> dict:
+    """Rename one of OUR presets. The developer's are never renamed from here."""
+    hit = find_preset(scope, name)
+    if not hit:
+        return {"ok": False, "error": f"No preset called '{name}'."}
+    if hit[1] == "developer":
+        return {"ok": False, "error":
+                f"'{name}' belongs to Portrait Master's own folder and is not renamed from here."}
+    if not valid_name(new_name):
+        return {"ok": False, "error": f"'{new_name}' is not a usable preset name."}
+    new_name = new_name.strip()
+    if new_name == name:
+        return {"ok": False, "error": "That is already its name."}
+    taken = name_taken(scope, new_name)
+    if taken:
+        where = "Portrait Master's own folder" if taken == "developer" else "your preset folder"
+        return {"ok": False, "error": f"A preset called '{new_name}' already exists in {where}."}
+    new_path = os.path.join(user_folder_for(scope), f"{new_name}.json")
+    os.replace(hit[0], new_path)
+    return {"ok": True, "name": new_name, "old_name": name, "path": new_path}
+
+
 def delete_preset(scope: str, name: str) -> dict:
     hit = find_preset(scope, name)
     if not hit:

@@ -2,9 +2,10 @@
 The middle drawer: faces that were nearly her, and the photos around them.
 
 The pipeline makes a hard call on every face - above the cutoff she is
-gathered, below it the face is dropped and no trace is kept. Two things are
-lost that way. Photos that sit just under the line vanish silently, so a miss
-looks exactly like an absence. And every face is judged alone, as if it were
+gathered, below it the face is dropped. Only faces within a small margin of the
+cutoff are logged (facebank feedback); anything further under leaves no trace
+of having been close. Two things are lost that way. Photos a little under the
+line vanish from the search, so a miss looks exactly like an absence. And every face is judged alone, as if it were
 the only photograph in the world, which throws away the strongest evidence a
 human uses: that the picture was taken at the same moment as one already known
 to be her.
