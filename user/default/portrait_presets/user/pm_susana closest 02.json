@@ -157,46 +157,6 @@
     },
     "lora_stack": [
       {
-        "enabled": true,
-        "lora": "faces/susana_head_sdxl_pony.safetensors",
-        "strength": 0.65
-      },
-      {
-        "enabled": true,
-        "lora": "faces/susana_head_sdxl_pony.safetensors",
-        "strength": 0.65
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
         "enabled": false,
         "lora": "",
         "strength": 0.8
@@ -219,5 +179,6 @@
     ],
     "prompt": "hetero, 1girl, 1boy, (sex from behind, doggystyle:1.3), (his hands gripping her waist, his thighs and torso behind her:1.2), (photorealistic photo:1.2), (thirty year old:1.2) woman on all fours, large almond eyes, (eyes rolled back, orgasm expression:1.1), (head turned away, looking down:1.2), (thick translucent drool dripping from her mouth:1.1), slim naked body, (plump firm breasts:1.1), one hand squeezing her own nipple between thumb and forefinger, soft window light, 85mm, (natural skin texture:1.2), "
   },
-  "_saved": "2026-09-22 16:37:51"
+  "_saved": "2026-09-22 16:37:51",
+  "description": "Saved on 22 September for Susana's trained face. It leaves every Portrait Master dial at the developer's starting value. It picks her face on the face shelf (susana_head_sdxl_pony) at strength 0.6 with a trigger weight of 1.1, sets the face repaint seed to 1736114183, and leaves all four general LoRA slots empty and switched off. It also holds a prompt for a doggy-style scene with her eyes rolled back. Its Portrait Master dials load unlocked, so they only fill the dials you have not changed yourself."
 }

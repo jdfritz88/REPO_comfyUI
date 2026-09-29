@@ -156,5 +156,19 @@ if __name__ == "__main__":
     ap.add_argument("dest")
     ap.add_argument("--family", default="sdxl")
     ap.add_argument("--crop", default="head")
+    # The subject words the picture is drawn from - the person's own trigger and
+    # class word, the same ones training uses (profile.caption_base()). Taken from
+    # --profile, or given directly with --subject. It used to be left out, so a
+    # hand run crashed (found 2026-09-26).
+    who = ap.add_mutually_exclusive_group(required=True)
+    who.add_argument("--profile", help="person's profile name, e.g. susana")
+    who.add_argument("--subject", help='e.g. "lorasusana woman"')
     a = ap.parse_args()
-    print(render_thumb(a.lora, a.family, a.crop, a.dest))
+    subject = a.subject
+    if a.profile:
+        from face_training.profiles import Profile
+        prof = Profile(a.profile)
+        if not prof.data:
+            ap.error(f"no profile '{a.profile}'")
+        subject = prof.caption_base()
+    print(render_thumb(a.lora, a.family, a.crop, a.dest, subject))

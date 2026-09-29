@@ -39,6 +39,49 @@ user's standing rule list. Any new face-tool rule the user gives goes into that 
 the same session, with its date. If the code disagrees with a rule, tell the user; never
 quietly change either to make them match.
 
+## Node-group layout: description, then packages, then the panel (user, 2026-09-26/27)
+
+Every workflow step (node group) where the user clicks, types or picks something
+follows this order, going forward. Think of it like a form: first the
+instructions, then the buttons that fill or reset the form, then the form itself.
+
+- **Column 1, top to bottom:**
+  - **#a — the description note.** What this step does and why it matters.
+  - **#b — switches, or the preset / reset / save packages.** The on/off
+    switches and the buttons that load, save or reset settings.
+  - **#c — the control panel itself.** The shelf, the dials, the prompt boxes —
+    whatever the user actually works with. (The user wrote "#v"; they confirmed
+    on 2026-09-27 that they meant #c.)
+- **The next column repeats the same order with the next letters:** #d
+  description, #e switches or packages, #f panel — then #g, #h, #i, and so on.
+- **The prompt saver/loader and the phrase saver/loader are separate** — not one
+  shared package. In STEP 7 they already were separate nodes; the user chose
+  (2026-09-27) to keep them as they are and only re-letter them (see below).
+- Node titles carry the step and letter, e.g. `STEP 3a`, `STEP 3b`, `STEP 3c`.
+  STEP 3 in `Freedom_bigLust_SDXL v09.json` was the first step laid out this way
+  (3a note, 3b face shelf with its recipes package kept inside, 3c face LoRA
+  stack — the user chose to keep recipes inside the shelf node).
+- STEP 7 (v09, user 2026-09-27): its save/load buttons live inside its panels,
+  so each column is only a note and a panel. The user chose plain lettering with
+  no gaps: 7a description note, 7b prompt boxes, 7c phrase note, 7d phrase node.
+  The prompt and phrase nodes themselves were kept as they are (already
+  separate). This is STEP 7's choice, not a rule for every step.
+- Layout changes go into a new workflow version, not the one the user is working
+  in (v09 was made for STEP 3 because the user was working in v08).
+
+## Save packages: nothing saves by itself, and every package has "Save as" (user, 2026-09-29)
+
+- **Only a Save button may change a stored preset or entry.** Changing a dial, a box or a
+  dropdown must never save anything by itself. Portrait Master's own "save preset" switch is
+  kept off for this reason (`freedom_portrait_control` switches it off in every job and shows
+  it off and locked).
+- **Every save / edit / delete package in the workflow has a "Save as"** as well as Save, so a
+  changed version can be kept without replacing the old one. A new package gets one from the start.
+- STEP 4a has one menu (no "In charge" dropdown): "Use the dials (no 4a preset)", saved presets
+  (they load unlocked - they only fill dials you have not changed), then the three built-in z_
+  choices. Every entry has a description beneath the menu; an entry without one says
+  "needs description". Record: `logs/checkpoint_front_text_2026-09-29/LOG.md`.
+
 ## Every ComfyUI log lives in `logs/` — write it there, never route it later
 
 Standing rule from the user (decided 2026-09-18, repeated 2026-09-24): anything

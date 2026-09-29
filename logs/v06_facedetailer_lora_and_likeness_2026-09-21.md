@@ -270,6 +270,29 @@ crisp it.
 
 # PART 7 — STACKING THE SAME LoRA: THE COMMUNITY WAS RIGHT AND I WAS WRONG
 
+> **CORRECTION (added 2026-09-28) — THIS PART IS WRONG. Read this first.**
+>
+> **What went wrong:** this test never put her face LoRA on twice. The second pass went
+> into the general LoRA stack, and that stack throws out face LoRAs
+> (`freedom_lora_stack/nodes.py:188` at the time). So:
+> - "two passes at 0.9" was really **one pass at 0.9**;
+> - "1.1 + 0.9" was really **one pass at 1.1**;
+> - "one pass at 1.8" really was one pass at 1.8.
+>
+> The test only showed that 0.9 looks better than 1.8, which is too strong a dose and
+> washes the picture out. It showed nothing about stacking.
+>
+> **What is true:** putting the same LoRA on in two passes gives the same picture as one
+> pass at the two strengths added together. Tested on 2026-09-25 with three seeds: one
+> pass at 1.1 against 0.6 + 0.5 differed only by rounding (average difference 0.6 to 1.9,
+> where a real change is 15 to 30). The code does the same: each pass adds its strength
+> on top (`comfy/weight_adapter/lora.py:283`). So the prediction in 7.2 was **right**, and
+> this part's title and 7.3's conclusion are wrong. Claude credited the difference to
+> stacking without checking that the second pass had actually been applied.
+>
+> Full record: `logs/two_lora_stacks_v08_2026-09-25.md`, section 1.1, plus the "Passes add
+> up" paragraph. The original text is kept below unchanged, as the record of the mistake.
+
 ## 7.1 The question
 Is two applications at 0.9 the same as one at 1.8?
 
@@ -315,7 +338,7 @@ between 1.0 and 1.2. The colour collapse at 1.4 is the early symptom of overcook
 | 2 | Reinvented an existing node | **mine** | `FreedomLoadLoraWired` already existed in `freedom_folder_inspector` — a LoRA loader taking the filename on a wire, with **separate** model and clip strengths and a -20..20 range. I should have found it. |
 | 3 | 86-page PDF shipped dark-on-dark | **mine** | Two page templates were registered but `NextPageTemplate` was never used, so the dark cover ran through all 85 pages. Missed across three separate visual checks. Fixed. |
 | 4 | Claimed the clip dial worked | **mine** | Tooltip and note said to use it when the LoRA overrides your words. With an empty wildcard box the result is bit-identical whatever it is set to — FaceDetailer touches its clip input only inside `if wildcard_opt != ""` (`core.py:268`). Both corrected to say so. |
-| 5 | Predicted stacking was equivalent | **mine** | See §7.2. Wrong; the test disproved it. |
+| 5 | Predicted stacking was equivalent | **mine** | See §7.2. Wrong; the test disproved it. **CORRECTION 2026-09-28: the prediction was right and the test was broken. Its second pass was thrown out by the general LoRA stack, so it compared one pass at 0.9 against one at 1.8. The real defect is claiming a stacking result without checking that the second pass was applied. See the correction at the top of Part 7.** |
 | 6 | Findings dumped in an appendix | **mine** | Put the handbook's four key findings in Appendix A instead of in the chapters they belong to. Moved into the flow; the appendix is a bare checklist. |
 | 7 | Description node did not render | **mine** | Hand-built a MarkdownNote in JSON without `inputs` and `outputs` keys, which every working note has. Anything walking those lists skipped it. Fixed; all nodes then swept for missing standard keys. |
 | 8 | Node hidden under another | **mine** | Placed a node at x=3550 with an existing node at x=3580, both collapsed. Invisible. Moved, recoloured; whole canvas swept for overlaps — that was the only one. |

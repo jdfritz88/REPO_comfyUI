@@ -81,7 +81,9 @@ SEGMENT_STEP_FRAMES = 12        # faces looked for on one frame in every 12 whil
                                 # IMG_3768 her two clearest frames (25, 35) fell between those
                                 # checks (15, 30, 45) and nothing was pulled.
 MIN_HER_SHARPNESS = 200.0       # her face aligned to 112 px, Laplacian variance
-DUP_LOOK_MIN = 0.90             # aligned face, eyes band and mouth band all at least this alike
+DUP_LOOK_MIN = 0.85             # aligned face, eyes band and mouth band all at least this alike
+                                # (user, 2026-09-26; was 0.90. On the 2026-09-15 pairs, 0.87 was
+                                # a smile opening - at 0.85 that now counts as the same look)
 DUP_YAW = 0.08                  # head turn change (nose offset / eye distance)
 DUP_PITCH = 0.08                # nod change (nose height / eye-to-mouth distance)
 DUP_ROLL = 5.0                  # sideways lean change, degrees

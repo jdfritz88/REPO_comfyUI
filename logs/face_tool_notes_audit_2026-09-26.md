@@ -48,3 +48,13 @@ README; every finding was re-checked against the code before it was fixed.
    afterwards is never scanned (scan_cache.scan_folder skip_finished=True, called by seek).
 3. thumbs.py run by hand (its own command line) calls render_thumb without the required
    subject argument and would fail. The pipeline's own call is not affected.
+
+## Fixed afterwards (user: a) — thumbnail maker run by hand
+- thumbs.py's own command line called render_thumb() without the required subject, so a
+  hand run crashed. It now takes --profile <name> (uses the person's caption base, the same
+  words training passes — for susana "lorasusana woman") or --subject "<words>"; one of the
+  two is required.
+- Checked: --help lists both; running without either gives a clear error; her caption base
+  reads "lorasusana woman". Not checked: an actual thumbnail render by hand (it needs
+  ComfyUI running and queues a picture there); the render code itself is the one training
+  already uses.

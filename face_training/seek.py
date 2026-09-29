@@ -132,6 +132,18 @@ def _move_into(src, dest_dir):
         return None
 
 
+def _remember_faces(cache, hsh: str, path: str, faces, shape):
+    """Save the faces found in a kept picture into the scan's notes (the scan
+    cache), so the rebuild of her face sketch can learn from it.
+
+    Video frames pulled by the closer look were never noted by the first scan, so
+    they could never teach her sketch - not even frames the user answered "Yes,
+    it's her" (found 2026-09-27; user chose to fix it for new and kept frames).
+    A picture already noted is left as it is."""
+    if hsh and faces and not cache.has(hsh):
+        cache.record(hsh, path, faces, shape)
+
+
 def process_one(prof, src):
     """Crop one original into the Clean set exactly as the clean stage does,
     then retire it to processed/. Returns (made_head, made_body).
@@ -163,6 +175,11 @@ def process_one(prof, src):
     ratio = (her[3] - her[1]) / img.shape[0]
     history = SH.History(prof.history_path)
     cap = history.capture(os.path.basename(src)) or {}
+    cache = ScanCache(os.path.join(prof.scan_cache_dir, "faces.db"))
+    try:
+        _remember_faces(cache, cap.get("hash") or content_hash(src), src, faces, img.shape)
+    finally:
+        cache.close()
     made = _crop_into_clean(img, her, others, ratio,
                             prof.clean_head, prof.clean_body,
                             src, cap.get("hash") or content_hash(src),
@@ -256,10 +273,13 @@ def _write_crop(crop, sub, kind, img, her_bbox, her_kps, src_path, hsh, base,
 # --------------------------------------------------------------------------- #
 class Seek:
     def __init__(self, prof: P.Profile, seek_folder: str, recursive: bool,
-                 on_event=None, defer_review: bool = False):
+                 on_event=None, defer_review: bool = False, rescan: bool = False):
         self.prof = prof
         self.folder = seek_folder
         self.recursive = recursive
+        # look inside folders already searched for photos added since (the user's
+        # choice when starting a search, 2026-09-26)
+        self.rescan = rescan
         self.on_event = on_event or (lambda s: None)
         self.defer_review = defer_review
         self.cache = ScanCache(os.path.join(prof.scan_cache_dir, "faces.db"))
@@ -396,7 +416,7 @@ class Seek:
             self.say(f"  scan {i}/{t}  (new {sc}, cached {sk})")
         r = scan_folder(self.folder, self.recursive, self.cache,
                         stop_check=self._stopping, on_progress=prog,
-                        scan_videos=True)
+                        scan_videos=True, skip_finished=not self.rescan)
         vs = r.get("video_stats")
         if vs and vs["videos_found"]:
             self.say(f"  videos: {vs['videos_read']}/{vs['videos_found']} newly read, "
@@ -408,14 +428,30 @@ class Seek:
             self._done("scan")
 
     def _stage_learn(self):
+        # Rule 17 (user): a picture that is not her never teaches her face sketch,
+        # and neither does the app's own unsure guess. So: nothing on her not-her
+        # list, and only a face the search itself would call clearly her - LEARN_SIM
+        # (0.45) alone sat inside the unsure zone just above the cutoff (fixed
+        # 2026-09-27).
+        not_her = self.history.data.get("not_person", {})
+        # "Yes - but don't use it" and "Duplicate": recorded, never learned from
+        # (user, 2026-09-17)
+        not_used = self.history.data.get("not_used", {})
         new_embs = []
         for hsh, path, ih, iw, faces in self.cache.iter_scanned():
             if len(faces) != 1:
                 continue
+            base = hsh.rsplit(":f", 1)[0]
+            if hsh in not_her or base in not_her or hsh in not_used or base in not_used:
+                continue
             (x1, y1, x2, y2), det, emb = faces[0]
             if ih and (y2 - y1) / ih < HEAD_RATIO * 0.7:
                 continue
-            if self.ident.match_emb(emb) >= LEARN_SIM:
+            sim = self.ident.match_emb(emb)
+            if sim < LEARN_SIM:
+                continue
+            is_her, unsure = FB.decide(self.prof.slug, sim, 0.0, False, self.cutoff)
+            if is_her and not unsure:
                 new_embs.append(emb)
         if new_embs:
             self.say(f"  {len(new_embs)} confident solo matches -> identity")
@@ -637,14 +673,18 @@ class Seek:
         # anything the clean stage itself found not to be her or set aside as a
         # close call and nobody has approved since.
         not_her = self.history.data.get("not_person", {})
+        # "Yes - but don't use it" and "Duplicate" are recorded, never learned from
+        # (user, 2026-09-17) - found missing here 2026-09-27
+        not_used = self.history.data.get("not_used", {})
         caps, held, refused = set(), 0, 0
         for c in self.history.data["captures"].values():
             hsh = c.get("hash")
             if not hsh:
                 continue
             base = hsh.rsplit(":f", 1)[0]
-            if (hsh in not_her or base in not_her
-                    or c.get("outcome") in ("not_her", "not_her_user")):
+            if (hsh in not_her or base in not_her or hsh in not_used or base in not_used
+                    or c.get("outcome") in ("not_her", "not_her_user", "her_unused",
+                                            "duplicate", "duplicate_removed")):
                 refused += 1
                 continue
             if (c.get("unsure") or c.get("outcome") == "needs_review")                     and c.get("outcome") != "cropped":
@@ -666,7 +706,7 @@ class Seek:
         self.say(f"  identity rebuilt from {self.ident.n_refs} faces "
                  f"(match cutoff {self.cutoff:.2f}, bank {FB.bank_size(self.prof.slug)})"
                  + (f"; {held} unsure copies left out until you answer" if held else "")
-                 + (f"; {refused} not-her pictures left out" if refused else ""))
+                 + (f"; {refused} not-her or don't-use pictures left out" if refused else ""))
         self._done("reteach")
 
     def _stage_search(self):
@@ -903,6 +943,7 @@ class Seek:
             ratio = (her[3] - her[1]) / img.shape[0]
             cap = self.history.capture(f) or {}
             hsh = cap.get("hash") or content_hash(src)
+            _remember_faces(self.cache, hsh, src, faces, img.shape)
             _crop_into_clean(img, her, others, ratio,
                              self.prof.clean_head, self.prof.clean_body,
                              src, hsh, self.caption_base, her_kps,
@@ -1115,11 +1156,11 @@ def finish_approved(prof, say=lambda s: None, on_step=lambda *a: None) -> dict:
 
 
 def run_seek(slug: str, seek_folder: str, recursive: bool, resume: bool,
-             on_event=None, defer_review: bool = False) -> dict:
+             on_event=None, defer_review: bool = False, rescan: bool = False) -> dict:
     prof = P.Profile(slug)
     if not prof.data:
         raise ValueError(f"no profile '{slug}'")
-    return Seek(prof, seek_folder, recursive, on_event, defer_review).run(resume)
+    return Seek(prof, seek_folder, recursive, on_event, defer_review, rescan).run(resume)
 
 
 EXIT_STOPPED = 3    # a Stop was honoured: progress is saved, Resume continues it
@@ -1132,6 +1173,8 @@ if __name__ == "__main__":
     ap.add_argument("--seek-folder", required=True)
     ap.add_argument("--flat", action="store_true", help="this folder only")
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--rescan", action="store_true",
+                    help="also look for new photos in folders already searched")
     ap.add_argument("--defer-review", action="store_true",
                     help="do not mark the review pending (a library run marks it once at the end)")
     a = ap.parse_args()
@@ -1140,7 +1183,7 @@ if __name__ == "__main__":
     log.debug("seek start: profile=%s folder=%s recursive=%s resume=%s defer_review=%s",
               a.profile, a.seek_folder, not a.flat, a.resume, a.defer_review)
     r = run_seek(a.profile, a.seek_folder, not a.flat, a.resume,
-                 on_event=lambda s: None, defer_review=a.defer_review)
+                 on_event=lambda s: None, defer_review=a.defer_review, rescan=a.rescan)
     log.info("\n==== SEEK STOPPED - progress saved ====" if r.get("stopped")
              else "\n==== SEEK DONE ====")
     log.info("%s", r)

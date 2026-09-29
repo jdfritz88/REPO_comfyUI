@@ -193,9 +193,13 @@ class FreedomPhraseSlots:
 #
 # The positive prompt split in two: PHYSICAL (how she looks - body, face, hair,
 # skin, clothing) and EVERYTHING ELSE (pose, action, scene, camera, light,
-# style). Her trigger word from STEP 5 comes in on a wire. The three are joined
-# into the finished prompt, in that order - trigger first, as the old
-# StringConcatenate did.
+# style). Her trigger word from STEP 5 comes in on a wire.
+#
+# Join order (user, 2026-09-29, Q61 = 2 - action and scene before physical, for
+# every model; ComfyUI itself has no preferred order):
+#   front (checkpoint front text, e.g. CyberRealistic Pony's score tags) ->
+#   trigger (her code word, or Portrait Master's text) -> EVERYTHING ELSE -> PHYSICAL
+# Before 2026-09-29 it was trigger -> physical -> everything else.
 #
 # Each box has its OWN shelf (user's choice), so any saved look can be paired
 # with any saved scene. Each shelf has the same package as the prompt shelf:
@@ -258,9 +262,16 @@ class FreedomPromptParts:
         return {
             "required": required,
             "optional": {
+                "front": ("STRING", {
+                    "forceInput": True,
+                    "tooltip": "Checkpoint front text, wired from the checkpoint "
+                               "front-text node (for example CyberRealistic Pony's "
+                               "score tags). Goes first of all.",
+                }),
                 "trigger": ("STRING", {
                     "forceInput": True,
-                    "tooltip": "Her trigger word, wired from STEP 5. Goes first.",
+                    "tooltip": "Her trigger word (or Portrait Master's text), wired "
+                               "from STEP 5. Goes right after the front text.",
                 }),
             },
         }
@@ -270,13 +281,16 @@ class FreedomPromptParts:
     FUNCTION = "combine"
     CATEGORY = "Freedom"
     DESCRIPTION = ("Your positive prompt in two boxes - physical, and everything "
-                   "else - each with its own saved shelf. Joined with her trigger "
-                   "word into the finished prompt.")
+                   "else - each with its own saved shelf. Joined into the finished "
+                   "prompt in this order: checkpoint front text, her trigger word, "
+                   "everything else, physical.")
 
-    def combine(self, physical="", everything_else="", trigger="", **_shelf):
-        parts = [p.strip() for p in (trigger, physical, everything_else)
+    def combine(self, physical="", everything_else="", trigger="", front="", **_shelf):
+        parts = [p.strip() for p in (front, trigger, everything_else, physical)
                  if isinstance(p, str) and p.strip()]
-        return (", ".join(parts),)
+        finished = ", ".join(parts)
+        # The prompt watcher on the checkpoint front-text node shows this text.
+        return {"ui": {"finished_prompt": [finished]}, "result": (finished,)}
 
 
 NODE_CLASS_MAPPINGS = {

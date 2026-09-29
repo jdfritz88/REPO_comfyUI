@@ -1,13 +1,14 @@
 // web/selected_face_stack.js
 //
-// The trained-face strength notes, on BOTH the Face Shelf (STEP 3) and the
-// Selected Face LoRA Stack (STEP 3b) - the user's layout, 2026-09-25:
+// The trained-face strength notes, on BOTH the Face Shelf and the Selected Face
+// LoRA Stack - the user's layout, 2026-09-25 (step letters live in the workflow
+// titles, not here, so this reads right in every version):
 //
 //   Combined trained LoRA face strength (default) 1.0 =
 //       0.4 face shelf + 0.3 row 1 + 0.2 row 2 + 0.1 row 3
 //   Current: <live counter>
 //
-// The live counter adds the face shelf's strength and all three STEP 3b row
+// The live counter adds the face shelf's strength and all three Selected Face LoRA Stack row
 // strengths, ON or OFF (the user's choice for the counter), and updates the
 // moment any of them changes - a change on either node refreshes both at once
 // (the half-second timer is only a backstop, since Chrome slows timers in a
@@ -17,7 +18,7 @@
 // stronger first, each next one 0.1 lower. nodes.py FACE_SHELF_DEFAULT and
 // FACE_PASS_DEFAULTS hold the same numbers.
 //
-// STEP 3b also keeps: a "Reset to default" button (puts the three row strengths
+// The Selected Face LoRA Stack also keeps: a "Reset to default" button (puts the three row strengths
 // back to 0.3 / 0.2 / 0.1; the ON/OFF switches and the shelf are left alone), and
 // one line per row - its ON/OFF button and strength box side by side, a gap
 // between rows. The real enabled_N / strength_N widgets stay on the node, hidden,
@@ -63,7 +64,12 @@ function css() {
     .sfs-top .pass button.tog.on { background: #2d5a2d; border-color: #4a4; color: #fff; }
     .sfs-top .pass input { width: 70px; background: #111; color: #fff; border: 1px solid #666;
                            border-radius: 3px; padding: 1px 4px; font: 12px sans-serif; }
-    .sfs-top .pass .dflt { color: #888; font-size: 11px; }`;
+    .sfs-top .pass .dflt { color: #888; font-size: 11px; }
+    .sfs-shelfrow { display: flex; gap: 14px; align-items: center; margin: 2px 4px;
+                    font: 12px sans-serif; color: #ccc; }
+    .sfs-shelfrow label { display: flex; gap: 6px; align-items: center; }
+    .sfs-shelfrow input { width: 70px; background: #111; color: #fff; border: 1px solid #666;
+                          border-radius: 3px; padding: 1px 4px; font: 12px sans-serif; }`;
   document.head.appendChild(s);
 }
 
@@ -78,7 +84,7 @@ function upstream(node, inputName) {
   return link ? app.graph.getNodeById(link.origin_id) : null;
 }
 
-// From the shelf: the STEP 3b node its lora_file output is wired to, if any.
+// From the shelf: the Selected Face LoRA Stack its lora_file output is wired to, if any.
 function stackOf(shelf) {
   const out = (shelf.outputs || []).find((o) => o.name === "lora_file");
   for (const id of out?.links || []) {
@@ -146,7 +152,14 @@ function refreshShelf(node) {
   if (!el) return;
   const stack = stackOf(node);
   el.querySelector(".score").textContent = combined(node, stack).toFixed(2);
-  el.querySelector(".hint").textContent = stack ? "" : "(no STEP 3b wired in - shelf only)";
+  el.querySelector(".hint").textContent = stack ? "" : "(no Selected Face LoRA Stack wired in - shelf only)";
+  const row = node.__sfsShelfRow;
+  if (row) {
+    for (const inp of row.querySelectorAll("input")) {
+      if (document.activeElement === inp) continue;       // never overwrite what is being typed
+      inp.value = Number(wv(node, inp.dataset.w) ?? 0).toFixed(2);
+    }
+  }
 }
 
 function setWidget(node, name, value) {
@@ -228,16 +241,51 @@ function buildShelf(node) {
   el.innerHTML = noteHtml("");
   node.__sfsShelfTop = el;
   addTopNote(node, el, 56);
+  // strength and trigger_weight side by side on one row, above "enabled"
+  // (user, 2026-09-27). The real widgets stay on the node, hidden, and are what
+  // get saved and sent to the server; this row reads and writes them.
+  const row = document.createElement("div");
+  row.className = "sfs-shelfrow";
+  row.innerHTML = `
+    <label>strength <input type="number" step="0.05" min="-2" max="2" data-w="strength"></label>
+    <label>trigger_weight <input type="number" step="0.05" min="0.1" max="2" data-w="trigger_weight"></label>`;
+  node.__sfsShelfRow = row;
+  for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"])
+    row.addEventListener(ev, (e) => e.stopPropagation());
+  for (const inp of row.querySelectorAll("input")) {
+    inp.addEventListener("change", () => {
+      const name = inp.dataset.w;
+      const lo = name === "trigger_weight" ? 0.1 : -2;
+      let v = parseFloat(inp.value);
+      if (!Number.isFinite(v)) { refreshShelf(node); return; }
+      v = Math.min(2, Math.max(lo, Math.round(v * 100) / 100));
+      setWidget(node, name, v);          // the widget's own callback repaints the shelf
+      refreshBoth(node);
+    });
+  }
+  const rw = node.addDOMWidget("freedom_sfs_shelf_row", "FREEDOM_SFS_ROW", row,
+    { serialize: false, hideOnZoom: false, getMinHeight: () => 30 });
+  rw.serialize = false;                            // what 1.53.6 actually checks
+  node.widgets.splice(node.widgets.indexOf(rw), 1);
+  node.widgets.splice(1, 0, rw);                   // right under the note, above "enabled"
+  for (const name of ["strength", "trigger_weight"]) {
+    const x = (node.widgets || []).find((w) => w.name === name);
+    if (!x) continue;
+    x.type = "hidden";
+    x.options = x.options || {};
+    x.options.hidden = true;
+    x.computeSize = () => [0, -4];
+  }
   const sw = (node.widgets || []).find((x) => x.name === "strength");
   if (sw) {
     const cb = sw.callback;
     sw.callback = function () {
       const r = cb ? cb.apply(this, arguments) : undefined;
-      refreshBoth(node);          // STEP 3b's counter changes at the same moment
+      refreshBoth(node);          // the stack's counter changes at the same moment
       return r;
     };
   }
-  everyHalfSecond(node, () => refreshShelf(node));   // the rows live on STEP 3b
+  everyHalfSecond(node, () => refreshShelf(node));   // the rows live on the Selected Face LoRA Stack
   refreshShelf(node);
 }
 

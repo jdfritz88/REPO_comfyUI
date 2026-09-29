@@ -1,0 +1,6 @@
+{
+  "-- none --": "No 4a preset is used. Every Portrait Master node follows its own dials, or its own node preset if you picked one on that node. The pair dropdown decides whether Base Character or Face Generator writes the description.",
+  "z_block all nodes": "Every Portrait Master node is switched off, greyed out and locked. Portrait Master adds no words to the prompt at all. Use this when you want only your own words in STEP 7.",
+  "z_unblock and open all nodes WITH Base Character (Face Generator must be OFF)": "Every Portrait Master node is switched on and unlocked, except Face Generator, which is switched off and greyed out. Base Character writes the description of the person. Your dials are used exactly as they are, and no preset is loaded over them.",
+  "z_unblock and open all nodes WITH Face Generator (Base Character must be OFF)": "Every Portrait Master node is switched on and unlocked, except Base Character, which is switched off and greyed out. Face Generator writes the description of the face. Your dials are used exactly as they are, and no preset is loaded over them."
+}

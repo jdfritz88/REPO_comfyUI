@@ -33,6 +33,38 @@ MODES = [MODE_PRESET_WINS, MODE_PRESET_UNLOCKED, MODE_IGNORE_PRESETS]
 
 NO_PRESET = "-- none --"
 
+# Built-in choices at the BOTTOM of 4a's top preset dropdown (user, 2026-09-29, Q60/Q62).
+# They are not files. They decide Portrait Master's on/off outright, so the pair dropdown
+# ("which one starts the chain") can never fight a switch:
+#   z_block      - every Portrait Master node OFF, greyed and locked on screen.
+#   z_open_base  - every node ON and unlocked, Base Character ON, Face Generator OFF.
+#   z_open_face  - every node ON and unlocked, Face Generator ON, Base Character OFF.
+# "Open" means the dials are used as they are: no 4a preset values and no node
+# presets are written over them.
+Z_BLOCK = "z_block all nodes"
+Z_OPEN_BASE = "z_unblock and open all nodes WITH Base Character (Face Generator must be OFF)"
+Z_OPEN_FACE = "z_unblock and open all nodes WITH Face Generator (Base Character must be OFF)"
+Z_PRESETS = [Z_BLOCK, Z_OPEN_BASE, Z_OPEN_FACE]
+# The "In charge" dropdown is gone from the screen (user, 2026-09-29, Q64 = 4, Q65 = 3).
+# The mode is worked out from the ONE preset menu instead, so there is nothing to conflict:
+#   "-- none --" (shown as "Use the dials (no 4a preset)") -> ignore presets, use the dials
+#   a saved preset                                         -> loads UNLOCKED (fills only
+#                                                             the dials you have not changed)
+#   a z_ choice                                            -> on/off outright (below)
+# The old "mode" input stays on the node only so older workflows still open.
+def effective_mode(preset_name):
+    if not preset_name or preset_name == NO_PRESET:
+        return MODE_IGNORE_PRESETS
+    return MODE_PRESET_UNLOCKED
+
+# Descriptions of the built-in menu entries, editable with the description package.
+# Saved presets keep their description inside their own file ("description").
+NEEDS_DESCRIPTION = "needs description"
+BUILTIN_DESCRIPTIONS_FILE = "builtin_descriptions.json"
+
+Z_ON_OFF_NODES = ["PortraitMasterBaseCharacter", "PortraitMasterFaceGenerator",
+                  "PortraitMasterSkinDetails", "PortraitMasterStylePose", "PortraitMasterMakeup"]
+
 # Per-node radio choices, stored in 4a's "state" field by the web code.
 NODE_MODE_PRESET = "node preset"           # dials locked, no buttons
 NODE_MODE_PRESET_UNLOCKED = "node preset + unlocked"
@@ -81,7 +113,8 @@ def _dropdown_inputs():
 
 
 def _user_preset_names():
-    return [NO_PRESET] + [p["name"] for p in list_presets("user")]
+    saved = [p["name"] for p in list_presets("user") if p["name"] not in Z_PRESETS]
+    return [NO_PRESET] + saved + Z_PRESETS          # the built-in z_ choices always last
 
 
 class FreedomPortraitUserPreset:
@@ -243,8 +276,8 @@ def _apply(json_data):
 
     control = controls[0][1]
     cin = control.get("inputs") or {}
-    mode = cin.get("mode", MODE_PRESET_WINS)
     preset_name = cin.get("preset", NO_PRESET)
+    mode = effective_mode(preset_name)          # the old "mode" input is not read any more
     try:
         state = json.loads(cin.get("state") or "{}")
     except Exception:
@@ -281,7 +314,40 @@ def _apply(json_data):
     notes = []
     if chosen:
         notes.append("dropdowns: " + ", ".join(chosen))
+
+    # Portrait Master's OWN "save preset" switch saves its dials as a node preset on every
+    # run - a save nobody pressed. Only a Save button may change a stored preset (user,
+    # 2026-09-29), so it is switched off in every job, from every client.
+    for class_name in NODE_CLASSES:
+        for _nid, node in by_class.get(class_name, []):
+            inputs = node.get("inputs") or {}
+            if inputs.get("save_preset") is True:
+                inputs["save_preset"] = False
+                touched += 1
+                notes.append("%s: Portrait Master's own auto-save switched off" % class_name)
     switches = state.get("switches") or {}
+
+    # Built-in z_ choices: they decide on/off outright and skip everything else below
+    # (no preset values, no node presets, no pair forcing). Obeyed in every mode except
+    # "ignore presets", where the preset dropdown itself is out of use.
+    if preset_name in Z_PRESETS:
+        want_on = {c: (preset_name != Z_BLOCK) for c in Z_ON_OFF_NODES}
+        if preset_name == Z_OPEN_BASE:
+            want_on["PortraitMasterFaceGenerator"] = False
+        elif preset_name == Z_OPEN_FACE:
+            want_on["PortraitMasterBaseCharacter"] = False
+        for class_name, on in want_on.items():
+            for _nid, node in by_class.get(class_name, []):
+                if (_activate(node) if on else _deactivate(node)):
+                    touched += 1
+        styler_ids = [nid for nid, _ in by_class.get("PortraitMasterPromptStyler", [])]
+        if preset_name == Z_BLOCK or not switches.get("prompt_styler", False):
+            if _bypass_prompt_styler(prompt, styler_ids):
+                notes.append("Prompt Styler bypassed")
+        notes.append("4a built-in '%s': %s" % (preset_name, ", ".join(
+            "%s %s" % (c.replace("PortraitMaster", ""), "ON" if on else "OFF") for c, on in want_on.items())))
+        log.info("[freedom_portrait_control] applied: %s (%d value(s) set)", "; ".join(notes), touched)
+        return json_data
 
     if mode in (MODE_PRESET_WINS, MODE_PRESET_UNLOCKED) and preset_name and preset_name != NO_PRESET:
         found = read_preset("user", preset_name)
@@ -373,9 +439,17 @@ if _HAS_SERVER and PromptServer.instance is not None:
         payload.update(found)
         return web.json_response(payload)
 
+    def _builtin_refusal(body, key="name"):
+        if body.get("scope", "user") == "user" and (body.get(key) in Z_PRESETS or body.get("new_name") in Z_PRESETS):
+            return web.json_response({"ok": False, "error": "The z_ choices are built in - they cannot be saved over, renamed or deleted."}, status=400)
+        return None
+
     @routes.post("/freedom/pm/preset/save")
     async def _save(request):
         body = await request.json()
+        refused = _builtin_refusal(body)
+        if refused:
+            return refused
         result = write_preset(body.get("scope", "user"), body.get("name", ""),
                               body.get("data") or {}, bool(body.get("overwrite")))
         return web.json_response(result, status=200 if result.get("ok") else 400)
@@ -383,15 +457,68 @@ if _HAS_SERVER and PromptServer.instance is not None:
     @routes.post("/freedom/pm/preset/delete")
     async def _delete(request):
         body = await request.json()
+        refused = _builtin_refusal(body)
+        if refused:
+            return refused
         result = delete_preset(body.get("scope", "user"), body.get("name", ""))
         return web.json_response(result, status=200 if result.get("ok") else 404)
 
     @routes.post("/freedom/pm/preset/rename")
     async def _rename(request):
         body = await request.json()
+        refused = _builtin_refusal(body)
+        if refused:
+            return refused
         result = rename_preset(body.get("scope", "user"), body.get("name", ""),
                                body.get("new_name", ""))
         return web.json_response(result, status=200 if result.get("ok") else 400)
+
+    def _builtin_desc_path():
+        import os
+        return os.path.join(user_root(), BUILTIN_DESCRIPTIONS_FILE)
+
+    def _read_builtin_descs():
+        import os
+        p = _builtin_desc_path()
+        if not os.path.isfile(p):
+            return {}
+        try:
+            with open(p, encoding="utf-8") as fh:
+                d = json.load(fh)
+            return d if isinstance(d, dict) else {}
+        except Exception as e:
+            log.warning("[freedom_portrait_control] cannot read %s (%s)", p, e)
+            return {}
+
+    @routes.get("/freedom/pm/description")
+    async def _desc_get(request):
+        name = request.query.get("name", NO_PRESET)
+        if name == NO_PRESET or name in Z_PRESETS:
+            text = _read_builtin_descs().get(name) or NEEDS_DESCRIPTION
+            return web.json_response({"ok": True, "name": name, "builtin": True, "description": text})
+        found = read_preset("user", name)
+        if not found:
+            return web.json_response({"ok": False, "error": "No preset called '%s'." % name}, status=404)
+        text = (found.get("data") or {}).get("description") or NEEDS_DESCRIPTION
+        return web.json_response({"ok": True, "name": name, "builtin": False, "description": text})
+
+    @routes.post("/freedom/pm/description")
+    async def _desc_save_builtin(request):
+        """Save the description of a BUILT-IN entry only. A saved preset's description is
+        saved together with the preset, by its own Save / Save as buttons."""
+        import os
+        body = await request.json()
+        name = body.get("name", "")
+        if not (name == NO_PRESET or name in Z_PRESETS):
+            return web.json_response({"ok": False, "error": "Only built-in entries are saved here."}, status=400)
+        descs = _read_builtin_descs()
+        descs[name] = str(body.get("description") or "").strip() or NEEDS_DESCRIPTION
+        os.makedirs(user_root(), exist_ok=True)
+        tmp = _builtin_desc_path() + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(descs, fh, indent=2, ensure_ascii=False)
+        os.replace(tmp, _builtin_desc_path())
+        return web.json_response({"ok": True, "name": name, "description": descs[name]})
 
     @routes.get("/freedom/pm/defaults")
     async def _defaults(request):

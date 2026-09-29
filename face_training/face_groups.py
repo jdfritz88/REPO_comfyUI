@@ -46,9 +46,11 @@ log = logging.getLogger("face_training.face_groups")
 
 POINTS_FILE = "_face_points.json"
 
-# The slider, in whole notches. Notch 4 is the pruning step's own settings:
-# DUP_LOOK_MIN 0.90, DUP_YAW/DUP_PITCH 0.08, DUP_ROLL 5 degrees. Lower is
-# stricter (only a face that has barely moved), higher is looser.
+# The slider, in whole notches. Notch 4 was set to the pruning step's own
+# settings (look 0.90, DUP_YAW/DUP_PITCH 0.08, DUP_ROLL 5 degrees); the pruning
+# step's look line moved to 0.85 on 2026-09-26 (user) and this slider was left as
+# it was - notch 6 is look 0.86. Lower is stricter (only a face that has barely
+# moved), higher is looser.
 NOTCH_MIN, NOTCH_MAX, NOTCH_DEFAULT = 1, 10, 4
 
 

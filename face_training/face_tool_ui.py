@@ -426,13 +426,27 @@ class FaceTool(tk.Tk):
             recursive = _ask_checkbox(
                 self, "Subfolders",
                 "Search all subfolders of that folder too?", default=True)
-        self._start_seek(prof, folder, recursive, resume)
+        # The user's choice (2026-09-26): a folder the search already finished is
+        # normally skipped whole, so a photo added to it later is never seen.
+        # Ticking this looks inside those folders again - slower on the network
+        # drive, since the start of every file is read again to recognise it.
+        rescan = False
+        if not resume:
+            rescan = _ask_checkbox(
+                self, "New photos",
+                "Also look for new photos in folders already searched?\n"
+                "(Slower: the start of every file is read again to recognise it.)",
+                default=False)
+        self._start_seek(prof, folder, recursive, resume, rescan)
 
-    def _start_seek(self, prof: P.Profile, folder: str, recursive: bool, resume: bool):
+    def _start_seek(self, prof: P.Profile, folder: str, recursive: bool, resume: bool,
+                    rescan: bool = False):
         cmd = [PY, "-m", "face_training.seek", "--profile", prof.slug,
                "--seek-folder", folder]
         if not recursive:
             cmd.append("--flat")
+        if rescan:
+            cmd.append("--rescan")
         if resume:
             cmd.append("--resume")
         self._logline(("Resuming" if resume else "Starting") + " seek: " + " ".join(cmd))

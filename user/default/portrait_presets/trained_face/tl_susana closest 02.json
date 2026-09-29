@@ -157,46 +157,6 @@
     },
     "lora_stack": [
       {
-        "enabled": true,
-        "lora": "faces/susana_head_sdxl_pony.safetensors",
-        "strength": 0.65
-      },
-      {
-        "enabled": true,
-        "lora": "faces/susana_head_sdxl_pony.safetensors",
-        "strength": 0.65
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
-        "enabled": false,
-        "lora": "",
-        "strength": 0.8
-      },
-      {
         "enabled": false,
         "lora": "",
         "strength": 0.8

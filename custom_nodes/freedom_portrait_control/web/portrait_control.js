@@ -52,6 +52,26 @@ const NODE_MODE_IGNORE = "ignore presets";
 
 const NO_PRESET = "-- none --";
 
+// Built-in choices at the bottom of 4a's top preset dropdown (user, 2026-09-29).
+// Same names and meaning as Z_PRESETS in __init__.py - the server obeys them for every
+// client; this page mirrors them so the screen shows what will happen.
+const Z_BLOCK = "z_block all nodes";
+const Z_OPEN_BASE = "z_unblock and open all nodes WITH Base Character (Face Generator must be OFF)";
+const Z_OPEN_FACE = "z_unblock and open all nodes WITH Face Generator (Base Character must be OFF)";
+const Z_PRESETS = [Z_BLOCK, Z_OPEN_BASE, Z_OPEN_FACE];
+const Z_ON_OFF = ["PortraitMasterBaseCharacter", "PortraitMasterFaceGenerator",
+                  "PortraitMasterSkinDetails", "PortraitMasterStylePose", "PortraitMasterMakeup"];
+function zChoice() {                        // the built-in z_ choice in use, or null
+  const name = widget(controlNode(), "preset")?.value;
+  return Z_PRESETS.includes(name) && controlMode() !== MODE_IGNORE ? name : null;
+}
+function zWantsOn(z, cls) {
+  if (z === Z_BLOCK) return false;
+  if (z === Z_OPEN_BASE && cls === "PortraitMasterFaceGenerator") return false;
+  if (z === Z_OPEN_FACE && cls === "PortraitMasterBaseCharacter") return false;
+  return true;
+}
+
 // The per-node choices now live as REAL dropdowns on node 4a, so every client sends
 // them. The controls below are ordinary <select> elements that read and write those
 // widgets, which is why the phone gets the same choices the PC has.
@@ -105,6 +125,11 @@ const EXPLANATION =
   "      Load preset, unlock dials        - save, save as, delete available.\n" +
   "      Ignore presets, unlock dials     - save as and delete available.\n" +
   "Factory reset works only in the last one.\n" +
+  "At the bottom of 4a's preset list are three built-in choices that switch\n" +
+  "Portrait Master on or off outright (they cannot be saved over or deleted):\n" +
+  "  z_block all nodes - every node OFF, greyed and locked.\n" +
+  "  z_unblock ... WITH Base Character - all ON and unlocked, Face Generator OFF.\n" +
+  "  z_unblock ... WITH Face Generator - all ON and unlocked, Base Character OFF.\n" +
   "A preset saved on 4a also carries the RECIPE: the FaceDetailer seed and its\n" +
   "after-generate setting, the face LoRA and its strength, every switched-on\n" +
   "slot of the LoRA stack, and the words in your STEP 7 box. Loading it puts\n" +
@@ -251,11 +276,23 @@ function pullState() {
   } catch (_) { /* a broken field is replaced by the next push */ }
 }
 
-const controlMode = () => widget(controlNode(), "mode")?.value || MODE_PRESET_WINS;
+// "In charge" is gone from the screen (user, 2026-09-29): the ONE preset menu decides.
+//   "-- none --" (shown as "Use the dials (no 4a preset)") -> ignore presets, use the dials
+//   a saved preset -> loads unlocked;  a z_ choice -> on/off outright (see zChoice)
+// Same rule as effective_mode() in __init__.py; the old "mode" widget is hidden and unused.
+const controlMode = () => {
+  const p = widget(controlNode(), "preset")?.value;
+  return (!p || p === NO_PRESET) ? MODE_IGNORE : MODE_PRESET_UNLOCKED;
+};
+const USE_DIALS_LABEL = "Use the dials (no 4a preset)";
+const NEEDS_DESCRIPTION = "needs description";
 
 // Who is in charge of one node group, and therefore what is locked or greyed.
 function statusFor(cls) {
   const m = controlMode();
+  const z = zChoice();
+  if (z === Z_BLOCK) return { inCharge: "4a: z_block all nodes - this node is OFF", dialsLocked: true, nodeChoice: false, buttons: "none", reset: false, blocked: true };
+  if (z) return { inCharge: "4a: all nodes open" + (zWantsOn(z, cls) ? " - use the dials" : " - this node is OFF"), dialsLocked: !zWantsOn(z, cls), nodeChoice: false, buttons: "none", reset: false, blocked: !zWantsOn(z, cls) };
   if (m === MODE_PRESET_WINS) return { inCharge: "4a preset", dialsLocked: true, nodeChoice: false, buttons: "none", reset: false };
   if (m === MODE_PRESET_UNLOCKED) return { inCharge: "4a preset, dials unlocked", dialsLocked: false, nodeChoice: false, buttons: "none", reset: false };
   const nm = state.nodes[cls]?.mode || NODE_MODE_PRESET;
@@ -281,8 +318,10 @@ function refreshAll() {
 // quietly move a seed.
 //
 // What a recipe holds, and why each piece:
-//   - the FaceDetailer seed, with its after-generate setting. The repaint of her
-//     face is the part that has to hold still between runs.
+//   - EVERY FaceDetailer (face repaint) dial, by name - seed and its
+//     after-generate setting included (user, 2026-09-26; before that only the
+//     seed was kept). A dial wired to another node (the wildcard, fed from STEP 3)
+//     is recorded but never overwritten on load - the wire wins.
 //
 //     The KSampler is deliberately NOT in here (user, 2026-09-23). It used to be,
 //     and it is what made every batch come back the same: one seed makes the
@@ -293,16 +332,52 @@ function refreshAll() {
 //     loading a preset can never re-pin it.
 //   - the face LoRA: its strength, which face is picked, and the trigger weight.
 //     A strength without the file it applies to means nothing.
-//   - every switched-on slot of the LoRA stack, with its file and strength. Her
-//     likeness currently comes from three passes of the same file, so the stack
-//     is part of the recipe, not scenery.
-//   - the words in your STEP 7 box.
+//   - the Selected Face LoRA Stack: each of its 3 rows' ON/OFF and
+//     strength (user, 2026-09-26). Together with the shelf that is her whole face
+//     strength.
+//   - the general LoRA stack (STEP 6): all 4 slots, file and strength. (It never
+//     applies face LoRAs; the old "three passes" note that stood here was wrong -
+//     see logs/two_lora_stacks_v08_2026-09-25.md.)
+//   - the words in STEP 7: the physical box and the everything-else box of
+//     FreedomPromptParts (v07+). Older workflows with a single prompt box keep
+//     using it. Until 2026-09-26 recipes found no prompt in v07/v08 at all,
+//     because they only looked for the old prompt nodes.
 //
 // Presets saved before this existed simply have no recipe in them; they load as
 // they always did.
 const RECIPE_DETAILER = "FaceDetailer";
 const RECIPE_SHELF = "FreedomFaceShelf";
 const RECIPE_STACK = "FreedomLoraStack";
+const RECIPE_FACE_STACK = "FreedomSelectedFaceLoraStack";
+const RECIPE_PARTS = "FreedomPromptParts";
+const FACE_STACK_ROWS = 3;
+const PARTS_FIELDS = ["physical", "everything_else"];
+
+// A dial whose input is wired to another node: its value comes from the wire.
+function recipeWired(node, name) {
+  const inp = (node.inputs || []).find((i) => i.name === name || i.widget?.name === name);
+  return !!(inp && inp.link != null);
+}
+
+// Every real setting on a node, by name - DOM panels and labels excluded.
+function allDials(node) {
+  const out = {};
+  for (const w of node.widgets || []) {
+    if (w.serialize === false || w.options?.serialize === false || w.type === "button") continue;
+    out[w.name] = w.value;
+  }
+  return out;
+}
+
+// Put a text value into a widget and into its on-screen text box, if it has one.
+function setTextValue(node, name, value) {
+  const n = setWidgetValue(node, name, value);
+  const w = widget(node, name);
+  const elx = w && (w.element || w.inputEl || w.domElement);
+  const ta = elx && (elx.tagName === "TEXTAREA" ? elx : elx.querySelector?.("textarea"));
+  if (ta) ta.value = value;
+  return n;
+}
 // The general LoRA stack has 4 slots since 2026-09-25 (was 12). A recipe saved
 // before then may hold 12; applyRecipe skips slots the node no longer has.
 const STACK_SLOTS = 4;
@@ -337,12 +412,7 @@ function gatherRecipe() {
   const recipe = {};
   // No KSampler here on purpose - see THE RECIPE above.
   const detailer = graphNodes(RECIPE_DETAILER)[0];
-  if (detailer) {
-    recipe.facedetailer = {
-      seed: widget(detailer, "seed")?.value,
-      control_after_generate: widget(detailer, "control_after_generate")?.value,
-    };
-  }
+  if (detailer) recipe.facedetailer = allDials(detailer);
   const shelf = graphNodes(RECIPE_SHELF)[0];
   if (shelf) {
     recipe.face_shelf = {
@@ -363,8 +433,24 @@ function gatherRecipe() {
       });
     }
   }
-  const box = recipePromptBox();
-  if (box) recipe.prompt = widget(box, "value")?.value;
+  const fstack = graphNodes(RECIPE_FACE_STACK)[0];
+  if (fstack) {
+    recipe.face_stack = [];
+    for (let i = 1; i <= FACE_STACK_ROWS; i++) {
+      recipe.face_stack.push({
+        enabled: widget(fstack, `enabled_${i}`)?.value,
+        strength: widget(fstack, `strength_${i}`)?.value,
+      });
+    }
+  }
+  const parts = graphNodes(RECIPE_PARTS)[0];
+  if (parts) {
+    recipe.prompt_parts = {};
+    for (const f of PARTS_FIELDS) recipe.prompt_parts[f] = widget(parts, f)?.value;
+  } else {
+    const box = recipePromptBox();
+    if (box) recipe.prompt = widget(box, "value")?.value;
+  }
   return recipe;
 }
 
@@ -375,8 +461,11 @@ function applyRecipe(recipe) {
   // preset saved before 2026-09-23 can never re-pin the KSampler seed.
   const detailer = graphNodes(RECIPE_DETAILER)[0];
   if (detailer && recipe.facedetailer) {
-    n += setWidgetValue(detailer, "seed", recipe.facedetailer.seed);
-    n += setWidgetValue(detailer, "control_after_generate", recipe.facedetailer.control_after_generate);
+    // older recipes hold only seed + control_after_generate; newer ones every dial
+    for (const [k, v] of Object.entries(recipe.facedetailer)) {
+      if (recipeWired(detailer, k)) continue;
+      n += setWidgetValue(detailer, k, v);
+    }
   }
   const shelf = graphNodes(RECIPE_SHELF)[0];
   if (shelf && recipe.face_shelf) {
@@ -393,7 +482,20 @@ function applyRecipe(recipe) {
       n += setWidgetValue(stack, `strength_${i}`, slot?.strength);
     });
   }
-  const box = recipePromptBox();
+  const fstack = graphNodes(RECIPE_FACE_STACK)[0];
+  if (fstack && Array.isArray(recipe.face_stack)) {
+    recipe.face_stack.forEach((row, idx) => {
+      const i = idx + 1;
+      n += setWidgetValue(fstack, `enabled_${i}`, row?.enabled);
+      n += setWidgetValue(fstack, `strength_${i}`, row?.strength);
+    });
+  }
+  const parts = graphNodes(RECIPE_PARTS)[0];
+  if (parts && recipe.prompt_parts) {
+    for (const f of PARTS_FIELDS)
+      if (typeof recipe.prompt_parts[f] === "string") n += setTextValue(parts, f, recipe.prompt_parts[f]);
+  }
+  const box = parts ? null : recipePromptBox();
   if (box && typeof recipe.prompt === "string") {
     n += setWidgetValue(box, "value", recipe.prompt);
     const w = widget(box, "value");
@@ -446,11 +548,12 @@ function buildTrainedFacePanel(node) {
   const heading = el("div", { textContent: "HER RECIPES - saved settings for this face" });
   heading.style.cssText = "font-weight:700;color:#cde3ff;font-size:10px;letter-spacing:.3px;";
   const note = el("div", {
-    textContent: "A recipe here holds the FaceDetailer seed and whether it is fixed, " +
-                 "her LoRA and its strength, the trigger weight, every switched-on slot " +
-                 "of the LoRA stack, the words in your STEP 7 box, and every Portrait " +
-                 "Master dial. Loading one puts all of it back. The KSampler seed is " +
-                 "left alone, so loading a recipe never stops your batches varying.",
+    textContent: "A recipe here holds every FaceDetailer (face repaint) dial, her face " +
+                 "shelf (which face, strength, on/off, trigger weight), the 3 rows of " +
+                 "the Selected Face LoRA Stack, the 4 rows of the general LoRA stack, the words in STEP 7's " +
+                 "physical and everything-else boxes, and every Portrait Master dial. " +
+                 "Loading one puts all of it back. The KSampler seed is left alone, so " +
+                 "loading a recipe never stops your batches varying.",
   });
   note.style.cssText = "color:#9a9a9a;font-size:9.5px;line-height:1.35;";
 
@@ -557,6 +660,16 @@ async function applyControlPreset() {
   const name = widget(c, "preset")?.value;
   const m = controlMode();
   if (!c || !name || name === NO_PRESET || m === MODE_IGNORE) return;
+  if (Z_PRESETS.includes(name)) {                 // built-in: on/off only, the dials stay as they are
+    for (const cls of Z_ON_OFF) for (const node of graphNodes(cls)) {
+      const w = widget(node, "active");
+      if (w && w.value !== zWantsOn(name, cls)) { w.value = zWantsOn(name, cls); w.callback?.(w.value); }
+    }
+    if (name === Z_OPEN_BASE) state.switches.start = "base";
+    if (name === Z_OPEN_FACE) state.switches.start = "facegen";
+    refreshAll();
+    return;
+  }
   const found = await api.read("user", name);
   if (!found?.data) return;
   if (found.data.switches) Object.assign(state.switches, found.data.switches);
@@ -666,6 +779,7 @@ function buildPanel(node, cls) {
   });
   modeWrap.append(el("span", { textContent: "In charge:" }), modeSelect);
   root.append(modeWrap);
+  if (isControl) modeWrap.style.display = "none";   // 4a: the preset menu below decides
 
   // preset row
   const row = el("div");
@@ -677,6 +791,7 @@ function buildPanel(node, cls) {
       const w = widget(node, "preset");
       if (w) { w.value = select.value; w.callback?.(select.value); }
       await applyControlPreset();
+      await loadDescription();
     } else {
       state.nodes[cls].preset = select.value;
       const found = select.value !== NO_PRESET ? await api.read(scope, select.value) : null;
@@ -689,6 +804,27 @@ function buildPanel(node, cls) {
   nameBox.style.cssText = "width:150px;background:#222;color:#ddd;border:1px solid #555;padding:2px;";
   row.append(nameBox);
   root.append(row);
+
+  // 4a: a description for every menu entry, beneath the menu (user, 2026-09-29).
+  let descBox = null, descEdited = false;
+  if (isControl) {
+    const lab = el("div", { textContent: "Description of the chosen entry:" });
+    lab.style.cssText = "color:#bbb;";
+    descBox = el("textarea");
+    descBox.readOnly = true;
+    descBox.style.cssText = "width:100%;box-sizing:border-box;min-height:70px;background:#181818;color:#ccc;border:1px solid #555;padding:4px;font:12px system-ui,sans-serif;resize:vertical;";
+    root.append(lab, descBox);
+  }
+  async function loadDescription() {
+    if (!descBox) return;
+    descEdited = false; descBox.readOnly = true; descBox.style.color = "#ccc";
+    try {
+      const r = await fetch(`/freedom/pm/description?name=${encodeURIComponent(select.value)}`);
+      const d = await r.json();
+      descBox.value = d.ok ? d.description : NEEDS_DESCRIPTION;
+    } catch (_) { descBox.value = NEEDS_DESCRIPTION; }
+  }
+  const descValue = () => (descBox && descBox.value.trim()) || NEEDS_DESCRIPTION;
 
   const buttonRow = el("div");
   buttonRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
@@ -703,24 +839,45 @@ function buildPanel(node, cls) {
   const say = el("div");
   say.style.cssText = "color:#9c9;min-height:14px;";
 
-  const gather = () => (isControl ? gatherEverything() : readDials(node));
+  const gather = () => (isControl ? { ...gatherEverything(), description: descValue() } : readDials(node));
 
+  const builtIn = () => isControl && Z_PRESETS.includes(select.value);
+  const builtInEntry = () => isControl && (Z_PRESETS.includes(select.value) || select.value === NO_PRESET);
+  if (isControl) mkButton("Edit description", async () => {
+    descBox.readOnly = false; descBox.style.color = "#eee"; descEdited = true;
+    if (descBox.value === NEEDS_DESCRIPTION) descBox.value = "";
+    descBox.focus();
+    say.textContent = "Type the description, then press Save (or Save as for a new preset).";
+  });
   const btnSave = mkButton("Save", async () => {
     const name = select.value;
+    if (builtInEntry()) {                      // built-in entry: only its description is saved
+      const r = await fetch("/freedom/pm/description", { method: "POST", headers: { "Content-Type": "application/json" },
+                                                           body: JSON.stringify({ name, description: descValue() }) });
+      const d = await r.json();
+      say.textContent = d.ok ? "Saved the description. (This entry is built in, so only its description can be saved.)" : d.error;
+      await loadDescription();
+      return;
+    }
     if (!name || name === NO_PRESET) { say.textContent = "Pick a preset to save over."; return; }
     const res = await api.save(scope, name, gather(), true);
     say.textContent = res.ok ? `Saved '${name}'.` : res.error;
     await refreshLists();
+    if (isControl) await loadDescription();
   });
   const btnSaveAs = mkButton("Save as", async () => {
     if (!nameBox.value.trim()) { say.textContent = "Type a name first."; return; }
     const name = withPrefix(scope, nameBox.value);
-    const res = await api.save(scope, name, gather(), false);
+    const data = gather();
+    // From a built-in entry, its own description is not copied unless you edited it.
+    if (isControl && builtInEntry() && !descEdited) data.description = NEEDS_DESCRIPTION;
+    const res = await api.save(scope, name, data, false);
     say.textContent = res.ok ? `Saved '${name}'.` : res.error;
     if (res.ok) { nameBox.value = ""; await refreshLists(); select.value = name; select.dispatchEvent(new Event("change")); }
   });
   const btnRename = mkButton("Rename", async () => {
     const name = select.value;
+    if (builtInEntry()) { say.textContent = "Built-in entries cannot be renamed."; return; }
     if (!name || name === NO_PRESET) { say.textContent = "Pick a preset to rename."; return; }
     if (!nameBox.value.trim()) { say.textContent = "Type the new name in the name box first."; return; }
     const newName = withPrefix(scope, nameBox.value);
@@ -742,6 +899,7 @@ function buildPanel(node, cls) {
   });
   const btnDelete = mkButton("Delete", async () => {
     const name = select.value;
+    if (builtInEntry()) { say.textContent = "Built-in entries cannot be deleted."; return; }
     if (!name || name === NO_PRESET) { say.textContent = "Pick a preset to delete."; return; }
     const res = await api.remove(scope, name);
     say.textContent = res.ok ? `Deleted '${name}'.` : res.error;
@@ -764,32 +922,36 @@ function buildPanel(node, cls) {
     const presets = await api.list(scope);
     const current = select.value;
     select.replaceChildren();
-    select.append(el("option", { value: NO_PRESET, textContent: NO_PRESET }));
+    select.append(el("option", { value: NO_PRESET, textContent: isControl ? USE_DIALS_LABEL : NO_PRESET }));
     for (const p of presets) {
+      if (isControl && Z_PRESETS.includes(p.name)) continue;
       select.append(el("option", {
         value: p.name,
         textContent: p.source === "developer" ? `${p.name}  (Portrait Master)` : p.name,
       }));
     }
+    if (isControl) for (const z of Z_PRESETS) select.append(el("option", { value: z, textContent: z }));
     const wanted = isControl ? widget(node, "preset")?.value : state.nodes[cls]?.preset;
     select.value = [...select.options].some((o) => o.value === wanted) ? wanted
                  : ([...select.options].some((o) => o.value === current) ? current : NO_PRESET);
+    if (isControl) await loadDescription();
   }
 
   function refresh() {
     if (isControl) {
       const m = controlMode();
-      modeSelect.value = m;
-      indicator.textContent = `In charge: ${m}`;
+      const z = zChoice();
+      indicator.textContent = z ? `Using: ${z}`
+        : (m === MODE_IGNORE ? "Using: your dials (no 4a preset)" : "Using: a saved preset - it loads unlocked");
       const ignoring = m === MODE_IGNORE;
-      select.disabled = ignoring;
-      btnSave.disabled = ignoring;
-      btnSaveAs.disabled = ignoring;
-      btnRename.disabled = ignoring;
-      btnDelete.disabled = ignoring;
-      btnReset.disabled = !ignoring;          // reset-all only when presets are ignored
+      select.disabled = false;                 // the menu is always usable - it is the only control
+      btnSave.disabled = false;                // saved preset: save it; built-in entry: save its description
+      btnSaveAs.disabled = false;
+      btnRename.disabled = builtInEntry();
+      btnDelete.disabled = builtInEntry();
+      btnReset.disabled = !ignoring;          // reset-all only when no 4a preset is used
       const w = widget(node, "preset");
-      if (w && select.value !== w.value && !ignoring) select.value = w.value;
+      if (w && select.value !== w.value) { select.value = w.value; loadDescription(); }
     } else {
       const s = statusFor(cls);
       modeSelect.value = state.nodes[cls]?.mode || NODE_MODE_PRESET;
@@ -805,6 +967,7 @@ function buildPanel(node, cls) {
       btnReset.disabled = !s.reset;
       lockDials(node, s.dialsLocked);
       root.style.opacity = s.dialsLocked && controlMode() === MODE_PRESET_WINS ? "0.75" : "1";
+      root.style.filter = "none";               // cleared every time; greyed again below only if still off
       if (pairSelect) {
         const active = state.switches.start === (cls === "PortraitMasterBaseCharacter" ? "base" : "facegen");
         pairSelect.value = state.switches.start === "facegen" ? "4c Face Generator" : "4b Base Character";
@@ -814,6 +977,12 @@ function buildPanel(node, cls) {
       if (stylerSelect) {
         stylerSelect.value = state.switches.prompt_styler ? "on" : "off";
       }
+      if (s.blocked) {                          // switched off by a z_ choice on 4a
+        root.style.filter = "grayscale(1)";
+        root.style.opacity = "0.5";
+        lockDials(node, true);
+      }
+      if (pairSelect) pairSelect.disabled = !!zChoice();
     }
   }
 
@@ -860,6 +1029,10 @@ app.registerExtension({
           const timer = setInterval(() => { if (hideElement() || ++tries > 20) clearInterval(timer); }, 100);
         }
       }
+      // The old "In charge" (mode) widget stays on the node so older workflows open, but it
+      // is hidden and unused: the preset menu decides now (user, 2026-09-29).
+      const wm = widget(node, "mode");
+      if (wm) { wm.type = "hidden"; wm.computeSize = () => [0, -4]; }
       setTimeout(() => { pullState(); refreshAll(); }, 50);
       // 4a: built at once, then laid out top-first (see layoutTopFirst).
       buildPanel(node, cls);
@@ -869,6 +1042,24 @@ app.registerExtension({
     // 4b-4g: the same - our panel, then Portrait Master's own preset controls, on top.
     buildPanel(node, cls);
     layoutTopFirst(node, { top: ["load_preset", "save_preset_as", "save_preset"] });
+    // Portrait Master's own "save preset" saved its dials on every run - a save nobody
+    // pressed. It is shown OFF and locked; the server also switches it off in every job
+    // (user, 2026-09-29: only a Save button may change a stored preset).
+    const ws = widget(node, "save_preset");
+    if (ws) {
+      if (ws.value !== false) { ws.value = false; }
+      ws.disabled = true;
+      ws.label = "save_preset (off - use the Save buttons)";
+    }
+  },
+
+  // A loaded workflow restores its saved value AFTER nodeCreated, so the switch is shown
+  // off again once every workflow has finished loading (found in testing, 2026-09-29).
+  async afterConfigureGraph() {
+    for (const cls of PM_CLASSES) for (const node of graphNodes(cls)) {
+      const ws = widget(node, "save_preset");
+      if (ws) { ws.value = false; ws.disabled = true; ws.label = "save_preset (off - use the Save buttons)"; }
+    }
   },
 });
 

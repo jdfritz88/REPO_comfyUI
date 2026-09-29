@@ -138,5 +138,6 @@
     "start": "base",
     "prompt_styler": false
   },
-  "_saved": "2026-09-16 12:27:18"
+  "_saved": "2026-09-16 12:27:18",
+  "description": "Saved on 16 September. It makes Base Character describe a woman with a curvy body, medium breasts and an athletic butt. Every other Portrait Master dial stays at the developer's starting value. It holds no face, LoRA or prompt settings. It loads unlocked, so it only fills the dials you have not changed yourself."
 }

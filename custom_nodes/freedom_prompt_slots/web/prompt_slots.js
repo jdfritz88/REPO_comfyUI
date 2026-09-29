@@ -438,10 +438,11 @@ function buildPhrasePanel(node) {
   const btnCopy = el("button", { className: "fpsl-btn", textContent: "Copy phrase" });
   const btnSave = el("button", { className: "fpsl-btn", textContent: "Save phrase" });
   const btnRename = el("button", { className: "fpsl-btn", textContent: "Rename" });
+  const btnSaveAs = el("button", { className: "fpsl-btn", textContent: "Save as" });
   const btnDelete = el("button", { className: "fpsl-btn warn", textContent: "Delete" });
 
   root.append(where,
-    el("div", { className: "fpsl-row" }, [btnCopy, btnSave, btnRename, btnDelete]),
+    el("div", { className: "fpsl-row" }, [btnCopy, btnSave, btnRename, btnSaveAs, btnDelete]),
     status);
   for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"]) {
     root.addEventListener(ev, (e) => e.stopPropagation());
@@ -465,6 +466,7 @@ function buildPhrasePanel(node) {
         : "no phrases yet - highlight some words in STEP 7 and press Save phrase");
     btnCopy.disabled = !phrase;
     btnRename.disabled = !phrase;
+    btnSaveAs.disabled = !phrase;
     btnDelete.disabled = !phrase;
   }
 
@@ -499,6 +501,24 @@ function buildPhrasePanel(node) {
     shelf.phrases = result.phrases;
     refreshAll();
     say(`phrase in slot ${slot} renamed`);
+  };
+
+  // Save as (user, 2026-09-29): the words in the window - changed or not - go on the
+  // shelf as a NEW phrase; the phrase you are dialled to stays as it was. Use Rename,
+  // then change the words, then Save as, to keep both.
+  btnSaveAs.onclick = async () => {
+    calmAll(root);
+    const ta = phraseArea();
+    const text = ta ? String(ta.value || "").trim() : String(widgetValue(node, "phrase") || "").trim();
+    if (!text) { say("the window is empty - nothing to save", true); return; }
+    stopEditing();
+    const result = await postJson("/freedom/phrases/add", { text });
+    if (!result.ok) { say(result.error || "could not save that phrase", true); refresh(); return; }
+    shelf.phrases = result.phrases;
+    setWidget(node, "slot", result.slot);
+    refreshAll();
+    say(result.already ? `those words are already on the shelf, at slot ${result.slot}`
+                       : `saved as a new phrase in slot ${result.slot}; the old one is unchanged`);
   };
 
   btnCopy.onclick = async () => {

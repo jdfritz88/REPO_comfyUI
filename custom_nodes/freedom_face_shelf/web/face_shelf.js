@@ -1,8 +1,8 @@
 // ==========================================================================
 // FREEDOM SYSTEM - Face Shelf panel
 // A grid of trained-face cards on the "Freedom Face Shelf" node: thumbnail,
-// person name, and whether it's the face-only or face+body LoRA. Three to a
-// row, rows grow as more faces are trained. Click a card to select it - this
+// person name, and whether it's the face-only or face+body LoRA. Two to a row
+// (user, 2026-09-27; was three), rows grow as more faces are trained. Click a card to select it - this
 // node then loads that LoRA onto the model + CLIP passing through it.
 // The FACE ON / FACE OFF button in the bar mirrors the node's "enabled"
 // widget: off greys the shelf out and the node becomes a plain pass-through,
@@ -22,7 +22,7 @@ const CSS = `
 .ffs-btn:hover{background:#3a3a3a}
 .ffs-sel{color:#9cc4ff;font-size:10px;flex:1;text-align:right;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ffs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;overflow:auto;
+.ffs-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;overflow:auto;
   padding-right:2px;align-content:start}
 .ffs-card{background:#161616;border:1px solid #333;border-radius:6px;overflow:hidden;
   cursor:pointer;display:flex;flex-direction:column}

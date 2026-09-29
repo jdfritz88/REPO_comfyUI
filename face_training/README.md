@@ -31,7 +31,11 @@ review), **Start** (seeded only), **Working** (a Seek or a training run).
   the same file twice is refused). `identity.py` builds the identity from those
   two faces and warns if they look like different people. Then choose the folder
   to search and whether to include subfolders — **the search starts at once**.
-- **Seek / Resume seek** — `seek.py` runs eight checkpointed stages:
+- **Seek / Resume seek** — when starting (not resuming), the Face Tool also asks
+  whether to look for new photos in folders already searched (`--rescan`,
+  unticked by default: a finished folder is otherwise skipped whole, so a photo
+  added to it later is never seen; ticking it re-reads the start of every file).
+  `seek.py` runs eight checkpointed stages:
   **scan** (cache face detection over the folder; look for faces on one frame
   in every 24 of every video, in memory, and record those frames' faces — no
   frame is saved to disk),
@@ -207,8 +211,8 @@ angle and expression is kept:
 - **duplicate**: her face has a twin among the frames already kept — the same
   head angle (turn and nod change < 0.08, lean change < 5°, from the five face
   landmarks) and the same look (the aligned face, its eyes band and its mouth
-  band each correlate ≥ 0.90, set by measuring 147 same-face pairs of
-  consecutive frames side by side). The sharper of the two is the one kept
+  band each correlate ≥ 0.85 — the user's setting, 2026-09-26; it was 0.90, set by
+  measuring 147 same-face pairs of consecutive frames side by side). The sharper of the two is the one kept
 - the survivors are cropped by the **clean** stage like any other photo
 
 Near-identical crops coming from different videos or photos are still removed
