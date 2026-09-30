@@ -45,6 +45,8 @@
 # Slot number is just the position in the list - slot 1 is the first entry.
 # =============================================================================
 import json
+import logging
+import re
 import os
 
 import folder_paths
@@ -241,6 +243,30 @@ def _shelf_inputs(prefix, what, box_tip):
     }
 
 
+# --------------------------------------------------------------------------- #
+# Portrait Master's two-nationality mix, in plain words (user, 2026-09-29, Q69 = 2)
+#
+# With two nationalities set, Portrait Master writes "[togolese:south sudanese:0.5]".
+# That bracket was Prompt Control's "switch halfway" syntax; Prompt Control was removed
+# on 2026-09-29, and ComfyUI's own encoder reads square brackets as ordinary words. So
+# the TRIGGER input only (Portrait Master's text, or her code word) has any such mix
+# rewritten to "togolese and south sudanese". Portrait Master's own files are not
+# touched, and the user's own STEP 7 boxes are never rewritten. Its mix slider does
+# nothing any more and is hidden on the page (freedom_portrait_control).
+# --------------------------------------------------------------------------- #
+_MIX = re.compile(r"\[([^\[\]:]+):([^\[\]:]+):\s*[0-9.]+\s*\]")
+
+
+def plain_nationality_mix(text):
+    if not isinstance(text, str) or "[" not in text:
+        return text
+    new = _MIX.sub(lambda m: "%s and %s" % (m.group(1).strip(), m.group(2).strip()), text)
+    if new != text:
+        logging.getLogger("freedom_prompt_slots").info(
+            "[Freedom] STEP 7c: Portrait Master's nationality mix written in plain words")
+    return new
+
+
 class FreedomPromptParts:
     """STEP 7 - the positive prompt in two boxes, each with its own shelf."""
 
@@ -264,9 +290,9 @@ class FreedomPromptParts:
             "optional": {
                 "front": ("STRING", {
                     "forceInput": True,
-                    "tooltip": "Checkpoint front text, wired from the checkpoint "
-                               "front-text node (for example CyberRealistic Pony's "
-                               "score tags). Goes first of all.",
+                    "tooltip": "Page 1 text, wired from STEP 7b Summary Signal "
+                               "(the model's own text, e.g. CyberRealistic Pony's "
+                               "score tags, then your summary words). Goes first of all.",
                 }),
                 "trigger": ("STRING", {
                     "forceInput": True,
@@ -282,14 +308,15 @@ class FreedomPromptParts:
     CATEGORY = "Freedom"
     DESCRIPTION = ("Your positive prompt in two boxes - physical, and everything "
                    "else - each with its own saved shelf. Joined into the finished "
-                   "prompt in this order: checkpoint front text, her trigger word, "
+                   "prompt in this order: STEP 7b Summary Signal, her trigger word, "
                    "everything else, physical.")
 
     def combine(self, physical="", everything_else="", trigger="", front="", **_shelf):
+        trigger = plain_nationality_mix(trigger)
         parts = [p.strip() for p in (front, trigger, everything_else, physical)
                  if isinstance(p, str) and p.strip()]
         finished = ", ".join(parts)
-        # The prompt watcher on the checkpoint front-text node shows this text.
+        # The prompt watcher on STEP 7b (the Summary Signal node) shows this text.
         return {"ui": {"finished_prompt": [finished]}, "result": (finished,)}
 
 

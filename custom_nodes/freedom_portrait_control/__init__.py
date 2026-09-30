@@ -57,6 +57,15 @@ def effective_mode(preset_name):
         return MODE_IGNORE_PRESETS
     return MODE_PRESET_UNLOCKED
 
+
+# The same for 4b-4g (user, 2026-09-29, Q66 = 1, Q73 = 1): each node's own preset menu
+# decides; its "In charge" dropdown (<step>_mode on 4a) is hidden and not read any more.
+#   "-- none --" -> ignore presets, use the dials;  a preset -> loads UNLOCKED.
+def effective_node_mode(preset_name):
+    if not preset_name or preset_name == NO_PRESET:
+        return NODE_MODE_IGNORE
+    return NODE_MODE_PRESET_UNLOCKED
+
 # Descriptions of the built-in menu entries, editable with the description package.
 # Saved presets keep their description inside their own file ("description").
 NEEDS_DESCRIPTION = "needs description"
@@ -294,13 +303,13 @@ def _apply(json_data):
     sw = state.setdefault("switches", {})
     chosen = []
     for _cls, _step in STEP_OF.items():
-        _m = cin.get("%s_mode" % _step)
-        if _m:
-            nodes_state.setdefault(_cls, {})["mode"] = _m
-            chosen.append("%s=%s" % (_step, _m))
+        # "<step>_mode" is no longer read (Q66 = 1): the node's preset decides its mode.
         _p = cin.get("%s_preset" % _step)
         if _p:
             nodes_state.setdefault(_cls, {})["preset"] = _p
+        _pn = nodes_state.get(_cls, {}).get("preset")
+        if _pn and _pn != NO_PRESET:
+            chosen.append("%s=%s" % (_step, _pn))
     _pair = cin.get("active_of_pair")
     if _pair:
         sw["start"] = "base" if _pair.startswith("4b") else "facegen"
@@ -369,8 +378,8 @@ def _apply(json_data):
     else:
         for class_name in NODE_CLASSES:
             nstate = (state.get("nodes") or {}).get(class_name) or {}
-            nmode = nstate.get("mode", NODE_MODE_PRESET)
             pname = nstate.get("preset")
+            nmode = effective_node_mode(pname)          # the old per-node mode is not read
             if nmode == NODE_MODE_IGNORE or not pname or pname == NO_PRESET:
                 continue
             found = read_preset(class_name, pname)
@@ -460,6 +469,10 @@ if _HAS_SERVER and PromptServer.instance is not None:
         refused = _builtin_refusal(body)
         if refused:
             return refused
+        # Portrait Master's own preset files are the developer's: never deleted from here.
+        found = read_preset(body.get("scope", "user"), body.get("name", ""))
+        if found and found.get("source") == "developer":
+            return web.json_response({"ok": False, "error": "That is one of Portrait Master's own presets - it cannot be deleted from here."}, status=400)
         result = delete_preset(body.get("scope", "user"), body.get("name", ""))
         return web.json_response(result, status=200 if result.get("ok") else 404)
 
@@ -490,13 +503,30 @@ if _HAS_SERVER and PromptServer.instance is not None:
             log.warning("[freedom_portrait_control] cannot read %s (%s)", p, e)
             return {}
 
+    # Built-in entries: 4a's "-- none --" and z_ choices (stored by name, as before), and on
+    # 4b-4g the node's "-- none --" and Portrait Master's own presets (stored as
+    # "<NodeClass>::<name>", in OUR file - the developer's preset files are never written).
+    def _builtin_key(scope, name):
+        if scope == "user":
+            return name if (name == NO_PRESET or name in Z_PRESETS) else None
+        if scope not in NODE_CLASSES:
+            return None
+        if name == NO_PRESET:
+            return "%s::%s" % (scope, name)
+        found = read_preset(scope, name)
+        if found and found.get("source") == "developer":
+            return "%s::%s" % (scope, name)
+        return None
+
     @routes.get("/freedom/pm/description")
     async def _desc_get(request):
+        scope = request.query.get("scope", "user")
         name = request.query.get("name", NO_PRESET)
-        if name == NO_PRESET or name in Z_PRESETS:
-            text = _read_builtin_descs().get(name) or NEEDS_DESCRIPTION
+        key = _builtin_key(scope, name)
+        if key:
+            text = _read_builtin_descs().get(key) or NEEDS_DESCRIPTION
             return web.json_response({"ok": True, "name": name, "builtin": True, "description": text})
-        found = read_preset("user", name)
+        found = read_preset(scope, name)
         if not found:
             return web.json_response({"ok": False, "error": "No preset called '%s'." % name}, status=404)
         text = (found.get("data") or {}).get("description") or NEEDS_DESCRIPTION
@@ -509,16 +539,17 @@ if _HAS_SERVER and PromptServer.instance is not None:
         import os
         body = await request.json()
         name = body.get("name", "")
-        if not (name == NO_PRESET or name in Z_PRESETS):
+        key = _builtin_key(body.get("scope", "user"), name)
+        if not key:
             return web.json_response({"ok": False, "error": "Only built-in entries are saved here."}, status=400)
         descs = _read_builtin_descs()
-        descs[name] = str(body.get("description") or "").strip() or NEEDS_DESCRIPTION
+        descs[key] = str(body.get("description") or "").strip() or NEEDS_DESCRIPTION
         os.makedirs(user_root(), exist_ok=True)
         tmp = _builtin_desc_path() + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(descs, fh, indent=2, ensure_ascii=False)
         os.replace(tmp, _builtin_desc_path())
-        return web.json_response({"ok": True, "name": name, "description": descs[name]})
+        return web.json_response({"ok": True, "name": name, "description": descs[key]})
 
     @routes.get("/freedom/pm/defaults")
     async def _defaults(request):

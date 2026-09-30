@@ -41,6 +41,22 @@ quietly change either to make them match.
 
 ## Node-group layout: description, then packages, then the panel (user, 2026-09-26/27)
 
+**These are GUIDELINES, not fixed rules (user, 2026-09-29).** They give the usual
+order, but Claude adjusts each node group as needed so its nodes read in natural
+order - a group with extra nodes (hints, notes, a second panel) simply gets the
+next letters in the order a person reads them. Do not force a group into the
+pattern below, and do not skip or reserve letters to make it fit. When a group
+changes, re-letter it top to bottom in natural order. This file is not static:
+update these guidelines whenever the user refines them.
+
+**Hints count as description-type notes.** Anything that explains or advises
+(a description, a hint box, the checkpoint hints, the "7b Summary Signal" box)
+goes right after the group's description, in reading order. Example the user
+gave for STEP 7: 7a description, 7b Summary Signal, 7c the next hint (the
+checkpoint hints), then the rest of the group follows on.
+
+The usual order, as a starting point:
+
 Every workflow step (node group) where the user clicks, types or picks something
 follows this order, going forward. Think of it like a form: first the
 instructions, then the buttons that fill or reset the form, then the form itself.
@@ -66,6 +82,11 @@ instructions, then the buttons that fill or reset the form, then the form itself
   no gaps: 7a description note, 7b prompt boxes, 7c phrase note, 7d phrase node.
   The prompt and phrase nodes themselves were kept as they are (already
   separate). This is STEP 7's choice, not a rule for every step.
+  Since 2026-09-29 (Q72 = 1) the checkpoint front-text node IS "7b Summary Signal"
+  (one node: the model's own text, then the user's words, all on page 1). STEP 7
+  now reads 7a description, 7b Summary Signal, 7c prompt boxes, 7d phrase note,
+  7e phrases. When the checkpoint hints are built they go in as 7c and the
+  letters after them move down. Record: `logs/summary_signal_2026-09-29.md`.
 - Layout changes go into a new workflow version, not the one the user is working
   in (v09 was made for STEP 3 because the user was working in v08).
 
@@ -81,6 +102,10 @@ instructions, then the buttons that fill or reset the form, then the form itself
   (they load unlocked - they only fill dials you have not changed), then the three built-in z_
   choices. Every entry has a description beneath the menu; an entry without one says
   "needs description". Record: `logs/checkpoint_front_text_2026-09-29/LOG.md`.
+- 4b-4g the same way (Q66 = 1): no "In charge" row; each node's own menu decides - "Use the
+  dials (no preset)", or a saved preset that loads unlocked - with a description beneath every
+  entry. Portrait Master's own presets are read-only (their descriptions live in our
+  `builtin_descriptions.json`). Record: `logs/pm_node_menus_merged_2026-09-29.md`.
 
 ## Every ComfyUI log lives in `logs/` — write it there, never route it later
 

@@ -1,5 +1,18 @@
 # =============================================================================
-# FREEDOM SYSTEM - Checkpoint front text (user, 2026-09-29, Q56 = B made general, Q59 = 1)
+# FREEDOM SYSTEM - STEP 7b Summary Signal (user, 2026-09-29: Q55 = 1, Q71 = 1, Q72 = 1)
+#
+# Since Q72 = 1 this ONE node does two jobs (it was "Checkpoint front text" before):
+#  1. the model's own front text (e.g. Pony's score tags), loaded for the model STEP 1
+#     has picked and taken out again when another model is picked;
+#  2. the user's "summary signal" words, which go right after it.
+# Both must fit on "page 1" of the prompt - the first 75 places (tokens) ComfyUI reads
+# as one piece. SDXL builds its one-line summary of the whole prompt from that first
+# piece only (comfy/sd1_clip.py, first_pooled). The count uses ComfyUI's own SDXL
+# word-splitter, so it is the real count, not an estimate.
+#
+# The class name is kept (FreedomCheckpointFrontText) so v09's wiring stays intact.
+#
+# --- what the front-text part does (Q56 = B made general, Q59 = 1) ---
 #
 # Some art models want their own words at the very start of every prompt - for
 # CyberRealistic Pony, its maker recommends "score_9, score_8_up, score_7_up"
@@ -76,6 +89,29 @@ def picked_checkpoint(prompt):
     return None, "more than one checkpoint loader in the job (%s) - not guessing which" % ", ".join(found)
 
 
+LIMIT = 75                                        # places on page 1 (77 minus start and end marks)
+_TOKENIZER = None
+
+
+def join_signal(front, words):
+    # Same joiner as STEP 7c (FreedomPromptParts.combine), so the count matches the real prompt.
+    return ", ".join(p for p in (str(front or "").strip(), str(words or "").strip()) if p)
+
+
+def page_one(text):
+    """Count text with ComfyUI's own SDXL word-splitter (the CLIP-G half, which gives SDXL's
+    summary). Returns used = places the text fills, fits = it all stays in the first piece."""
+    global _TOKENIZER
+    if _TOKENIZER is None:
+        from comfy import sdxl_clip
+        _TOKENIZER = sdxl_clip.SDXLTokenizer(embedding_directory=folder_paths.get_folder_paths("embeddings"))
+    if not text:
+        return {"used": 0, "pieces": 1, "fits": True}
+    batches = _TOKENIZER.tokenize_with_weights(text, return_word_ids=True)["g"]
+    used = sum(1 for b in batches for t in b if t[2] != 0)
+    return {"used": used, "pieces": len(batches), "fits": len(batches) == 1}
+
+
 class FreedomCheckpointFrontText:
     @classmethod
     def INPUT_TYPES(cls):
@@ -83,7 +119,10 @@ class FreedomCheckpointFrontText:
             "required": {
                 "enabled": ("BOOLEAN", {"default": True,
                             "tooltip": "ON = add the saved front text for the model STEP 1 has picked. "
-                                       "OFF = add nothing."}),
+                                       "OFF = leave the model's text out (your own words still go in)."}),
+                "signal": ("STRING", {"default": "", "multiline": True,
+                           "tooltip": "Your summary-signal words. They go right after the model's "
+                                      "front text, on page 1 of the prompt."}),
             },
             "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
@@ -92,31 +131,41 @@ class FreedomCheckpointFrontText:
     RETURN_NAMES = ("front",)
     FUNCTION = "run"
     CATEGORY = "Freedom"
-    DESCRIPTION = ("Loads the front text saved for the model picked in STEP 1 (for example "
-                   "CyberRealistic Pony's score tags) and puts it at the very start of the prompt. "
-                   "n/a when nothing is saved for that model.")
+    DESCRIPTION = ("STEP 7b Summary Signal. Starts with the text saved for the model picked in "
+                   "STEP 1 (for example CyberRealistic Pony's score tags; nothing for a model with "
+                   "nothing saved), then your most important words. Both must fit on page 1 - the "
+                   "first 75 places of the prompt, the part SDXL sums up for the whole picture.")
 
     @classmethod
     def IS_CHANGED(cls, **kw):
         return float("nan")                      # always run - the model choice lives outside this node
 
-    def run(self, enabled=True, prompt=None, unique_id=None):
+    def run(self, enabled=True, signal="", prompt=None, unique_id=None):
         ckpt, problem = picked_checkpoint(prompt)
         front = ""
         if not enabled:
-            status = "switched OFF - nothing added"
+            status = "model text switched OFF - not added"
         elif problem:
-            status = "WARNING: " + problem + " - nothing added"
+            status = "WARNING: " + problem + " - model text not added"
         else:
             entry = read_entry(ckpt)
             front = str((entry or {}).get("front") or "").strip()
             status = ("added '%s'" % front) if front else (NA + " - nothing saved for this checkpoint")
-        log.info("[Freedom] Checkpoint front text: %s for %s", status, ckpt or "(unknown)")
-        return {"ui": {"checkpoint": [ckpt or ""], "front": [front], "status": [status]}, "result": (front,)}
+        words = str(signal or "").strip()
+        text = join_signal(front, words)
+        page = page_one(text)
+        if page["fits"]:
+            fit = "%d of %d places used - all on page 1" % (page["used"], LIMIT)
+        else:
+            fit = ("WARNING: about %d places over page 1 - the end of your summary words lands on page 2"
+                   % (page["used"] - LIMIT))
+        status = "%s; your words: %s; %s" % (status, ("'%s'" % words) if words else "none", fit)
+        log.info("[Freedom] STEP 7b Summary Signal: %s for %s", status, ckpt or "(unknown)")
+        return {"ui": {"checkpoint": [ckpt or ""], "front": [front], "status": [status]}, "result": (text,)}
 
 
 NODE_CLASS_MAPPINGS = {"FreedomCheckpointFrontText": FreedomCheckpointFrontText}
-NODE_DISPLAY_NAME_MAPPINGS = {"FreedomCheckpointFrontText": "Freedom Checkpoint Front Text (per model, goes first)"}
+NODE_DISPLAY_NAME_MAPPINGS = {"FreedomCheckpointFrontText": "Freedom Summary Signal (model's front text + your words, page 1)"}
 WEB_DIRECTORY = "./web"
 
 # --------------------------------------------------------------------------- #
@@ -147,6 +196,17 @@ try:
         p = write_entry(ckpt, front)
         log.info("[Freedom] Checkpoint front text: saved for %s -> %s", ckpt, p)
         return web.json_response({"ok": True, "front": front})
+
+    @routes.post("/freedom/summary/count")
+    async def _count(request):
+        body = await request.json()
+        text = str(body.get("text") or "")
+        try:
+            r = page_one(text)
+        except Exception as e:                   # reported to the box, never guessed around
+            log.warning("[Freedom] STEP 7b Summary Signal: could not count (%s)", e)
+            return web.json_response({"ok": False, "error": "Could not count: %s" % e})
+        return web.json_response({"ok": True, "text": text, "limit": LIMIT, **r})
 
     @routes.post("/freedom/ckptfront/delete")
     async def _delete(request):

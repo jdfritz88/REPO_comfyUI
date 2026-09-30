@@ -117,14 +117,15 @@ const HOUSEKEEPING = new Set(["seed", "control_after_generate", "load_preset",
                               "active_of_pair", "prompt_styler_switch"]);
 
 const EXPLANATION =
-  "The In-charge dropdown on 4a decides who is in charge:\n" +
-  "  Use preset            - the preset wins, these dials are locked.\n" +
-  "  Use preset, unlocked  - the preset loads, you can tweak; saving happens on 4a.\n" +
-  "  Ignore presets        - this node's own In-charge dropdown takes over:\n" +
-  "      Use this node's preset (default) - dials locked, no buttons.\n" +
-  "      Load preset, unlock dials        - save, save as, delete available.\n" +
-  "      Ignore presets, unlock dials     - save as and delete available.\n" +
-  "Factory reset works only in the last one.\n" +
+  "Who is in charge is decided by the preset menus - there is no separate\n" +
+  "In-charge dropdown any more:\n" +
+  "  4a's menu on a saved preset - 4a is in charge of every node; the preset\n" +
+  "      fills the dials you have not changed, and every dial stays unlocked.\n" +
+  "  4a's menu on 'Use the dials (no 4a preset)' - each node's own menu decides:\n" +
+  "      'Use the dials (no preset)' - only your dials count; Factory reset works.\n" +
+  "      a saved preset - it loads unlocked: fills the dials you have not changed.\n" +
+  "Every menu entry has a description beneath the menu. Only a Save button\n" +
+  "changes a stored preset; Save as keeps the old one and makes a new one.\n" +
   "At the bottom of 4a's preset list are three built-in choices that switch\n" +
   "Portrait Master on or off outright (they cannot be saved over or deleted):\n" +
   "  z_block all nodes - every node OFF, greyed and locked.\n" +
@@ -247,6 +248,7 @@ for (const c of PM_CLASSES) state.nodes[c] = { mode: NODE_MODE_PRESET, preset: N
 function pushState() {
   const c = controlNode();
   if (!c) return;
+  for (const cls of Object.keys(state.nodes)) state.nodes[cls].mode = nodeModeFor(state.nodes[cls].preset);
   const w = widget(c, "state");
   if (w) w.value = JSON.stringify(state);
   // keep the real dropdowns in step with the panel, so what the server receives is
@@ -285,6 +287,11 @@ const controlMode = () => {
   return (!p || p === NO_PRESET) ? MODE_IGNORE : MODE_PRESET_UNLOCKED;
 };
 const USE_DIALS_LABEL = "Use the dials (no 4a preset)";
+const NODE_USE_DIALS_LABEL = "Use the dials (no preset)";
+// 4b-4g the same way (user, 2026-09-29, Q66 = 1): each node's own preset menu decides.
+//   "-- none --" -> ignore presets;  a preset -> loads unlocked.  Same rule as
+//   effective_node_mode() in __init__.py; the "<step>_mode" dropdowns on 4a are hidden.
+const nodeModeFor = (preset) => (!preset || preset === NO_PRESET) ? NODE_MODE_IGNORE : NODE_MODE_PRESET_UNLOCKED;
 const NEEDS_DESCRIPTION = "needs description";
 
 // Who is in charge of one node group, and therefore what is locked or greyed.
@@ -295,10 +302,9 @@ function statusFor(cls) {
   if (z) return { inCharge: "4a: all nodes open" + (zWantsOn(z, cls) ? " - use the dials" : " - this node is OFF"), dialsLocked: !zWantsOn(z, cls), nodeChoice: false, buttons: "none", reset: false, blocked: !zWantsOn(z, cls) };
   if (m === MODE_PRESET_WINS) return { inCharge: "4a preset", dialsLocked: true, nodeChoice: false, buttons: "none", reset: false };
   if (m === MODE_PRESET_UNLOCKED) return { inCharge: "4a preset, dials unlocked", dialsLocked: false, nodeChoice: false, buttons: "none", reset: false };
-  const nm = state.nodes[cls]?.mode || NODE_MODE_PRESET;
-  if (nm === NODE_MODE_PRESET) return { inCharge: "this node's preset", dialsLocked: true, nodeChoice: true, buttons: "none", reset: false };
-  if (nm === NODE_MODE_PRESET_UNLOCKED) return { inCharge: "this node's preset, unlocked", dialsLocked: false, nodeChoice: true, buttons: "all", reset: false };
-  return { inCharge: "this node's dials", dialsLocked: false, nodeChoice: true, buttons: "saveas_delete", reset: true };
+  const nm = nodeModeFor(state.nodes[cls]?.preset);
+  if (nm === NODE_MODE_PRESET_UNLOCKED) return { inCharge: "this node's preset - it loads unlocked", dialsLocked: false, nodeChoice: true, buttons: "all", reset: false };
+  return { inCharge: "this node's dials (no preset)", dialsLocked: false, nodeChoice: true, buttons: "all", reset: true };
 }
 
 const panels = [];                             // every panel refreshes when anything changes
@@ -779,7 +785,7 @@ function buildPanel(node, cls) {
   });
   modeWrap.append(el("span", { textContent: "In charge:" }), modeSelect);
   root.append(modeWrap);
-  if (isControl) modeWrap.style.display = "none";   // 4a: the preset menu below decides
+  modeWrap.style.display = "none";   // 4a and 4b-4g: the preset menu below decides (Q64/Q66)
 
   // preset row
   const row = el("div");
@@ -794,8 +800,11 @@ function buildPanel(node, cls) {
       await loadDescription();
     } else {
       state.nodes[cls].preset = select.value;
+      state.nodes[cls].mode = nodeModeFor(select.value);
+      setCtrl(STEP_OF[cls] + "_mode", state.nodes[cls].mode);
       const found = select.value !== NO_PRESET ? await api.read(scope, select.value) : null;
       if (found?.data) writeDials(node, found.data);
+      await loadDescription();
     }
     refreshAll();
   });
@@ -805,9 +814,11 @@ function buildPanel(node, cls) {
   row.append(nameBox);
   root.append(row);
 
-  // 4a: a description for every menu entry, beneath the menu (user, 2026-09-29).
+  // A description for every menu entry, beneath the menu (user, 2026-09-29: 4a, then
+  // 4b-4g with Q66 = 1).
   let descBox = null, descEdited = false;
-  if (isControl) {
+  const devNames = new Set();                  // Portrait Master's own presets (read-only)
+  {
     const lab = el("div", { textContent: "Description of the chosen entry:" });
     lab.style.cssText = "color:#bbb;";
     descBox = el("textarea");
@@ -819,7 +830,7 @@ function buildPanel(node, cls) {
     if (!descBox) return;
     descEdited = false; descBox.readOnly = true; descBox.style.color = "#ccc";
     try {
-      const r = await fetch(`/freedom/pm/description?name=${encodeURIComponent(select.value)}`);
+      const r = await fetch(`/freedom/pm/description?scope=${encodeURIComponent(scope)}&name=${encodeURIComponent(select.value)}`);
       const d = await r.json();
       descBox.value = d.ok ? d.description : NEEDS_DESCRIPTION;
     } catch (_) { descBox.value = NEEDS_DESCRIPTION; }
@@ -839,11 +850,13 @@ function buildPanel(node, cls) {
   const say = el("div");
   say.style.cssText = "color:#9c9;min-height:14px;";
 
-  const gather = () => (isControl ? { ...gatherEverything(), description: descValue() } : readDials(node));
+  const gather = () => (isControl ? { ...gatherEverything(), description: descValue() }
+                                  : { ...readDials(node), description: descValue() });
 
   const builtIn = () => isControl && Z_PRESETS.includes(select.value);
-  const builtInEntry = () => isControl && (Z_PRESETS.includes(select.value) || select.value === NO_PRESET);
-  if (isControl) mkButton("Edit description", async () => {
+  const builtInEntry = () => select.value === NO_PRESET
+    || (isControl ? Z_PRESETS.includes(select.value) : devNames.has(select.value));
+  const btnDesc = mkButton("Edit description", async () => {
     descBox.readOnly = false; descBox.style.color = "#eee"; descEdited = true;
     if (descBox.value === NEEDS_DESCRIPTION) descBox.value = "";
     descBox.focus();
@@ -853,7 +866,7 @@ function buildPanel(node, cls) {
     const name = select.value;
     if (builtInEntry()) {                      // built-in entry: only its description is saved
       const r = await fetch("/freedom/pm/description", { method: "POST", headers: { "Content-Type": "application/json" },
-                                                           body: JSON.stringify({ name, description: descValue() }) });
+                                                           body: JSON.stringify({ scope, name, description: descValue() }) });
       const d = await r.json();
       say.textContent = d.ok ? "Saved the description. (This entry is built in, so only its description can be saved.)" : d.error;
       await loadDescription();
@@ -863,14 +876,14 @@ function buildPanel(node, cls) {
     const res = await api.save(scope, name, gather(), true);
     say.textContent = res.ok ? `Saved '${name}'.` : res.error;
     await refreshLists();
-    if (isControl) await loadDescription();
+    await loadDescription();
   });
   const btnSaveAs = mkButton("Save as", async () => {
     if (!nameBox.value.trim()) { say.textContent = "Type a name first."; return; }
     const name = withPrefix(scope, nameBox.value);
     const data = gather();
     // From a built-in entry, its own description is not copied unless you edited it.
-    if (isControl && builtInEntry() && !descEdited) data.description = NEEDS_DESCRIPTION;
+    if (builtInEntry() && !descEdited) data.description = NEEDS_DESCRIPTION;
     const res = await api.save(scope, name, data, false);
     say.textContent = res.ok ? `Saved '${name}'.` : res.error;
     if (res.ok) { nameBox.value = ""; await refreshLists(); select.value = name; select.dispatchEvent(new Event("change")); }
@@ -922,9 +935,11 @@ function buildPanel(node, cls) {
     const presets = await api.list(scope);
     const current = select.value;
     select.replaceChildren();
-    select.append(el("option", { value: NO_PRESET, textContent: isControl ? USE_DIALS_LABEL : NO_PRESET }));
+    select.append(el("option", { value: NO_PRESET, textContent: isControl ? USE_DIALS_LABEL : NODE_USE_DIALS_LABEL }));
+    devNames.clear();
     for (const p of presets) {
       if (isControl && Z_PRESETS.includes(p.name)) continue;
+      if (p.source === "developer") devNames.add(p.name);
       select.append(el("option", {
         value: p.name,
         textContent: p.source === "developer" ? `${p.name}  (Portrait Master)` : p.name,
@@ -934,7 +949,7 @@ function buildPanel(node, cls) {
     const wanted = isControl ? widget(node, "preset")?.value : state.nodes[cls]?.preset;
     select.value = [...select.options].some((o) => o.value === wanted) ? wanted
                  : ([...select.options].some((o) => o.value === current) ? current : NO_PRESET);
-    if (isControl) await loadDescription();
+    await loadDescription();
   }
 
   function refresh() {
@@ -954,17 +969,19 @@ function buildPanel(node, cls) {
       if (w && select.value !== w.value) { select.value = w.value; loadDescription(); }
     } else {
       const s = statusFor(cls);
-      modeSelect.value = state.nodes[cls]?.mode || NODE_MODE_PRESET;
-      modeSelect.disabled = !s.nodeChoice;
+      modeSelect.value = nodeModeFor(state.nodes[cls]?.preset);
       indicator.textContent = `In charge: ${s.inCharge}`;
-      modeWrap.style.opacity = s.nodeChoice ? "1" : "0.45";
-      const presetUsable = s.nodeChoice && (state.nodes[cls]?.mode !== NODE_MODE_IGNORE);
-      select.disabled = !presetUsable;
-      btnSave.disabled = s.buttons !== "all";
-      btnSaveAs.disabled = !(s.buttons === "all" || s.buttons === "saveas_delete");
-      btnDelete.disabled = !(s.buttons === "all" || s.buttons === "saveas_delete");
+      select.disabled = !s.nodeChoice;               // off only while 4a is in charge
+      btnSave.disabled = s.buttons !== "all";        // preset: save it; built-in entry: its description
+      btnSaveAs.disabled = s.buttons !== "all";
+      btnDesc.disabled = s.buttons !== "all";
+      btnDelete.disabled = s.buttons !== "all" || builtInEntry();
       btnRename.disabled = btnDelete.disabled;       // rename follows the same rule as delete
       btnReset.disabled = !s.reset;
+      const wanted = state.nodes[cls]?.preset || NO_PRESET;
+      if (select.value !== wanted && [...select.options].some((o) => o.value === wanted)) {
+        select.value = wanted; loadDescription();
+      }
       lockDials(node, s.dialsLocked);
       root.style.opacity = s.dialsLocked && controlMode() === MODE_PRESET_WINS ? "0.75" : "1";
       root.style.filter = "none";               // cleared every time; greyed again below only if still off
@@ -1033,6 +1050,12 @@ app.registerExtension({
       // is hidden and unused: the preset menu decides now (user, 2026-09-29).
       const wm = widget(node, "mode");
       if (wm) { wm.type = "hidden"; wm.computeSize = () => [0, -4]; }
+      // The six per-node "In charge" dropdowns (n4b_mode ... n4g_mode) are hidden and not
+      // read either: each node's own preset menu decides (user, 2026-09-29, Q66 = 1).
+      for (const st of Object.values(STEP_OF)) {
+        const wn = widget(node, st + "_mode");
+        if (wn) { wn.type = "hidden"; wn.computeSize = () => [0, -4]; }
+      }
       setTimeout(() => { pullState(); refreshAll(); }, 50);
       // 4a: built at once, then laid out top-first (see layoutTopFirst).
       buildPanel(node, cls);
@@ -1050,6 +1073,13 @@ app.registerExtension({
       if (ws.value !== false) { ws.value = false; }
       ws.disabled = true;
       ws.label = "save_preset (off - use the Save buttons)";
+    }
+    // The nationality mix slider only worked through Prompt Control's "[a:b:0.5]" syntax.
+    // Prompt Control was removed (2026-09-29); a two-nationality mix is now written in plain
+    // words by STEP 7c, so the slider does nothing and is hidden (user, Q69 = 2).
+    if (cls === "PortraitMasterBaseCharacter") {
+      const wm = widget(node, "nationality_mix");
+      if (wm) { wm.type = "hidden"; wm.computeSize = () => [0, -4]; }
     }
   },
 

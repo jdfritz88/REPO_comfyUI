@@ -361,3 +361,12 @@ Full record: `logs/checkpoint_front_text_2026-09-29/LOG.md` (untracked). Backups
   7b Summary Signal; Q51 the new 7b; Q8 the sharpening tool (tests done, no choice made).
 - Not built yet (asked for, waiting on the questions above): the Pony hints box under STEP 1, "7b Summary
   Signal", the red checkpoint-hints node.
+
+---
+
+## Addendum (29 Sep, after the commit): Prompt Control removed
+The STEP 7 encoder in v09 is now ComfyUI's own CLIPTextEncode and the Prompt Control add-on was deleted (no
+backup, as asked). Everything above that says "the STEP 7 encoder is Prompt Control" describes the state
+before this change. Full notes: `logs/prompt_control_removed_2026-09-29.md`.
+Also after the commit: CLAUDE.md's node-lettering section made into guidelines (natural order, hints right
+after the description, re-letter a group when it changes).
