@@ -13,14 +13,14 @@ import { api } from "../../scripts/api.js";
 
 const CSS = `
 .ffs-root{display:flex;flex-direction:column;gap:6px;height:100%;min-height:300px;
-  font:11px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1c1c1c;
+  font:12px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1c1c1c;
   border:1px solid #444;border-radius:6px;padding:8px;overflow:hidden}
 .ffs-bar{display:flex;align-items:center;gap:8px}
-.ffs-bar .t{font-weight:700;color:#cde3ff;font-size:11px;letter-spacing:.3px}
+.ffs-bar .t{font-weight:700;color:#cde3ff;font-size:12px;letter-spacing:.3px}
 .ffs-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;
-  padding:3px 9px;cursor:pointer;font-size:10px}
+  padding:3px 9px;cursor:pointer;font-size:11px}
 .ffs-btn:hover{background:#3a3a3a}
-.ffs-sel{color:#9cc4ff;font-size:10px;flex:1;text-align:right;
+.ffs-sel{color:#9cc4ff;font-size:11px;flex:1;text-align:right;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ffs-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;overflow:auto;
   padding-right:2px;align-content:start}
@@ -29,27 +29,27 @@ const CSS = `
 .ffs-card:hover{border-color:#5a7fb0}
 .ffs-card.on{border-color:#2e7d3a;box-shadow:0 0 0 1px #2e7d3a inset}
 .ffs-card .ph{width:100%;aspect-ratio:1/1;background:#0f0f0f center/cover no-repeat;
-  display:flex;align-items:center;justify-content:center;color:#555;font-size:9px}
+  display:flex;align-items:center;justify-content:center;color:#555;font-size:10px}
 .ffs-card .cap{padding:4px 5px}
-.ffs-card .nm{font-weight:600;color:#eee;font-size:10px;white-space:nowrap;
+.ffs-card .nm{font-weight:600;color:#eee;font-size:11px;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
-.ffs-card .sub{color:#9a9a9a;font-size:9px}
+.ffs-card .sub{color:#9a9a9a;font-size:10px}
 .ffs-card.part .nm{color:#b5872b}
 .ffs-empty{color:#888;padding:24px 8px;text-align:center}
 .ffs-sw{border:1px solid #555;border-radius:4px;padding:3px 10px;cursor:pointer;
-  font-size:10px;font-weight:700;letter-spacing:.3px}
+  font-size:11px;font-weight:700;letter-spacing:.3px}
 .ffs-sw.on{background:#204d2a;border-color:#2e7d3a;color:#b9e6c2}
 .ffs-trig{display:flex;align-items:center;gap:6px;background:#141414;border:1px solid #3a3a3a;
   border-radius:5px;padding:4px 6px}
-.ffs-trig .lbl{color:#7f7f7f;font-size:9px;letter-spacing:.4px;white-space:nowrap}
-.ffs-trig .txt{flex:1;color:#ffd479;font:11px/1.3 ui-monospace,Consolas,monospace;
+.ffs-trig .lbl{color:#7f7f7f;font-size:10px;letter-spacing:.4px;white-space:nowrap}
+.ffs-trig .txt{flex:1;color:#ffd479;font:12px/1.3 ui-monospace,Consolas,monospace;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ffs-trig .txt.none{color:#777;font-style:italic}
 .ffs-root.is-off .ffs-trig .txt{color:#777;text-decoration:line-through}
 .ffs-sw.off{background:#4a2020;border-color:#7d2e2e;color:#e6b9b9}
 .ffs-root.is-off .ffs-grid{opacity:.32;filter:grayscale(1)}
 .ffs-root.is-off .ffs-sel{color:#8a8a8a}
-.ffs-compat{color:#7fa8d9;font-size:9.5px}
+.ffs-compat{color:#7fa8d9;font-size:10.5px}
 .ffs-compat.unknown{color:#a08040}
 `;
 function css(){ if(!document.getElementById("ffs-css")){ const s=document.createElement("style");

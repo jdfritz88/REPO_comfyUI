@@ -6,31 +6,31 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const CSS = `
-.fvq-root{display:flex;flex-direction:column;gap:6px;height:100%;min-height:460px;font:12px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;padding:8px;overflow:auto}
+.fvq-root{display:flex;flex-direction:column;gap:6px;height:100%;min-height:460px;font:13px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;padding:8px;overflow:auto}
 .fvq-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .fvq-slot{position:relative;aspect-ratio:16/10;border:2px solid #3a3a3a;border-radius:6px;background:#111;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .fvq-slot.sel{border-color:#4aa3ff;box-shadow:0 0 0 2px #4aa3ff55}
 .fvq-slot.video{border-color:#3fb950}
-.fvq-slot.empty{border-style:dashed;color:#555;font-size:22px}
+.fvq-slot.empty{border-style:dashed;color:#555;font-size:23px}
 .fvq-slot img{width:100%;height:100%;object-fit:cover}
-.fvq-slot .n{position:absolute;top:2px;left:4px;background:#000a;padding:0 5px;border-radius:6px;font-size:10px}
-.fvq-slot .st{position:absolute;bottom:2px;left:0;right:0;text-align:center;background:#000a;font-size:10px}
+.fvq-slot .n{position:absolute;top:2px;left:4px;background:#000a;padding:0 5px;border-radius:6px;font-size:11px}
+.fvq-slot .st{position:absolute;bottom:2px;left:0;right:0;text-align:center;background:#000a;font-size:11px}
 .fvq-slot .st.running{background:#6b4d00cc}.fvq-slot .st.done{background:#1f5a2acc}.fvq-slot .st.pending{background:#26364ecc}
 .fvq-slot .x{position:absolute;top:2px;right:2px;background:#000a;border:0;color:#eaa;width:18px;height:18px;border-radius:4px;cursor:pointer;line-height:1}
-.fvq-vtag{position:absolute;bottom:2px;right:4px;background:#1f5a2a;color:#dfffdf;font-size:9px;padding:0 4px;border-radius:5px}
+.fvq-vtag{position:absolute;bottom:2px;right:4px;background:#1f5a2a;color:#dfffdf;font-size:10px;padding:0 4px;border-radius:5px}
 .fvq-prompts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .fvq-pane{display:flex;flex-direction:column;gap:3px}
-.fvq-pane .lbl{color:#8ab4ff;font-weight:600;font-size:11px}
-.fvq-pane textarea{width:100%;min-height:88px;resize:vertical;background:#141414;color:#eee;border:1px solid #444;border-radius:5px;padding:5px;font:11px/1.35 inherit}
+.fvq-pane .lbl{color:#8ab4ff;font-weight:600;font-size:12px}
+.fvq-pane textarea{width:100%;min-height:88px;resize:vertical;background:#141414;color:#eee;border:1px solid #444;border-radius:5px;padding:5px;font:12px/1.35 inherit}
 .fvq-pane textarea[readonly]{background:#101010;color:#aaa}
 .fvq-row{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
 .fvq-row .k{color:#999}
-.fvq-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:3px 8px;cursor:pointer;white-space:nowrap;font-size:11px}
+.fvq-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:3px 8px;cursor:pointer;white-space:nowrap;font-size:12px}
 .fvq-btn:hover{background:#3a3a3a}
 .fvq-btn.on{background:#26406b;border-color:#3f6db0;color:#dce9ff}
 .fvq-btn.copy{background:#26406b;border-color:#3f6db0;color:#dce9ff}
-.fvq-status{color:#9cc4ff;font-size:11px;min-height:14px}
-.fvq-hint{color:#9a9a9a;font-size:10.5px;line-height:1.4;background:#161616;border:1px solid #333;border-radius:5px;padding:5px 7px}
+.fvq-status{color:#9cc4ff;font-size:12px;min-height:14px}
+.fvq-hint{color:#9a9a9a;font-size:11.5px;line-height:1.4;background:#161616;border:1px solid #333;border-radius:5px;padding:5px 7px}
 .fvq-hint b{color:#cde3ff}
 .fvq-chk{display:flex;gap:6px;align-items:center}
 `;

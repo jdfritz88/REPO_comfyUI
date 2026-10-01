@@ -375,19 +375,19 @@ class FreedomSelectedFaceLoraStack:
 
     def run(self, model, clip, face_lora="", face_mode="", **rows):
         if face_mode != "trained_face":
-            log.info("[Freedom] Selected Face LoRA Stack: skipped - STEP 2 is %r, "
+            log.info("[Freedom] Face Lora Stack: skipped - STEP 2 is %r, "
                      "not trained_face; model passed through untouched", face_mode)
             return (model, clip)
         name = (face_lora or "").strip()
         if not name:
-            log.info("[Freedom] Selected Face LoRA Stack: skipped - the shelf "
+            log.info("[Freedom] Face Lora Stack: skipped - the shelf "
                      "loaded no face, so there is nothing to repeat")
             return (model, clip)
 
         wanted = [(i, rows.get(f"strength_{i}", 0.0)) for i in range(1, FACE_STACK_ROWS + 1)
                   if rows.get(f"enabled_{i}") and rows.get(f"strength_{i}", 0.0)]
         if not wanted:
-            log.info("[Freedom] Selected Face LoRA Stack: no pass switched on - "
+            log.info("[Freedom] Face Lora Stack: no pass switched on - "
                      "model passed through untouched")
             return (model, clip)
 
@@ -403,7 +403,7 @@ class FreedomSelectedFaceLoraStack:
         for i, strength in wanted:
             m, c = comfy.sd.load_lora_for_models(m, c, lora, strength, strength,
                                                  lora_metadata=meta)
-        log.info("[Freedom] Selected Face LoRA Stack: applied %s %d more time(s) %s; "
+        log.info("[Freedom] Face Lora Stack: applied %s %d more time(s) %s; "
                  "patch depth on the model went %d -> %d",
                  name, len(wanted), [f"pass {i} @ {s:g}" for i, s in wanted],
                  before, _max_patch_depth(m))
@@ -413,8 +413,8 @@ class FreedomSelectedFaceLoraStack:
 NODE_CLASS_MAPPINGS = {"FreedomFaceShelf": FreedomFaceShelf,
                        "FreedomSelectedFaceLoraStack": FreedomSelectedFaceLoraStack}
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "FreedomFaceShelf": "Freedom Face Shelf",
-    "FreedomSelectedFaceLoraStack": "Freedom Selected Face LoRA Stack (trained face only)",
+    "FreedomFaceShelf": "Face Shelf",
+    "FreedomSelectedFaceLoraStack": "Face Lora Stack",
 }
 
 

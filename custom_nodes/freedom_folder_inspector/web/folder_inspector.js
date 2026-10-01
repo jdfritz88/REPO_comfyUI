@@ -14,7 +14,7 @@ import { api } from "../../scripts/api.js";
 const LIVE = new Set();   // every inspector panel currently on the canvas
 
 const CSS = `
-.fi-root{display:flex;flex-direction:column;height:100%;min-height:260px;font:12px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1e1e1e;border:1px solid #444;border-radius:6px;overflow:hidden}
+.fi-root{display:flex;flex-direction:column;height:100%;min-height:260px;font:13px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1e1e1e;border:1px solid #444;border-radius:6px;overflow:hidden}
 .fi-banner{padding:6px 8px;font-weight:600;border-bottom:1px solid #444;min-height:18px;display:flex;gap:8px;align-items:center}
 .fi-banner.green{background:#1f5a2a;color:#d8ffd8}
 .fi-banner.amber{background:#6b4d00;color:#ffe9b0}
@@ -31,14 +31,14 @@ const CSS = `
 .fi-list li.red{border-left-color:#f85149}
 .fi-list li.grey{border-left-color:#666;color:#999}
 .fi-list .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fi-list .sz{color:#999;font-size:11px}
+.fi-list .sz{color:#999;font-size:12px}
 .fi-desc{flex:1;padding:6px 8px;overflow:auto;white-space:pre-wrap;word-break:break-word}
-.fi-desc h4{margin:8px 0 3px;font-size:12px;color:#9cc4ff}
+.fi-desc h4{margin:8px 0 3px;font-size:13px;color:#9cc4ff}
 .fi-desc .chip{display:inline-block;background:#2f3f5f;border-radius:10px;padding:1px 7px;margin:2px 3px 2px 0}
-.fi-desc table{border-collapse:collapse;font-size:11px}
+.fi-desc table{border-collapse:collapse;font-size:12px}
 .fi-desc td{padding:1px 6px 1px 0;vertical-align:top;color:#bbb}
 .fi-desc td:first-child{color:#888;white-space:nowrap}
-.fi-foot{display:flex;gap:8px;align-items:center;padding:4px 8px;border-top:1px solid #444;color:#999;font-size:11px}
+.fi-foot{display:flex;gap:8px;align-items:center;padding:4px 8px;border-top:1px solid #444;color:#999;font-size:12px}
 .fi-foot button{background:#333;color:#ddd;border:1px solid #555;border-radius:4px;padding:2px 8px;cursor:pointer}
 .fi-foot .path{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fi-root.dropping{outline:3px dashed #9cc4ff;outline-offset:-3px}

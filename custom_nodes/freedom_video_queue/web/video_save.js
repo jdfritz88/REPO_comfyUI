@@ -6,17 +6,17 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const CSS = `
-.fvs-root{display:flex;flex-direction:column;gap:6px;height:100%;min-height:280px;font:12px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;padding:8px}
+.fvs-root{display:flex;flex-direction:column;gap:6px;height:100%;min-height:280px;font:13px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;padding:8px}
 .fvs-vid{flex:1;min-height:120px;background:#000;border:1px solid #333;border-radius:5px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .fvs-vid video{max-width:100%;max-height:100%}
 .fvs-empty{color:#777;text-align:center;padding:20px}
 .fvs-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.fvs-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;white-space:nowrap}
+.fvs-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;white-space:nowrap}
 .fvs-btn:hover{background:#3a3a3a}
 .fvs-btn.save{background:#1f5a2a;border-color:#2e7d3a;color:#e8ffe8;font-weight:700}
 .fvs-btn.set{background:#26406b;border-color:#3f6db0;color:#dce9ff}
 .fvs-folder{flex:1;min-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cfe2ff}
-.fvs-status{color:#9cc4ff;font-size:11px;min-height:14px}
+.fvs-status{color:#9cc4ff;font-size:12px;min-height:14px}
 .fvs-k{color:#999}
 `;
 function css(){ if(!document.getElementById("fvs-css")){ const s=document.createElement("style"); s.id="fvs-css"; s.textContent=CSS; document.head.appendChild(s);} }

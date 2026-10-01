@@ -263,7 +263,7 @@ def plain_nationality_mix(text):
     new = _MIX.sub(lambda m: "%s and %s" % (m.group(1).strip(), m.group(2).strip()), text)
     if new != text:
         logging.getLogger("freedom_prompt_slots").info(
-            "[Freedom] STEP 7c: Portrait Master's nationality mix written in plain words")
+            "[Freedom] STEP 7d: Portrait Master's nationality mix written in plain words")
     return new
 
 
@@ -290,7 +290,7 @@ class FreedomPromptParts:
             "optional": {
                 "front": ("STRING", {
                     "forceInput": True,
-                    "tooltip": "Page 1 text, wired from STEP 7b Summary Signal "
+                    "tooltip": "Page 1 text, wired from STEP 7c Summary Signal "
                                "(the model's own text, e.g. CyberRealistic Pony's "
                                "score tags, then your summary words). Goes first of all.",
                 }),
@@ -308,7 +308,7 @@ class FreedomPromptParts:
     CATEGORY = "Freedom"
     DESCRIPTION = ("Your positive prompt in two boxes - physical, and everything "
                    "else - each with its own saved shelf. Joined into the finished "
-                   "prompt in this order: STEP 7b Summary Signal, her trigger word, "
+                   "prompt in this order: STEP 7c Summary Signal, her trigger word, "
                    "everything else, physical.")
 
     def combine(self, physical="", everything_else="", trigger="", front="", **_shelf):
@@ -316,7 +316,142 @@ class FreedomPromptParts:
         parts = [p.strip() for p in (front, trigger, everything_else, physical)
                  if isinstance(p, str) and p.strip()]
         finished = ", ".join(parts)
-        # The prompt watcher on STEP 7b (the Summary Signal node) shows this text.
+        # STEP 7b Prompt Watcher (its own node since 2026-09-30) shows this text.
+        return {"ui": {"finished_prompt": [finished]}, "result": (finished,)}
+
+
+# --------------------------------------------------------------------------- #
+# STEP 7 split into its own boxes (user, 2026-09-30)
+#
+#   7d Scene Prompt                - the old EVERYTHING ELSE box, with its own shelf
+#   7e Physical Description Prompt - the old PHYSICAL box, with its own shelf
+#   7f FINAL COMBINED PROMPT       - read-only; shows what goes to the engine
+#
+# Each prompt box has a green "Update the FINAL COMBINED PROMPT" button (page side).
+# A button writes that box's text into the final box's hidden "final_parts" field.
+# Nothing updates by itself.
+#
+# At Run the engine gets EXACTLY what the final box shows (user, Q = 1), in this
+# order (user): Summary Signal, her trigger word, Physical, Scene. In random-face
+# mode Portrait Master invents its words at Run, so the final box holds a marker in
+# that spot and the words from STEP 5 go into it at Run.
+# FreedomPromptParts above stays so older workflows still open.
+# --------------------------------------------------------------------------- #
+FINAL_ORDER = ("front", "face", "physical", "scene")
+PM_MARKER = "[Portrait Master's words - written at Run]"
+
+
+class FreedomScenePrompt:
+    """STEP 7d - Scene Prompt: pose, action, scene, camera, light, style."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        required = {}
+        required.update(_shelf_inputs("scene", "scene texts", ""))
+        required["scene"] = ("STRING", {
+            "default": "", "multiline": True,
+            "tooltip": "SCENE - pose, action, scene, camera, lighting, style. Type here, "
+                       "then press the green button to put it in the FINAL COMBINED PROMPT.",
+        })
+        return {"required": required}
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("scene",)
+    FUNCTION = "run"
+    CATEGORY = "Freedom"
+    DESCRIPTION = "STEP 7d Scene Prompt - pose, action, scene, camera, light, style, with its own shelf."
+
+    def run(self, scene="", **_shelf):
+        return (str(scene or ""),)
+
+
+class FreedomPhysicalPrompt:
+    """STEP 7e - Physical Description Prompt: body, face, hair, skin, clothing."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        required = {}
+        required.update(_shelf_inputs("physical", "looks", ""))
+        required["physical"] = ("STRING", {
+            "default": "", "multiline": True,
+            "tooltip": "PHYSICAL - how she looks: body, face, hair, skin, clothing. Type "
+                       "here, then press the green button to put it in the FINAL COMBINED PROMPT.",
+        })
+        return {"required": required}
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("physical",)
+    FUNCTION = "run"
+    CATEGORY = "Freedom"
+    DESCRIPTION = "STEP 7e Physical Description Prompt - how she looks, with its own shelf."
+
+    def run(self, physical="", **_shelf):
+        return (str(physical or ""),)
+
+
+def join_final(parts, face_live=""):
+    """The finished prompt from the final box's saved parts. The face part is the
+    marker in random-face mode; Portrait Master's words from the run replace it."""
+    out = []
+    for key in FINAL_ORDER:
+        text = str((parts or {}).get(key) or "").strip()
+        if key == "face" and text == PM_MARKER:
+            text = plain_nationality_mix(str(face_live or "")).strip()
+        if text:
+            out.append(text)
+    return ", ".join(out)
+
+
+class FreedomFinalPrompt:
+    """STEP 7f - FINAL COMBINED PROMPT: read-only, filled by the green buttons."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                # Hidden on the page. JSON: {"front", "face", "physical", "scene"} as
+                # last put there by the green buttons.
+                "final_parts": ("STRING", {"default": "{}", "multiline": True}),
+            },
+            "optional": {
+                "front": ("STRING", {"forceInput": True,
+                          "tooltip": "From STEP 7c Summary Signal (only checked, not used)."}),
+                "face_text": ("STRING", {"forceInput": True,
+                              "tooltip": "From STEP 5: her trigger word, or Portrait Master's words. "
+                                         "Portrait Master's words are used from here at Run."}),
+                "physical": ("STRING", {"forceInput": True,
+                             "tooltip": "From STEP 7e (only checked, not used)."}),
+                "scene": ("STRING", {"forceInput": True,
+                          "tooltip": "From STEP 7d (only checked, not used)."}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "run"
+    CATEGORY = "Freedom"
+    DESCRIPTION = ("STEP 7f FINAL COMBINED PROMPT. Read-only. Shows, and sends to the engine, "
+                   "the Summary Signal, her trigger word, Physical and Scene, as last put there "
+                   "by the green buttons.")
+
+    def run(self, final_parts="{}", front="", face_text="", physical="", scene=""):
+        log = logging.getLogger("freedom_prompt_slots")
+        try:
+            parts = json.loads(final_parts or "{}")
+        except Exception:
+            parts = {}
+        if not isinstance(parts, dict):
+            parts = {}
+        finished = join_final(parts, face_text)
+        # Only a note in the log: option 1 sends the final box as it is, even when a
+        # box has changed since its green button was last pressed.
+        stale = [name for name, live in (("Summary Signal", front), ("Physical", physical),
+                                         ("Scene", scene))
+                 if str(live or "").strip() != str(parts.get({"Summary Signal": "front",
+                                                               "Physical": "physical",
+                                                               "Scene": "scene"}[name]) or "").strip()]
+        log.info("[Freedom] STEP 7f FINAL COMBINED PROMPT sent (%d characters)%s", len(finished),
+                 ("; changed since its green button: " + ", ".join(stale)) if stale else "")
         return {"ui": {"finished_prompt": [finished]}, "result": (finished,)}
 
 
@@ -324,11 +459,17 @@ NODE_CLASS_MAPPINGS = {
     "FreedomPromptSlots": FreedomPromptSlots,
     "FreedomPhraseSlots": FreedomPhraseSlots,
     "FreedomPromptParts": FreedomPromptParts,
+    "FreedomScenePrompt": FreedomScenePrompt,
+    "FreedomPhysicalPrompt": FreedomPhysicalPrompt,
+    "FreedomFinalPrompt": FreedomFinalPrompt,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "FreedomPromptSlots": "Freedom Prompt Slots",
     "FreedomPhraseSlots": "Freedom Phrase Slots",
     "FreedomPromptParts": "Freedom Prompt - physical + everything else",
+    "FreedomScenePrompt": "Scene Prompt",
+    "FreedomPhysicalPrompt": "Physical Description Prompt",
+    "FreedomFinalPrompt": "FINAL COMBINED PROMPT",
 }
 
 

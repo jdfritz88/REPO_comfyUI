@@ -10,24 +10,75 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const CSS = `
-.fp1-root{display:flex;flex-direction:column;gap:7px;font:12px/1.4 system-ui,Segoe UI,sans-serif;
+.fp1-root{display:flex;flex-direction:column;gap:7px;font:13px/1.4 system-ui,Segoe UI,sans-serif;
   color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;padding:9px}
-.fp1-h{font-weight:700;color:#cde3ff;font-size:11px;letter-spacing:.4px}
+.fp1-h{font-weight:700;color:#cde3ff;font-size:12px;letter-spacing:.4px}
 .fp1-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .fp1-sel{flex:1;min-width:140px;background:#141414;color:#eee;border:1px solid #444;border-radius:4px;padding:5px}
 .fp1-name{flex:1;min-width:140px;background:#141414;color:#eee;border:1px solid #444;border-radius:4px;padding:5px}
-.fp1-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:5px 9px;cursor:pointer;font-size:11px}
+.fp1-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:5px 9px;cursor:pointer;font-size:12px}
 .fp1-btn:hover{background:#3a3a3a}
 .fp1-btn.primary{background:#1f5a2a;border-color:#2e7d3a;color:#e8ffe8}
-.fp1-loaded{font-size:11px;color:#9cc4ff}
-.fp1-dot{color:#2ecc40;font-size:13px}
-.fp1-status{color:#9cc4ff;font-size:11px;min-height:14px}
+.fp1-loaded{font-size:12px;color:#9cc4ff}
+.fp1-dot{color:#2ecc40;font-size:14px}
+.fp1-status{color:#9cc4ff;font-size:12px;min-height:14px}
 `;
 function css(){ if(!document.getElementById("fp1-css")){ const s=document.createElement("style"); s.id="fp1-css"; s.textContent=CSS; document.head.appendChild(s);} }
 async function get(r){ return (await api.fetchApi(r)).json(); }
 async function post(r,b){ return (await api.fetchApi(r,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b||{})})).json(); }
 
 const GREEN_DOT = "\u{1F7E2}"; // 🟢
+
+// --------------------------------------------------------------------------- //
+// Rename in two steps (user, 2026-09-30) - every Rename button:
+//   1st click: the name box gets the current name, selected, and blinks 3 times.
+//   Then type the new name; Enter or a 2nd click ("Save new name") renames.
+//   Esc puts the box back and renames nothing. (Same as prompt_slots.js.)
+// --------------------------------------------------------------------------- //
+function blinkThree(field) {
+  try {
+    field.animate([{ boxShadow: "0 0 0 3px #ffd479", backgroundColor: "#3a3215" },
+                   { boxShadow: "0 0 0 3px transparent" }], { duration: 330, iterations: 3 });
+  } catch (e) { /* an old browser simply skips the blink */ }
+}
+function makeRenamer({ button, field, current, apply, say, blocked }) {
+  let armed = null;
+  const label = button.textContent;
+  const end = (restore) => {
+    if (!armed) return;
+    const { el: f, before, onKey } = armed;
+    f.removeEventListener("keydown", onKey, true);
+    if (restore) f.value = before;
+    armed = null;
+    button.textContent = label;
+  };
+  const confirm = async () => {
+    if (!armed) return;
+    const v = String(armed.el.value || "").trim();
+    const cur = String(current() || "").trim();
+    end(false);
+    if (!v || v === cur) { say("The name was not changed."); return; }
+    await apply(v);
+  };
+  const click = async () => {
+    if (armed) return confirm();
+    const stop = blocked?.();
+    if (stop) { say(stop); return; }
+    const f = field(); const cur = current();
+    if (!f || !cur) { say("There is nothing here to rename."); return; }
+    const before = f.value;
+    f.value = cur; f.focus(); f.select(); blinkThree(f);
+    const onKey = (e) => {
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); confirm(); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(true); say("Rename cancelled - the name is unchanged."); }
+    };
+    f.addEventListener("keydown", onKey, true);
+    armed = { el: f, before, onKey };
+    button.textContent = "Save new name";
+    say("Type the new name, then press Enter or Save new name (Esc cancels).");
+  };
+  return { click };
+}
 
 class Presets1Panel {
   constructor(node){
@@ -66,15 +117,13 @@ class Presets1Panel {
     this.root.querySelector(".new").onclick = () => this.newPreset();
     // Renaming already happened on Enter in the name box; this is the same
     // thing as a button you can see.
-    this.root.querySelector(".rename").onclick = () => {
-      const newName = this.nameEl.value.trim();
-      if (!newName || newName === this.pickerEl.value) {
-        this.say("type the new name in the name box first", true);
-        this.focusNameForRename();
-        return;
-      }
-      this.renameIfChanged();
-    };
+    const renamer = makeRenamer({
+      button: this.root.querySelector(".rename"), field: () => this.nameEl,
+      current: () => this.pickerEl.value || "",
+      say: (t) => this.say(t),
+      apply: async (newText) => { this.nameEl.value = newText; await this.renameIfChanged(); },
+    });
+    this.root.querySelector(".rename").onclick = () => renamer.click();
     this.pickerEl.onchange = () => { this.nameEl.value = this.pickerEl.value; };
     this.nameEl.onchange = () => this.renameIfChanged();
     for (const ev of ["pointerdown","mousedown","wheel","contextmenu"]) this.root.addEventListener(ev, e=>e.stopPropagation());

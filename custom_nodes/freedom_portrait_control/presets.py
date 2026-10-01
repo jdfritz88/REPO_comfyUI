@@ -5,7 +5,7 @@
 #   1. the developer's own folder, custom_nodes/comfyui-portrait-master/presets/<NodeClass>/
 #      - written by Portrait Master itself when a run happens with save_preset on;
 #        a re-install of Portrait Master DELETES it.
-#   2. ours, user/default/portrait_presets/<NodeClass>/  (and /user/ for 4a's own presets)
+#   2. ours, user/default/portrait_presets/<NodeClass>/  (and /user/ for 4b's own presets)
 #      - found through ComfyUI's own folder_paths.get_user_directory(), so it sits with
 #        the workflows and settings and survives a Portrait Master re-install.
 #

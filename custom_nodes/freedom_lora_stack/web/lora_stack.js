@@ -13,23 +13,23 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const CSS = `
-.fls-root{display:flex;flex-direction:column;gap:6px;font:11px/1.35 system-ui,Segoe UI,sans-serif;
+.fls-root{display:flex;flex-direction:column;gap:6px;font:12px/1.35 system-ui,Segoe UI,sans-serif;
   color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;padding:8px;overflow:auto}
 .fls-bar{display:flex;align-items:center;gap:6px}
-.fls-bar .t{font-weight:700;color:#cde3ff;font-size:11px;letter-spacing:.3px;flex:1}
-.fls-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:3px 9px;cursor:pointer;font-size:10px}
+.fls-bar .t{font-weight:700;color:#cde3ff;font-size:12px;letter-spacing:.3px;flex:1}
+.fls-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:3px 9px;cursor:pointer;font-size:11px}
 .fls-btn:hover{background:#3a3a3a}
 .fls-row{background:#161616;border:1px solid #333;border-radius:5px;padding:5px 6px;
   display:flex;gap:6px;align-items:center;margin-bottom:10px}
-.fls-row select{flex:1;min-width:0;background:#111;color:#ddd;border:1px solid #444;border-radius:4px;font-size:10.5px;padding:2px}
-.fls-row .strength{width:52px;background:#111;color:#ddd;border:1px solid #444;border-radius:4px;font-size:10.5px;padding:2px 4px}
-.fls-row .x{color:#a66;cursor:pointer;font-size:12px;padding:0 3px;flex-shrink:0}
+.fls-row select{flex:1;min-width:0;background:#111;color:#ddd;border:1px solid #444;border-radius:4px;font-size:11.5px;padding:2px}
+.fls-row .strength{width:52px;background:#111;color:#ddd;border:1px solid #444;border-radius:4px;font-size:11.5px;padding:2px 4px}
+.fls-row .x{color:#a66;cursor:pointer;font-size:13px;padding:0 3px;flex-shrink:0}
 .fls-row .x:hover{color:#e88}
 .fls-add{align-self:flex-start}
 .fls-empty{color:#888;padding:6px 2px}
-.fls-compat{color:#7fa8d9;font-size:9.5px}
+.fls-compat{color:#7fa8d9;font-size:10.5px}
 .fls-compat.unknown{color:#a08040}
-.fls-warn{color:#c98a4a;font-size:9.5px;padding:2px 2px 0}
+.fls-warn{color:#c98a4a;font-size:10.5px;padding:2px 2px 0}
 `;
 function css() {
   if (!document.getElementById("fls-css")) {
@@ -200,15 +200,10 @@ class Stack {
       + (nUnver ? ` (+ ${nUnver} unverified)` : "")
       + ` - from ${ckpt}`;
     this.compatEl.className = "fls-compat";
-    const inc = info.incompatible || [];
-    if (inc.length) {
-      const names = inc.slice(0, 4).map(x => `${x.name} (${x.base})`).join(", ");
-      this.warnEl.textContent = `Hidden as wrong architecture: ${names}`
-        + (inc.length > 4 ? ` + ${inc.length - 4} more` : "");
-      this.warnEl.hidden = false;
-    } else {
-      this.warnEl.hidden = true;
-    }
+    // The orange "Hidden as wrong architecture: ..." line is not shown (user,
+    // 2026-09-30). The wrong-architecture LoRAs are still left out of the menu;
+    // only the notice listing them is hidden.
+    this.warnEl.hidden = true;
   }
 
   addRow() {

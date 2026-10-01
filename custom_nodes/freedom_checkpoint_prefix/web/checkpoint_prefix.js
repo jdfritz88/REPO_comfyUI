@@ -1,6 +1,6 @@
 // web/checkpoint_prefix.js
 //
-// Panel for "STEP 7b Summary Signal" (node class FreedomCheckpointFrontText).
+// Panel for "STEP 7c Summary Signal" (node class FreedomCheckpointFrontText).
 // User, 2026-09-29: Q55 = 1, Q71 = 1, Q72 = 1 - the front-text node and the summary
 // signal box are ONE node.
 //  - One box. It starts with the text saved for the model STEP 1 has picked (for
@@ -13,8 +13,9 @@
 //  - WATCHER: when STEP 1's model changes, the old model's text is taken out and the
 //    new model's text put in, and then the box is checked for both. The result shows
 //    on the node.
-//  - PROMPT WATCHER: after every run, the finished prompt STEP 7c built, and this
-//    node's own page-1 check from the run.
+//  - "At the last run": this node's own page-1 check from the run.
+//  - The finished prompt STEP 7d built shows on its own node, STEP 7b Prompt Watcher
+//    (FreedomPromptWatcher, user 2026-09-30) - see WatchPanel below.
 // Your words live in the node's hidden "signal" field, so they are saved with the
 // workflow. The panel itself is not a setting: serialize = false.
 import { app } from "../../scripts/app.js";
@@ -24,37 +25,45 @@ const NODE = "FreedomCheckpointFrontText";
 const PANEL = "freedom_ckpt_front_panel";
 const LOADERS = ["CheckpointLoaderSimple", "CheckpointLoader", "CheckpointLoaderNF4",
                  "ImageOnlyCheckpointLoader", "unCLIPCheckpointLoader"];
-const SEP = ", ";                                   // same joiner as the server and STEP 7c
+const SEP = ", ";                                   // same joiner as the server and STEP 7d
 
 function css() {
   if (document.getElementById("freedom-cfp-css")) return;
   const s = document.createElement("style");
   s.id = "freedom-cfp-css";
   s.textContent = `
-    .cfp { font: 12px/1.5 sans-serif; color: #ccc; padding: 6px 8px; margin: 0 4px;
+    .cfp { font: 13px/1.5 sans-serif; color: #ccc; padding: 6px 8px; margin: 0 4px;
            border: 1px solid #555; border-radius: 4px; background: #1c1c1c; }
     .cfp .t { font-weight: bold; color: #cde3ff; }
-    .cfp .ex { color: #aaa; font-size: 11px; margin-bottom: 4px; }
+    .cfp .ex { color: #aaa; font-size: 12px; margin-bottom: 4px; }
     .cfp .ck { color: #ffd580; font-weight: bold; word-break: break-all; margin: 2px 0 4px; }
     .cfp textarea { width: 100%; box-sizing: border-box; min-height: 60px; background: #111; color: #eee;
-                    border: 1px solid #666; border-radius: 3px; font: 12px sans-serif; padding: 3px; resize: vertical; }
+                    border: 1px solid #666; border-radius: 3px; font: 13px sans-serif; padding: 3px; resize: vertical; }
     .cfp textarea[readonly] { color: #aaa; background: #181818; }
+    .cfp textarea.box { border: 2px solid #90ee90; }    /* a prompt box you type in: light green frame (user, 2026-09-30) */
     .cfp textarea.modeltext { border-color: #d9a441; }
     .cfp .count { font-weight: bold; color: #9c9; margin: 2px 0; }
     .cfp .count.over { color: #f77; }
     .cfp .row { display: flex; gap: 6px; margin: 5px 0; flex-wrap: wrap; }
-    .cfp button { font: 11px sans-serif; padding: 2px 10px; background: #333; color: #eee;
+    .cfp button { font: 12px sans-serif; padding: 2px 10px; background: #333; color: #eee;
                   border: 1px solid #666; border-radius: 3px; cursor: pointer; }
     .cfp button:hover { background: #444; }
     .cfp button:disabled { opacity: 0.4; cursor: default; }
     .cfp button.danger { border-color: #a55; }
-    .cfp .msg { color: #bbb; font-size: 11px; min-height: 14px; }
+    .cfp .msg { color: #bbb; font-size: 12px; min-height: 14px; }
     .cfp .msg.err { color: #f99; }
-    .cfp .wt { font-size: 11px; color: #9c9; min-height: 14px; }
+    .cfp .wt { font-size: 12px; color: #9c9; min-height: 14px; }
     .cfp .wt.err { color: #f77; font-weight: bold; }
     .cfp .w { margin-top: 6px; border-top: 1px solid #444; padding-top: 5px; }
     .cfp .w .t { color: #b8f0b8; }
-    .cfp .st { font-size: 11px; color: #9c9; }`;
+    .cfp .st { font-size: 12px; color: #9c9; }
+    .cfp-sec { margin: 2px 4px; display: flex; flex-direction: column; }
+    .cfp-sec textarea.box { flex: 1; height: 100%; resize: none; }
+    .cfp .green { background: #1f7a33; color: #fff; border: 1px solid #39b35a; border-radius: 6px;
+                  padding: 10px 14px; font-size: 14px; font-weight: 700; width: 100%; }
+    .cfp .green:hover { background: #26933e; }
+    .cfp .gmsg { font-size: 12px; color: #9cc4ff; min-height: 14px; }
+    .cfp .gmsg.err { color: #f99; }`;
   document.head.appendChild(s);
 }
 
@@ -73,13 +82,66 @@ async function jpost(url, body) {
 const countText = (text) => jpost("/freedom/summary/count", { text });
 const shortName = (n) => String(n || "").replace(/\.safetensors$/i, "");
 
+// --------------------------------------------------------------------------- //
+// Rename in two steps (user, 2026-09-30) - every Rename button:
+//   1st click: the name box gets the current name, selected, and blinks 3 times.
+//   Then type the new name; Enter or a 2nd click ("Save new name") renames.
+//   Esc puts the box back and renames nothing. (Same as prompt_slots.js.)
+// --------------------------------------------------------------------------- //
+function blinkThree(field) {
+  try {
+    field.animate([{ boxShadow: "0 0 0 3px #ffd479", backgroundColor: "#3a3215" },
+                   { boxShadow: "0 0 0 3px transparent" }], { duration: 330, iterations: 3 });
+  } catch (e) { /* an old browser simply skips the blink */ }
+}
+function makeRenamer({ button, field, current, apply, say, blocked,
+                       armedLabel = "Save new name", allowEmpty = false, requireChange = true }) {
+  let armed = null;
+  const label = button.textContent;
+  const end = (restore) => {
+    if (!armed) return;
+    const { el: f, before, onKey } = armed;
+    f.removeEventListener("keydown", onKey, true);
+    if (restore) f.value = before;
+    armed = null;
+    button.textContent = label;
+  };
+  const confirm = async () => {
+    if (!armed) return;
+    const v = String(armed.el.value || "").trim();
+    const cur = String(current() || "").trim();
+    end(false);
+    if (!v) { say("Type a name first."); return; }
+    if (requireChange && v === cur) { say("The name was not changed."); return; }
+    await apply(v);
+  };
+  const click = async () => {
+    if (armed) return confirm();
+    const stop = blocked?.();
+    if (stop) { say(stop); return; }
+    const f = field(); const cur = current();
+    if (!f || (!cur && !allowEmpty)) { say("There is nothing here to rename."); return; }
+    const before = f.value;
+    f.value = cur || (allowEmpty ? f.value : ""); f.focus(); f.select?.(); blinkThree(f);
+    const onKey = (e) => {
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); confirm(); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(true); say("Rename cancelled - the name is unchanged."); }
+    };
+    f.addEventListener("keydown", onKey, true);
+    armed = { el: f, before, onKey };
+    button.textContent = armedLabel;
+    say(`Pick the model in the menu, then press Enter or ${armedLabel} (Esc cancels).`);
+  };
+  return { click };
+}
+
 class Panel {
   constructor(node) {
     this.node = node; this.ckpt = null; this.front = ""; this.mode = "words";
     this.armed = false; this.lastGood = ""; this.countSeq = 0;
     this.el = document.createElement("div"); this.el.className = "cfp";
     this.el.innerHTML = `
-      <div class="t">STEP 7b SUMMARY SIGNAL - page 1 of the prompt</div>
+      <div class="t">STEP 7c SUMMARY SIGNAL - page 1 of the prompt</div>
       <div class="ex">The art model sums up page 1 (the first 75 places of the prompt) and keeps that
         summary in mind for the whole picture. This box is page 1: the model's own text first (locked),
         then your most important words.</div>
@@ -92,19 +154,37 @@ class Panel {
       <div class="row"><select class="other" title="Save the model text as another model's entry"></select>
         <button class="saveas">Save as</button></div>
       <div class="msg"></div>
-      <div class="w"><div class="t">PROMPT WATCHER - finished prompt from the last run</div>
-        <div class="st">(nothing run yet)</div>
-        <textarea class="watch" readonly placeholder="Run a picture to see the finished prompt here."></textarea></div>`;
-    this.q = (s) => this.el.querySelector(s);
+      <div class="st">At the last run: (nothing run yet)</div>`;
+    // Each section is its own adjustable field (user, 2026-09-30): the parts built
+    // above are moved into separate boxes, each drawn as its own node widget.
+    const kids = [...this.el.children];
+    const pick = (from, to) => kids.slice(from, to);
+    const groups = [["explain", pick(0, 2)], ["model", pick(2, 4)], ["box", pick(4, 5)],
+                    ["check", pick(5, 7)], ["buttons", pick(7, 10)], ["status", pick(10, 11)]];
+    this.sections = groups.map(([name, els]) => {
+      const s = document.createElement("div"); s.className = "cfp cfp-sec";
+      s.append(...els);
+      for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"])
+        s.addEventListener(ev, (e) => e.stopPropagation());
+      return [name, s];
+    });
+    this.q = (s) => { for (const [, sec] of this.sections) { const f = sec.querySelector(s); if (f) return f; } return null; };
     this.q(".edit").onclick = () => this.edit();
     this.q(".save").onclick = () => this.save();
     this.q(".cancel").onclick = () => this.cancel();
     this.q(".del").onclick = () => this.del();
-    this.q(".saveas").onclick = () => this.saveAs();
+    // Save as (user, 2026-09-30): 1st click points you at the model menu (it blinks
+    // and takes the focus); pick the model, then Enter or a 2nd click saves.
+    const saveAser = makeRenamer({
+      button: this.q(".saveas"), field: () => this.q(".other"),
+      armedLabel: "Save as new", allowEmpty: true, requireChange: false,
+      current: () => "",
+      say: (t) => this.say(t),
+      apply: async (model) => { this.q(".other").value = model; await this.saveAs(); },
+    });
+    this.q(".saveas").onclick = () => saveAser.click();
     this.q(".box").addEventListener("input", () => this.typed());
     this.fillModels();
-    for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"])
-      this.el.addEventListener(ev, (e) => e.stopPropagation());
     this.buttons();
   }
   w(name) { return (this.node.widgets || []).find((x) => x.name === name); }
@@ -254,11 +334,77 @@ class Panel {
     this.say("Saved this model text as " + shortName(target) + "'s entry.");
     if (target === stepOneModel().name) { this.mode = "words"; this.buttons(); this.ckpt = null; this.follow(); }
   }
-  watch(finished) { this.q(".watch").value = finished; }
-  status(s) { this.q(".st").textContent = "This node, at the run: " + s; }
+  status(s) { this.q(".st").textContent = "At the last run: " + s; }
 }
 
 const panels = () => (app.graph?._nodes || []).filter((n) => n.__cfp).map((n) => n.__cfp);
+
+// "Adjustable": its own drag handle on the bottom edge; the height is kept in the
+// node's properties so it is saved with the workflow (same as prompt_slots.js).
+function makeAdjustable(node, name, elem, minH = 24) {
+  elem.style.resize = "vertical"; elem.style.overflow = "auto";
+  elem.style.flex = "none";          // keep its own height (ComfyUI would share space evenly)
+  elem.style.minHeight = minH + "px"; elem.style.boxSizing = "border-box";
+  // Saved heights are put back once the node's saved settings have arrived, and a
+  // height is stored only on a real drag (same as prompt_slots.js).
+  (node.__adjustables = node.__adjustables || []).push([name, elem]);
+  const now = node.properties?.freedom_heights?.[name];
+  if (now) { elem.style.height = now + "px"; elem.__applied = Math.round(parseFloat(now)); }
+  if (!node.__adjHooked) {
+    node.__adjHooked = true;
+    const orig = node.onConfigure;
+    node.onConfigure = function () {
+      const r = orig ? orig.apply(this, arguments) : undefined;
+      for (const [nm, el] of this.__adjustables || []) {
+        const h = this.properties?.freedom_heights?.[nm];
+        if (h) { el.style.height = h + "px"; el.__applied = Math.round(parseFloat(h)); }
+      }
+      return r;
+    };
+  }
+  // A height is stored only when YOU change it. Each field remembers the last
+  // height the CODE gave it (__applied); any other height came from a drag. (Chrome
+  // sends no pointer events for its own resize handle, so those cannot be used.)
+  let t = null;
+  new ResizeObserver(() => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      if (!elem.isConnected || !elem.style.height) return;
+      const h = Math.round(parseFloat(elem.style.height));
+      if (!h || h === elem.__applied) return;           // the code set it - not a change
+      elem.__applied = h;
+      if (node.properties?.freedom_heights?.[name] === h) return;
+      node.properties = node.properties || {};
+      node.properties.freedom_heights = { ...(node.properties.freedom_heights || {}), [name]: h };
+      setTimeout(() => { window.__freedomNoOverlap?.(node); app.extensionManager?.workflow?.activeWorkflow?.changeTracker?.checkState?.(); }, 50);
+    }, 300);
+  }).observe(elem);
+}
+
+// ---- STEP 7b Prompt Watcher: its own node (user, 2026-09-30) -------------------
+// Split out of the Summary Signal. Screen only: FreedomPromptWatcher has no inputs
+// or outputs, so the server never runs it; the page fills it after each run.
+const WATCHER = "FreedomPromptWatcher";
+const WATCH_PANEL = "freedom_prompt_watcher_panel";
+
+class WatchPanel {
+  constructor(node) {
+    this.node = node;
+    this.el = document.createElement("div"); this.el.className = "cfp";
+    this.el.innerHTML = `
+      <div class="t">PROMPT WATCHER - the finished prompt from the last run</div>
+      <div class="ex">Every word the art model got for the last picture made from this page, in the
+        order it got them: the Summary Signal, your physical and everything-else boxes, her trigger
+        word, and Portrait Master's words. Use it to spot a word that is missing, doubled or in the
+        wrong place. Read-only. It starts empty when the page loads and fills after the next Run.</div>
+      <textarea class="watch" readonly placeholder="Run a picture to see the finished prompt here."></textarea>`;
+    for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"])
+      this.el.addEventListener(ev, (e) => e.stopPropagation());
+  }
+  watch(finished) { this.el.querySelector(".watch").value = finished; }
+}
+
+const watchPanels = () => (app.graph?._nodes || []).filter((n) => n.__cfw).map((n) => n.__cfw);
 
 app.registerExtension({
   name: "freedom.checkpoint_prefix",
@@ -267,7 +413,7 @@ app.registerExtension({
       const n = app.graph?.getNodeById?.(Number(detail?.node));
       const out = detail?.output || {};
       if (out.finished_prompt && (!n || n.comfyClass === "FreedomPromptParts"))
-        for (const p of panels()) p.watch(out.finished_prompt[0] ?? "");
+        for (const p of watchPanels()) p.watch(out.finished_prompt[0] ?? "");
       if (out.status && (!n || n.comfyClass === NODE))
         for (const p of panels()) p.status(out.status[0] ?? "");
     });
@@ -292,6 +438,14 @@ app.registerExtension({
       }
       return;
     }
+    if (node.comfyClass === WATCHER) {
+      css();
+      const p = new WatchPanel(node); node.__cfw = p;
+      const w = node.addDOMWidget(WATCH_PANEL, "FREEDOM_PROMPT_WATCHER", p.el,
+        { serialize: false, hideOnZoom: false, getMinHeight: () => 200 });
+      w.serialize = false;
+      return;
+    }
     if (node.comfyClass !== NODE) return;
     css();
     const p = new Panel(node); node.__cfp = p;
@@ -300,7 +454,7 @@ app.registerExtension({
     const sw = (node.widgets || []).find((x) => x.name === "signal");
     if (sw) {
       // A multiline STRING widget draws its own textarea, so the element is hidden too
-      // (same way as STEP 4a's hidden "state" field in freedom_portrait_control).
+      // (same way as STEP 4b's hidden "state" field in freedom_portrait_control).
       sw.type = "hidden"; sw.computeSize = () => [0, -4];
       const hideEl = () => {
         const el = sw.element || sw.inputEl || sw.domElement;
@@ -317,9 +471,29 @@ app.registerExtension({
       const orig = ew.callback;
       ew.callback = function (...args) { const r = orig?.apply(this, args); p.render(); return r; };
     }
-    const w = node.addDOMWidget(PANEL, "FREEDOM_CKPT_FRONT", p.el, { serialize: false, hideOnZoom: false, getMinHeight: () => 560 });
-    w.serialize = false;
-    node.widgets.splice(node.widgets.indexOf(w), 1); node.widgets.unshift(w);
+    // One adjustable field per section, in reading order, at the top of the node,
+    // then the big green button (user, 2026-09-30).
+    const added = [];
+    for (const [name, sec] of p.sections) {
+      makeAdjustable(node, name, sec, name === "box" ? 60 : 24);
+      if (name === "box" && !node.properties?.freedom_heights?.box) { sec.style.height = "90px"; sec.__applied = 90; }
+      const w = node.addDOMWidget(`${PANEL}_${name}`, "FREEDOM_CKPT_FRONT", sec, { serialize: false, hideOnZoom: false });
+      w.serialize = false; added.push(w);
+    }
+    const g = document.createElement("div"); g.className = "cfp cfp-sec";
+    g.innerHTML = `<button class="green">Update the FINAL COMBINED PROMPT</button><div class="gmsg"></div>`;
+    for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"]) g.addEventListener(ev, (e) => e.stopPropagation());
+    g.querySelector(".green").onclick = () => {
+      const err = window.__freedomFinal ? window.__freedomFinal.update("front") : "The FINAL COMBINED PROMPT code is not loaded.";
+      const m = g.querySelector(".gmsg");
+      m.textContent = err || `done - the FINAL COMBINED PROMPT now has this box's text (${new Date().toLocaleTimeString()})`;
+      m.classList.toggle("err", !!err);
+    };
+    makeAdjustable(node, "green", g, 40);
+    const gw = node.addDOMWidget(`${PANEL}_green`, "FREEDOM_CKPT_FRONT", g, { serialize: false, hideOnZoom: false });
+    gw.serialize = false; added.push(gw);
+    for (const w of added) node.widgets.splice(node.widgets.indexOf(w), 1);
+    node.widgets.unshift(...added);
     p.follow();
   },
 });

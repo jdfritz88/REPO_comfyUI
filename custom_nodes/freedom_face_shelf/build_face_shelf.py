@@ -1,4 +1,4 @@
-"""Build Freedom_Face_Shelf.json - a minimal graph that uses the Face Shelf node."""
+"""Build Face_Shelf.json - a minimal graph that uses the Face Shelf node."""
 import json
 
 nodes, links = [], []
@@ -126,7 +126,7 @@ wf = {"id": "freedom-face-shelf", "revision": 0,
       "last_node_id": 60, "last_link_id": _lid[0],
       "nodes": nodes, "links": links, "groups": [],
       "config": {}, "extra": {}, "version": 0.4}
-out = r"F:/Apps/freedom_system/REPO_comfyUI/user/default/workflows/Freedom_Face_Shelf.json"
+out = r"F:/Apps/freedom_system/REPO_comfyUI/user/default/workflows/Face_Shelf.json"
 json.dump(wf, open(out, "w", encoding="utf-8"), indent=2)
 print("wrote", out, "| nodes", len(nodes), "| links", _lid[0])
 

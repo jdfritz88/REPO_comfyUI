@@ -5,7 +5,7 @@
 #
 # A 9-slot queue that feeds the Wan image-to-video graph one item at a time.
 #
-#   * "Send to Video Queue" (button on the Preview & Pick panel) drops picked
+#   * "Send selected image to video workflow queue" (button on the Preview & Pick panel) drops picked
 #     images into the queue.
 #   * Each slot carries its OWN motion prompt, size and length.
 #   * The whole queue + settings + last-used prompt live in ONE string on the

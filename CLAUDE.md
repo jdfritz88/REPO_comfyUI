@@ -87,6 +87,22 @@ instructions, then the buttons that fill or reset the form, then the form itself
   now reads 7a description, 7b Summary Signal, 7c prompt boxes, 7d phrase note,
   7e phrases. When the checkpoint hints are built they go in as 7c and the
   letters after them move down. Record: `logs/summary_signal_2026-09-29.md`.
+  **Since 2026-09-30 (user, Freedom_SDXL_v01):** the Prompt Watcher is its own node,
+  7b (FreedomPromptWatcher, screen only - no inputs/outputs, never run by the server,
+  filled by the page after each run). STEP 7 now reads 7a description, 7b Prompt
+  Watcher, 7c Summary Signal, 7d prompt boxes, 7e phrase note, 7f phrases. The
+  Summary Signal keeps its own "At the last run" line.
+  **Later on 2026-09-30 (user) - STEP 7 split:** 7a "What you want" note, 7b "Hints"
+  note ("n/a" for now), 7c Summary Signal (each section its own adjustable field + green
+  button), 7d Scene Prompt (FreedomScenePrompt, was "everything else"), 7e Physical
+  Description Prompt (FreedomPhysicalPrompt), 7f FINAL COMBINED PROMPT
+  (FreedomFinalPrompt: read-only, closed to mouse and keyboard, watcher line, Prompt
+  Watcher field beneath). Each prompt box has a big green "Update the FINAL COMBINED
+  PROMPT" button; nothing updates by itself. Order: Summary Signal, trigger word (or
+  Portrait Master's words), Physical, Scene. At Run the engine gets exactly what the
+  final box shows (random-face: Portrait Master's words fill their marker at Run). The
+  phrase shelf and its note were taken out of the workflow (code kept). The separate
+  Prompt Watcher node and FreedomPromptParts are gone from the workflow (code kept).
 - Layout changes go into a new workflow version, not the one the user is working
   in (v09 was made for STEP 3 because the user was working in v08).
 
@@ -98,11 +114,17 @@ instructions, then the buttons that fill or reset the form, then the form itself
   it off and locked).
 - **Every save / edit / delete package in the workflow has a "Save as"** as well as Save, so a
   changed version can be kept without replacing the old one. A new package gets one from the start.
-- STEP 4a has one menu (no "In charge" dropdown): "Use the dials (no 4a preset)", saved presets
+- **STEP 4 letters changed 2026-09-30 (user):** the STEP 4 hints note is now 4a; the preset
+  box (FreedomPortraitUserPreset) is 4b; Portrait Master's nodes are 4c-4h. Everything moved,
+  hidden names too (`n4c_mode` ... `n4h_preset`, pair choice "4c Base Character"). Older
+  workflow files still carry the old names and lose their STEP 4 settings when opened.
+  Record: `logs/REPO_comfyUI_Monitor_LOG.md` (2026-09-30), backups in
+  `_backups/step4_reletter_2026-09-30/`. The two notes below use the new letters.
+- STEP 4b has one menu (no "In charge" dropdown): "Use the dials (no 4b preset)", saved presets
   (they load unlocked - they only fill dials you have not changed), then the three built-in z_
   choices. Every entry has a description beneath the menu; an entry without one says
   "needs description". Record: `logs/checkpoint_front_text_2026-09-29/LOG.md`.
-- 4b-4g the same way (Q66 = 1): no "In charge" row; each node's own menu decides - "Use the
+- 4c-4h the same way (Q66 = 1): no "In charge" row; each node's own menu decides - "Use the
   dials (no preset)", or a saved preset that loads unlocked - with a description beneath every
   entry. Portrait Master's own presets are read-only (their descriptions live in our
   `builtin_descriptions.json`). Record: `logs/pm_node_menus_merged_2026-09-29.md`.

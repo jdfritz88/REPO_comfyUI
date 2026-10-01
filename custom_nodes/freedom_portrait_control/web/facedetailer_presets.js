@@ -1,6 +1,6 @@
 // web/facedetailer_presets.js
 //
-// FaceDetailer (face repaint, STEP 11b) - our presets package and a
+// FaceDetailer (face repaint, STEP 11c) - our presets package and a
 // "Reset to Developer's Defaults" button, at the top of the node (user, 2026-09-26).
 //
 // Presets
@@ -31,26 +31,109 @@ const NODE = "FaceDetailer";
 const SCOPE = "facedetailer";
 const PANEL = "freedom_fd_presets";
 
+// --------------------------------------------------------------------------- //
+// Rename in two steps (user, 2026-09-30) - every Rename button:
+//   1st click: the name box gets the current name, selected, and blinks 3 times.
+//   Then type the new name; Enter or a 2nd click ("Save new name") renames.
+//   Esc puts the box back and renames nothing. (Same as prompt_slots.js.)
+// --------------------------------------------------------------------------- //
+function blinkThree(field) {
+  try {
+    field.animate([{ boxShadow: "0 0 0 3px #ffd479", backgroundColor: "#3a3215" },
+                   { boxShadow: "0 0 0 3px transparent" }], { duration: 330, iterations: 3 });
+  } catch (e) { /* an old browser simply skips the blink */ }
+}
+function makeRenamer({ button, field, current, apply, say, blocked,
+                       armedLabel = "Save new name", allowEmpty = false, requireChange = true }) {
+  let armed = null;
+  const label = button.textContent;
+  const end = (restore) => {
+    if (!armed) return;
+    const { el: f, before, onKey } = armed;
+    f.removeEventListener("keydown", onKey, true);
+    if (restore) f.value = before;
+    armed = null;
+    button.textContent = label;
+  };
+  const confirm = async () => {
+    if (!armed) return;
+    const v = String(armed.el.value || "").trim();
+    const cur = String(current() || "").trim();
+    end(false);
+    if (!v) { say("Type a name first."); return; }
+    if (requireChange && v === cur) { say("The name was not changed."); return; }
+    await apply(v);
+  };
+  const click = async () => {
+    if (armed) return confirm();
+    const stop = blocked?.();
+    if (stop) { say(stop); return; }
+    const f = field(); const cur = current();
+    if (!f || (!cur && !allowEmpty)) { say("There is nothing here to rename."); return; }
+    const before = f.value;
+    f.value = cur || (allowEmpty ? f.value : ""); f.focus(); f.select?.(); blinkThree(f);
+    const onKey = (e) => {
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); confirm(); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(true); say("Rename cancelled - the name is unchanged."); }
+    };
+    f.addEventListener("keydown", onKey, true);
+    armed = { el: f, before, onKey };
+    button.textContent = armedLabel;
+    say(`Type the new name, then press Enter or ${armedLabel} (Esc cancels).`);
+  };
+  return { click };
+}
+
+// A button never sits switched off (user, 2026-09-30). When it needs something first,
+// the field it needs - a dropdown OR a text box - blinks 3 times and stays highlighted
+// until you use it. Picking from a dropdown this way only CHOOSES (nothing is loaded,
+// unless chooseOnly is false); then the button carries on. Esc lets go of it.
+function needPick(field, say, message, onPicked, chooseOnly = true) {
+  if (!field) { say?.(message); return; }
+  if (field.disabled) field.disabled = false;
+  say?.(message);
+  blinkThree(field);
+  field.style.outline = "3px solid #ffd479";
+  field.style.outlineOffset = "1px";
+  field.__holdPick = chooseOnly;
+  field.__beforePick = field.value;
+  field.focus?.();
+  const finish = (picked) => {
+    field.removeEventListener("change", onChange, true);
+    field.removeEventListener("keydown", onKey, true);
+    field.style.outline = "";
+    if (!picked) { field.value = field.__beforePick; field.__holdPick = false; return; }
+    setTimeout(() => onPicked?.(), 0);
+  };
+  const onChange = () => { if (chooseOnly) field.__pickOnly = true; finish(true); };
+  const onKey = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(false); say?.("Cancelled."); }
+  };
+  field.addEventListener("change", onChange, true);
+  field.addEventListener("keydown", onKey, true);
+}
+
+
 function css() {
   if (document.getElementById("freedom-fdp-css")) return;
   const s = document.createElement("style");
   s.id = "freedom-fdp-css";
   s.textContent = `
-    .fdp { font: 12px/1.5 sans-serif; color: #ccc; padding: 6px 8px; margin: 0 4px;
+    .fdp { font: 13px/1.5 sans-serif; color: #ccc; padding: 6px 8px; margin: 0 4px;
            border: 1px solid #555; border-radius: 4px; background: #1c1c1c; }
     .fdp .t { font-weight: bold; color: #cde3ff; margin-bottom: 4px; }
     .fdp .row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
     .fdp select, .fdp input { background: #111; color: #eee; border: 1px solid #666; border-radius: 3px;
-                              font: 12px sans-serif; padding: 2px 4px; }
+                              font: 13px sans-serif; padding: 2px 4px; }
     .fdp select { flex: 1; min-width: 120px; }
     .fdp input { flex: 1; min-width: 120px; }
-    .fdp button { font: 11px sans-serif; padding: 2px 8px; background: #333; color: #eee;
+    .fdp button { font: 12px sans-serif; padding: 2px 8px; background: #333; color: #eee;
                   border: 1px solid #666; border-radius: 3px; cursor: pointer; }
     .fdp button:hover { background: #444; }
     .fdp button.danger { border-color: #a55; }
     .fdp .reset { width: 100%; margin-top: 2px; }
     .fdp .prefix { color: #9c9; font-weight: bold; }
-    .fdp .msg { color: #bbb; font-size: 11px; min-height: 14px; }
+    .fdp .msg { color: #bbb; font-size: 12px; min-height: 14px; }
     .fdp .msg.err { color: #f99; }`;
   document.head.appendChild(s);
 }
@@ -132,11 +215,33 @@ class Panel {
       <div class="row"><button class="reset">Reset to Developer's Defaults</button></div>
       <div class="msg"></div>`;
     this.q = (s) => this.el.querySelector(s);
-    this.q(".load").onclick = () => this.load();
-    this.q(".save").onclick = () => this.save();
-    this.q(".saveas").onclick = () => this.saveAs();
-    this.q(".rename").onclick = () => this.rename();
-    this.q(".delete").onclick = () => this.del();
+    // Nothing picked: the preset menu blinks and waits; then the button carries on
+    // (Load loads; Save and Delete ask you to press them again). (user, 2026-09-30)
+    const list = () => this.q(".list");
+    const tell = (t) => this.say(t);
+    this.q(".load").onclick = () => this.selected() ? this.load()
+      : needPick(list(), tell, "Pick the preset to load.", () => this.load());
+    this.q(".save").onclick = () => this.selected() ? this.save()
+      : needPick(list(), tell, "Pick the preset to save over (or use Save as).",
+          () => tell(`Now press Save to save over ${this.selected()}.`));
+    const saveAser = makeRenamer({
+      button: this.q(".saveas"), field: () => this.q(".name"),
+      armedLabel: "Save as new", allowEmpty: true, requireChange: false,
+      current: () => this.selected() || "",
+      say: (t) => this.say(t),
+      apply: async (newText) => { this.q(".name").value = newText; await this.saveAs(); },
+    });
+    this.q(".saveas").onclick = () => saveAser.click();
+    const renamer = makeRenamer({
+      button: this.q(".rename"), field: () => this.q(".name"),
+      current: () => this.selected() || "",
+      say: (t) => this.say(t),
+      apply: async (newText) => { this.q(".name").value = newText; await this.rename(); },
+    });
+    this.q(".rename").onclick = () => this.selected() ? renamer.click()
+      : needPick(list(), tell, "Pick the preset to rename.", () => renamer.click());
+    this.q(".delete").onclick = () => this.selected() ? this.del()
+      : needPick(list(), tell, "Pick the preset to delete.", () => this.del());
     this.q(".reset").onclick = () => this.reset();
     for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"])
       this.el.addEventListener(ev, (e) => e.stopPropagation());

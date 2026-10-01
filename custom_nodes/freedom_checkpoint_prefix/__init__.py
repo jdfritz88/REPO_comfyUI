@@ -1,5 +1,5 @@
 # =============================================================================
-# FREEDOM SYSTEM - STEP 7b Summary Signal (user, 2026-09-29: Q55 = 1, Q71 = 1, Q72 = 1)
+# FREEDOM SYSTEM - STEP 7c Summary Signal (user, 2026-09-29: Q55 = 1, Q71 = 1, Q72 = 1)
 #
 # Since Q72 = 1 this ONE node does two jobs (it was "Checkpoint front text" before):
 #  1. the model's own front text (e.g. Pony's score tags), loaded for the model STEP 1
@@ -25,8 +25,9 @@
 # - Runs every time (IS_CHANGED = nan), so switching models can never leave old text.
 # - One small file per model, in OUR folder: user/default/checkpoint_prefix/<model>.json
 # - Save / edit / delete from the node (web/checkpoint_prefix.js, routes below).
-# - Prompt watcher: one log line per run, and the node shows the finished prompt that
-#   STEP 7b built (FreedomPromptParts sends it back to the page).
+# - One log line per run. The finished prompt that STEP 7d built (FreedomPromptParts
+#   sends it back to the page) shows on its own node since 2026-09-30: STEP 7b Prompt
+#   Watcher (FreedomPromptWatcher, below).
 # =============================================================================
 import json
 import logging
@@ -94,7 +95,7 @@ _TOKENIZER = None
 
 
 def join_signal(front, words):
-    # Same joiner as STEP 7c (FreedomPromptParts.combine), so the count matches the real prompt.
+    # Same joiner as STEP 7d (FreedomPromptParts.combine), so the count matches the real prompt.
     return ", ".join(p for p in (str(front or "").strip(), str(words or "").strip()) if p)
 
 
@@ -131,7 +132,7 @@ class FreedomCheckpointFrontText:
     RETURN_NAMES = ("front",)
     FUNCTION = "run"
     CATEGORY = "Freedom"
-    DESCRIPTION = ("STEP 7b Summary Signal. Starts with the text saved for the model picked in "
+    DESCRIPTION = ("STEP 7c Summary Signal. Starts with the text saved for the model picked in "
                    "STEP 1 (for example CyberRealistic Pony's score tags; nothing for a model with "
                    "nothing saved), then your most important words. Both must fit on page 1 - the "
                    "first 75 places of the prompt, the part SDXL sums up for the whole picture.")
@@ -160,12 +161,34 @@ class FreedomCheckpointFrontText:
             fit = ("WARNING: about %d places over page 1 - the end of your summary words lands on page 2"
                    % (page["used"] - LIMIT))
         status = "%s; your words: %s; %s" % (status, ("'%s'" % words) if words else "none", fit)
-        log.info("[Freedom] STEP 7b Summary Signal: %s for %s", status, ckpt or "(unknown)")
+        log.info("[Freedom] STEP 7c Summary Signal: %s for %s", status, ckpt or "(unknown)")
         return {"ui": {"checkpoint": [ckpt or ""], "front": [front], "status": [status]}, "result": (text,)}
 
 
-NODE_CLASS_MAPPINGS = {"FreedomCheckpointFrontText": FreedomCheckpointFrontText}
-NODE_DISPLAY_NAME_MAPPINGS = {"FreedomCheckpointFrontText": "Freedom Summary Signal (model's front text + your words, page 1)"}
+class FreedomPromptWatcher:
+    """STEP 7b Prompt Watcher (user, 2026-09-30): its own node, split out of the Summary
+    Signal. Screen only - it has no inputs and no outputs, so the server never runs it.
+    The page fills it after each run with the finished prompt that FreedomPromptParts
+    sends back (web/checkpoint_prefix.js)."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {}}
+
+    RETURN_TYPES = ()
+    FUNCTION = "run"
+    CATEGORY = "Freedom"
+    DESCRIPTION = ("STEP 7b Prompt Watcher. Shows every word the art model got on the last "
+                   "picture made from this page, in order. Read-only.")
+
+    def run(self):
+        return ()
+
+
+NODE_CLASS_MAPPINGS = {"FreedomCheckpointFrontText": FreedomCheckpointFrontText,
+                       "FreedomPromptWatcher": FreedomPromptWatcher}
+NODE_DISPLAY_NAME_MAPPINGS = {"FreedomCheckpointFrontText": "Freedom Summary Signal (model's front text + your words, page 1)",
+                              "FreedomPromptWatcher": "Prompt Watcher (the finished prompt from the last run)"}
 WEB_DIRECTORY = "./web"
 
 # --------------------------------------------------------------------------- #
@@ -204,7 +227,7 @@ try:
         try:
             r = page_one(text)
         except Exception as e:                   # reported to the box, never guessed around
-            log.warning("[Freedom] STEP 7b Summary Signal: could not count (%s)", e)
+            log.warning("[Freedom] STEP 7c Summary Signal: could not count (%s)", e)
             return web.json_response({"ok": False, "error": "Could not count: %s" % e})
         return web.json_response({"ok": True, "text": text, "limit": LIMIT, **r})
 

@@ -10,25 +10,33 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const CSS = `
-.pp-root{display:flex;flex-direction:column;height:100%;min-height:300px;font:12px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1e1e1e;border:1px solid #444;border-radius:6px;overflow:hidden}
+.pp-root{display:flex;flex-direction:column;height:100%;min-height:300px;font:13px/1.35 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1e1e1e;border:1px solid #444;border-radius:6px;overflow:hidden}
 .pp-grid{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;padding:8px}
 .pp-card{position:relative;border:2px solid #444;border-radius:6px;overflow:hidden;background:#111;cursor:pointer}
 .pp-card.on{border-color:#3fb950;box-shadow:0 0 0 2px #3fb95055}
 .pp-card img{display:block;width:100%;height:auto}
 .pp-card .tick{position:absolute;top:6px;left:6px;width:20px;height:20px;accent-color:#3fb950;cursor:pointer}
-.pp-card .idx{position:absolute;bottom:4px;right:6px;background:#000a;padding:1px 6px;border-radius:8px;font-size:11px}
+.pp-card .idx{position:absolute;bottom:4px;right:6px;background:#000a;padding:1px 6px;border-radius:8px;font-size:12px}
 .pp-empty{padding:24px;color:#888;text-align:center}
 .pp-foot{display:flex;flex-direction:column;gap:6px;padding:8px;border-top:1px solid #444}
 .pp-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .pp-foot button{background:#333;color:#ddd;border:1px solid #555;border-radius:4px;padding:4px 10px;cursor:pointer;white-space:nowrap}
 .pp-foot button:hover{background:#444}
-.pp-foot .save{background:#1f5a2a;border-color:#2e7d3a;color:#e8ffe8;font-weight:700;padding:6px 16px;font-size:12.5px}
+.pp-foot .save{background:#1f5a2a;border-color:#2e7d3a;color:#e8ffe8;font-weight:700;padding:6px 16px;font-size:13.5px}
 .pp-foot .save:disabled{opacity:.45;cursor:default}
 .pp-foot .setfolder{background:#26364e;border-color:#39547a;color:#dce9ff}
 .pp-foot .status{flex:1;min-width:120px;color:#9cc4ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pp-foot .status.err{color:#ff9c9c}
 .pp-foot .folder{flex:1;min-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#cfe2ff}
 .pp-foot .lbl{color:#999}
+.pp-viewer{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center}
+.pp-viewer .pic{max-width:calc(100vw - 220px);max-height:calc(100vh - 90px);object-fit:contain;user-select:none;box-shadow:0 0 30px #000}
+.pp-viewer .nav{position:fixed;top:50%;transform:translateY(-50%);width:84px;height:140px;border:none;border-radius:10px;background:rgba(255,255,255,.08);color:#fff;font:64px/1 sans-serif;cursor:pointer}
+.pp-viewer .nav:hover{background:rgba(255,255,255,.22)}
+.pp-viewer .prev{left:16px}.pp-viewer .next{right:16px}
+.pp-viewer .close{position:fixed;top:14px;right:16px;width:52px;height:52px;border:none;border-radius:10px;background:rgba(255,255,255,.08);color:#fff;font:30px/1 sans-serif;cursor:pointer}
+.pp-viewer .close:hover{background:rgba(255,80,80,.5)}
+.pp-viewer .count{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:#eee;font:20px sans-serif;background:rgba(0,0,0,.6);padding:5px 14px;border-radius:8px}
 `;
 
 function injectCss() {
@@ -69,7 +77,7 @@ class PickPanel {
               <span class="lbl">to:</span><span class="folder" title=""></span>
             </div>
             <div class="pp-row">
-              <button class="tovideo setfolder" title="Send the ticked pictures to the 9-slot video queue">Send to Video Queue</button>
+              <button class="tovideo setfolder" title="Send the ticked pictures to the 9-slot video queue">Send selected image to video workflow queue</button>
               <span class="lbl" style="opacity:.8">To send an image to the video generation queue, click the image (or several for a batch), then click this button.</span>
             </div>
             <div class="pp-row">
@@ -138,6 +146,7 @@ class PickPanel {
                 : "Auto-save is off - this run was not archived.";
         }
         this.files = files.map(f => ({ ...f, on: files.length === 1 }));
+        this.urls = [];                       // every picture of this run, for the viewer
         this.grid.innerHTML = "";
         if (!files.length) {
             this.grid.innerHTML = `<div class="pp-empty">No pictures came out of this run.</div>`;
@@ -155,7 +164,8 @@ class PickPanel {
             const toggle = (v) => { f.on = v; tick.checked = v; card.classList.toggle("on", v); this.updateButtons(); };
             card.onclick = (e) => { if (e.target !== tick) toggle(!f.on); };
             tick.onchange = () => toggle(tick.checked);
-            card.ondblclick = () => window.open(url, "_blank");
+            this.urls.push(url);
+            card.ondblclick = () => this.openViewer(i);
             card.title = "Click = select / unselect.  Double-click = open full size.";
             this.grid.appendChild(card);
         });
@@ -163,6 +173,48 @@ class PickPanel {
             ? "1 picture ready. Click \"Save Image\" to keep it."
             : files.length + " pictures. Tick the ones you want, then \"Save Selected Images\".");
         this.updateButtons();
+    }
+
+    // Double-click a picture: it opens large ON TOP OF ComfyUI (no new tab, so Chrome
+    // can never block it), with arrows left and right, the arrow keys, a "2 of 4" count,
+    // and an X. Esc or a click on the dark area closes it (user, 2026-09-30, Q = 1).
+    openViewer(start) {
+        const urls = this.urls || [];
+        if (!urls.length) return;
+        document.querySelector(".pp-viewer")?.remove();
+        const many = urls.length > 1;
+        const v = document.createElement("div");
+        v.className = "pp-viewer";
+        v.innerHTML = `<img class="pic" alt="">
+          <button class="nav prev" title="Previous picture (left arrow key)">&#8249;</button>
+          <button class="nav next" title="Next picture (right arrow key)">&#8250;</button>
+          <button class="close" title="Close (Esc)">&#10005;</button>
+          <div class="count"></div>`;
+        const pic = v.querySelector(".pic"), count = v.querySelector(".count");
+        let i = start;
+        const show = () => { pic.src = urls[i]; count.textContent = (i + 1) + " of " + urls.length; };
+        const step = (d) => { i = (i + d + urls.length) % urls.length; show(); };   // wraps around
+        const close = () => { v.remove(); document.removeEventListener("keydown", onKey, true); };
+        // Keys go to the viewer only while it is open, so ComfyUI's own shortcuts don't fire.
+        const onKey = (e) => {
+            if (e.key === "ArrowLeft" && many) step(-1);
+            else if (e.key === "ArrowRight" && many) step(1);
+            else if (e.key === "Escape") close();
+            else return;
+            e.preventDefault(); e.stopPropagation();
+        };
+        v.querySelector(".prev").onclick = (e) => { e.stopPropagation(); step(-1); };
+        v.querySelector(".next").onclick = (e) => { e.stopPropagation(); step(1); };
+        v.querySelector(".close").onclick = (e) => { e.stopPropagation(); close(); };
+        pic.onclick = (e) => e.stopPropagation();          // clicking the picture keeps it open
+        v.onclick = close;                                 // clicking the dark area closes it
+        for (const ev of ["pointerdown", "mousedown", "wheel", "contextmenu", "dblclick"]) {
+            v.addEventListener(ev, e => e.stopPropagation());
+        }
+        if (!many) { v.querySelector(".prev").style.display = "none"; v.querySelector(".next").style.display = "none"; }
+        document.addEventListener("keydown", onKey, true);
+        document.body.appendChild(v);
+        show();
     }
 
     setAll(v) {
@@ -182,7 +234,7 @@ class PickPanel {
 
     async sendToVideoQueue() {
         const picked = this.files.filter(f => f.on);
-        if (!picked.length) { this.say("Click the picture(s) you want first, then Send to Video Queue.", true); return; }
+        if (!picked.length) { this.say("Click the picture(s) you want first, then Send selected image to video workflow queue.", true); return; }
         const refs = picked.map(f => ({ filename: f.filename, subfolder: f.subfolder, type: "temp" }));
         try {
             const r = await postJSON("/freedom/video/enqueue", { images: refs, prompt: "" });

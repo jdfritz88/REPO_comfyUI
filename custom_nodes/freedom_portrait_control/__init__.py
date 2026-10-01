@@ -1,10 +1,10 @@
 # =============================================================================
-# FREEDOM SYSTEM - Portrait Control  (STEP 4a)
+# FREEDOM SYSTEM - Portrait Control  (STEP 4b)
 #
 # Our own add-on, in our own folder, so a Portrait Master re-install or update can
 # never erase it. It does three things:
 #
-#   1. Declares the 4a node: which mode is in charge, which user preset is selected,
+#   1. Declares the 4b node: which mode is in charge, which user preset is selected,
 #      and a hidden field holding each node group's own radio choice.
 #   2. Serves the buttons: list / save / save-as / delete presets, and the developer's
 #      factory values, read live from their code.
@@ -16,7 +16,7 @@
 # Why a hidden field for the per-node radios: ComfyUI sends a node's INPUT values to the
 # server and nothing else - not its properties. A radio drawn by our web code on one of
 # the developer's nodes is therefore invisible to the server unless its state travels in
-# something the server receives. It travels in 4a's "state" input.
+# something the server receives. It travels in 4b's "state" input.
 # =============================================================================
 import json
 import logging
@@ -33,13 +33,13 @@ MODES = [MODE_PRESET_WINS, MODE_PRESET_UNLOCKED, MODE_IGNORE_PRESETS]
 
 NO_PRESET = "-- none --"
 
-# Built-in choices at the BOTTOM of 4a's top preset dropdown (user, 2026-09-29, Q60/Q62).
+# Built-in choices at the BOTTOM of 4b's top preset dropdown (user, 2026-09-29, Q60/Q62).
 # They are not files. They decide Portrait Master's on/off outright, so the pair dropdown
 # ("which one starts the chain") can never fight a switch:
 #   z_block      - every Portrait Master node OFF, greyed and locked on screen.
 #   z_open_base  - every node ON and unlocked, Base Character ON, Face Generator OFF.
 #   z_open_face  - every node ON and unlocked, Face Generator ON, Base Character OFF.
-# "Open" means the dials are used as they are: no 4a preset values and no node
+# "Open" means the dials are used as they are: no 4b preset values and no node
 # presets are written over them.
 Z_BLOCK = "z_block all nodes"
 Z_OPEN_BASE = "z_unblock and open all nodes WITH Base Character (Face Generator must be OFF)"
@@ -47,7 +47,7 @@ Z_OPEN_FACE = "z_unblock and open all nodes WITH Face Generator (Base Character 
 Z_PRESETS = [Z_BLOCK, Z_OPEN_BASE, Z_OPEN_FACE]
 # The "In charge" dropdown is gone from the screen (user, 2026-09-29, Q64 = 4, Q65 = 3).
 # The mode is worked out from the ONE preset menu instead, so there is nothing to conflict:
-#   "-- none --" (shown as "Use the dials (no 4a preset)") -> ignore presets, use the dials
+#   "-- none --" (shown as "Use the dials (no 4b preset)") -> ignore presets, use the dials
 #   a saved preset                                         -> loads UNLOCKED (fills only
 #                                                             the dials you have not changed)
 #   a z_ choice                                            -> on/off outright (below)
@@ -58,8 +58,8 @@ def effective_mode(preset_name):
     return MODE_PRESET_UNLOCKED
 
 
-# The same for 4b-4g (user, 2026-09-29, Q66 = 1, Q73 = 1): each node's own preset menu
-# decides; its "In charge" dropdown (<step>_mode on 4a) is hidden and not read any more.
+# The same for 4c-4h (user, 2026-09-29, Q66 = 1, Q73 = 1): each node's own preset menu
+# decides; its "In charge" dropdown (<step>_mode on 4b) is hidden and not read any more.
 #   "-- none --" -> ignore presets, use the dials;  a preset -> loads UNLOCKED.
 def effective_node_mode(preset_name):
     if not preset_name or preset_name == NO_PRESET:
@@ -74,33 +74,33 @@ BUILTIN_DESCRIPTIONS_FILE = "builtin_descriptions.json"
 Z_ON_OFF_NODES = ["PortraitMasterBaseCharacter", "PortraitMasterFaceGenerator",
                   "PortraitMasterSkinDetails", "PortraitMasterStylePose", "PortraitMasterMakeup"]
 
-# Per-node radio choices, stored in 4a's "state" field by the web code.
+# Per-node radio choices, stored in 4b's "state" field by the web code.
 NODE_MODE_PRESET = "node preset"           # dials locked, no buttons
 NODE_MODE_PRESET_UNLOCKED = "node preset + unlocked"
 NODE_MODE_IGNORE = "ignore presets"
 
 
 # --------------------------------------------------------------------------- #
-# The per-node choices as REAL node dropdowns on 4a.
+# The per-node choices as REAL node dropdowns on 4b.
 #
 # They replace the radio buttons our web code used to draw on each Portrait Master
 # node. Radios were page elements, so only the PC had them; a dropdown is part of
 # the node, so the PC, the phone and a raw API call all send it.
 #
-# Named by STEP letter (n4b ... n4g) so the phone shows something recognisable.
+# Named by STEP letter (n4c ... n4h) so the phone shows something recognisable.
 # Appended AFTER mode/preset/state, because saved workflows store values by
 # position and inserting among them would misread every older workflow.
 # --------------------------------------------------------------------------- #
 STEP_OF = {
-    "PortraitMasterBaseCharacter": "n4b",
-    "PortraitMasterFaceGenerator": "n4c",
-    "PortraitMasterSkinDetails":   "n4d",
-    "PortraitMasterStylePose":     "n4e",
-    "PortraitMasterMakeup":        "n4f",
-    "PortraitMasterPromptStyler":  "n4g",
+    "PortraitMasterBaseCharacter": "n4c",
+    "PortraitMasterFaceGenerator": "n4d",
+    "PortraitMasterSkinDetails":   "n4e",
+    "PortraitMasterStylePose":     "n4f",
+    "PortraitMasterMakeup":        "n4g",
+    "PortraitMasterPromptStyler":  "n4h",
 }
 NODE_MODES = [NODE_MODE_PRESET, NODE_MODE_PRESET_UNLOCKED, NODE_MODE_IGNORE]
-PAIR_CHOICES = ["4b Base Character", "4c Face Generator"]
+PAIR_CHOICES = ["4c Base Character", "4d Face Generator"]
 STYLER_CHOICES = ["off", "on"]
 
 
@@ -116,7 +116,7 @@ def _dropdown_inputs():
     for cls, step in STEP_OF.items():
         out["%s_mode" % step] = (NODE_MODES, {"default": NODE_MODE_PRESET})
         out["%s_preset" % step] = (_node_preset_names(cls), {"default": NO_PRESET})
-    out["active_of_pair"] = (PAIR_CHOICES, {"default": "4b Base Character"})
+    out["active_of_pair"] = (PAIR_CHOICES, {"default": "4c Base Character"})
     out["prompt_styler_switch"] = (STYLER_CHOICES, {"default": "off"})
     return out
 
@@ -127,7 +127,7 @@ def _user_preset_names():
 
 
 class FreedomPortraitUserPreset:
-    """STEP 4a - Random (Portrait Master) user preset."""
+    """STEP 4b - Random (Portrait Master) user preset."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -312,7 +312,7 @@ def _apply(json_data):
             chosen.append("%s=%s" % (_step, _pn))
     _pair = cin.get("active_of_pair")
     if _pair:
-        sw["start"] = "base" if _pair.startswith("4b") else "facegen"
+        sw["start"] = "base" if _pair.startswith("4c") else "facegen"
         chosen.append("pair=%s" % sw["start"])
     _styler = cin.get("prompt_styler_switch")
     if _styler:
@@ -353,7 +353,7 @@ def _apply(json_data):
         if preset_name == Z_BLOCK or not switches.get("prompt_styler", False):
             if _bypass_prompt_styler(prompt, styler_ids):
                 notes.append("Prompt Styler bypassed")
-        notes.append("4a built-in '%s': %s" % (preset_name, ", ".join(
+        notes.append("4b built-in '%s': %s" % (preset_name, ", ".join(
             "%s %s" % (c.replace("PortraitMaster", ""), "ON" if on else "OFF") for c, on in want_on.items())))
         log.info("[freedom_portrait_control] applied: %s (%d value(s) set)", "; ".join(notes), touched)
         return json_data
@@ -374,7 +374,7 @@ def _apply(json_data):
                     touched += _apply_values(node, values, class_name)
                 else:
                     touched += _apply_values(node, _fill_untouched(node, values, class_name), class_name)
-        notes.append("4a preset '%s' (%s)" % (preset_name, mode))
+        notes.append("4b preset '%s' (%s)" % (preset_name, mode))
     else:
         for class_name in NODE_CLASSES:
             nstate = (state.get("nodes") or {}).get(class_name) or {}
@@ -503,8 +503,8 @@ if _HAS_SERVER and PromptServer.instance is not None:
             log.warning("[freedom_portrait_control] cannot read %s (%s)", p, e)
             return {}
 
-    # Built-in entries: 4a's "-- none --" and z_ choices (stored by name, as before), and on
-    # 4b-4g the node's "-- none --" and Portrait Master's own presets (stored as
+    # Built-in entries: 4b's "-- none --" and z_ choices (stored by name, as before), and on
+    # 4c-4h the node's "-- none --" and Portrait Master's own presets (stored as
     # "<NodeClass>::<name>", in OUR file - the developer's preset files are never written).
     def _builtin_key(scope, name):
         if scope == "user":

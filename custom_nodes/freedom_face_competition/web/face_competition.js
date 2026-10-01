@@ -10,14 +10,14 @@ import { api } from "../../scripts/api.js";
 
 const CSS = `
 .ffc-root{display:flex;flex-direction:column;gap:7px;height:100%;min-height:520px;overflow:auto;
-  font:12px/1.4 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;padding:9px}
-.ffc-h{font-weight:700;color:#cde3ff;font-size:11px;letter-spacing:.4px;margin-top:4px}
+  font:13px/1.4 system-ui,Segoe UI,sans-serif;color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;padding:9px}
+.ffc-h{font-weight:700;color:#cde3ff;font-size:12px;letter-spacing:.4px;margin-top:4px}
 .ffc-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.ffc-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px}
+.ffc-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px}
 .ffc-btn:hover{background:#3a3a3a}
-.ffc-btn.run{background:#1f5a2a;border-color:#2e7d3a;color:#e8ffe8;font-weight:700;font-size:12px;padding:6px 14px}
+.ffc-btn.run{background:#1f5a2a;border-color:#2e7d3a;color:#e8ffe8;font-weight:700;font-size:13px;padding:6px 14px}
 .ffc-btn.set{background:#26406b;border-color:#3f6db0;color:#dce9ff}
-.ffc-ta{width:100%;min-height:52px;resize:vertical;background:#141414;color:#eee;border:1px solid #444;border-radius:5px;padding:5px;font:11px/1.35 inherit}
+.ffc-ta{width:100%;min-height:52px;resize:vertical;background:#141414;color:#eee;border:1px solid #444;border-radius:5px;padding:5px;font:12px/1.35 inherit}
 .ffc-in{flex:1;min-width:120px;background:#141414;color:#eee;border:1px solid #444;border-radius:4px;padding:4px}
 .ffc-sel{background:#141414;color:#eee;border:1px solid #444;border-radius:4px;padding:4px}
 .ffc-m{display:flex;gap:7px;align-items:flex-start;background:#161616;border:1px solid #333;border-radius:5px;padding:6px 7px}
@@ -25,9 +25,9 @@ const CSS = `
 .ffc-m .t{flex:1}
 .ffc-m .name{font-weight:600;color:#eee}
 .ffc-m.skip .name{color:#888;text-decoration:line-through}
-.ffc-m .uses{font-size:10px;color:#9a9a9a}
-.ffc-status{color:#9cc4ff;font-size:11px;min-height:14px}
-.ffc-k{color:#999;font-size:10.5px}
+.ffc-m .uses{font-size:11px;color:#9a9a9a}
+.ffc-status{color:#9cc4ff;font-size:12px;min-height:14px}
+.ffc-k{color:#999;font-size:11.5px}
 `;
 function css(){ if(!document.getElementById("ffc-css")){ const s=document.createElement("style"); s.id="ffc-css"; s.textContent=CSS; document.head.appendChild(s);} }
 async function get(r){ return (await api.fetchApi(r)).json(); }

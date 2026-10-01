@@ -1,14 +1,21 @@
 // web/selected_face_stack.js
 //
-// The trained-face strength notes, on BOTH the Face Shelf and the Selected Face
-// LoRA Stack - the user's layout, 2026-09-25 (step letters live in the workflow
-// titles, not here, so this reads right in every version):
+// The trained-face strength notes, on BOTH the Face Shelf and the Face Lora
+// Stack (FreedomSelectedFaceLoraStack) - one row per part (user, 2026-09-30):
 //
-//   Combined trained LoRA face strength (default) 1.0 =
-//       0.4 face shelf + 0.3 row 1 + 0.2 row 2 + 0.1 row 3
-//   Current: <live counter>
+//   Combined trained LoRA face strength
+//     3b  Face Shelf                 default 0.4
+//     3c  Face Lora Stack - pass 1   default 0.3
+//     3c  Face Lora Stack - pass 2   default 0.2
+//     3c  Face Lora Stack - pass 3   default 0.1
+//     Total default 1.0    Current: <live counter>
 //
-// The live counter adds the face shelf's strength and all three Selected Face LoRA Stack row
+// Each row's step ("3b") and name ("Face Shelf") are read from that node's own
+// title ("STEP 3b  -  Face Shelf  -  Pick a face!") every refresh, so they follow
+// the node if it is renumbered or renamed. No step letters are written here.
+// A node that is not wired in, or whose title has no STEP part, shows no step.
+//
+// The live counter adds the face shelf's strength and all three Face Lora Stack pass
 // strengths, ON or OFF (the user's choice for the counter), and updates the
 // moment any of them changes - a change on either node refreshes both at once
 // (the half-second timer is only a backstop, since Chrome slows timers in a
@@ -18,9 +25,9 @@
 // stronger first, each next one 0.1 lower. nodes.py FACE_SHELF_DEFAULT and
 // FACE_PASS_DEFAULTS hold the same numbers.
 //
-// The Selected Face LoRA Stack also keeps: a "Reset to default" button (puts the three row strengths
+// The Face Lora Stack also keeps: a "Reset to default" button (puts the three pass strengths
 // back to 0.3 / 0.2 / 0.1; the ON/OFF switches and the shelf are left alone), and
-// one line per row - its ON/OFF button and strength box side by side, a gap
+// one line per pass - its ON/OFF button and strength box side by side, a gap
 // between rows. The real enabled_N / strength_N widgets stay on the node, hidden,
 // and are what get saved and sent to the server.
 //
@@ -35,24 +42,28 @@ const SHELF_DEFAULT = 0.4;
 const PASS_DEFAULTS = [0.3, 0.2, 0.1];
 const ROWS = PASS_DEFAULTS.length;
 const TOTAL_DEFAULT = SHELF_DEFAULT + PASS_DEFAULTS.reduce((a, b) => a + b, 0);
-const FORMULA = `${TOTAL_DEFAULT.toFixed(1)} = ${SHELF_DEFAULT.toFixed(1)} face shelf + `
-  + PASS_DEFAULTS.map((v, i) => `${v.toFixed(1)} row ${i + 1}`).join(" + ");
+const SHELF_NAME = "Face Shelf";         // used when a title has no name part
+const STACK_NAME = "Face Lora Stack";
 
 function css() {
   if (document.getElementById("freedom-sfs-css")) return;
   const s = document.createElement("style");
   s.id = "freedom-sfs-css";
   s.textContent = `
-    .sfs-top { font: 12px/1.5 sans-serif; color: #ccc; padding: 4px 8px; margin: 0 4px;
+    .sfs-top { font: 13px/1.5 sans-serif; color: #ccc; padding: 4px 8px; margin: 0 4px;
                border: 1px solid #555; border-radius: 4px; background: #1c1c1c; }
     .sfs-top .row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
     .sfs-top .lbl { min-width: 70px; }
     .sfs-top .formula { color: #ddd; }
+    .sfs-top table.parts { border-collapse: collapse; margin: 2px 0 4px 8px; }
+    .sfs-top table.parts td { padding: 0 10px 0 0; color: #ddd; white-space: nowrap; }
+    .sfs-top table.parts td.step { color: #9cf; font-weight: bold; min-width: 28px; }
+    .sfs-top table.parts td.dv { color: #aaa; }
     .sfs-top .box { min-width: 70px; padding: 1px 8px; border: 1px solid #666;
                     border-radius: 3px; background: #111; color: #fff; font-weight: bold;
                     text-align: right; }
-    .sfs-top .hint { color: #999; font-size: 11px; }
-    .sfs-top button { margin-left: auto; font: 11px sans-serif; padding: 2px 8px;
+    .sfs-top .hint { color: #999; font-size: 12px; }
+    .sfs-top button { margin-left: auto; font: 12px sans-serif; padding: 2px 8px;
                       background: #333; color: #eee; border: 1px solid #666;
                       border-radius: 3px; cursor: pointer; }
     .sfs-top button:hover { background: #444; }
@@ -63,13 +74,13 @@ function css() {
     .sfs-top .pass button.tog { margin-left: 0; min-width: 64px; }
     .sfs-top .pass button.tog.on { background: #2d5a2d; border-color: #4a4; color: #fff; }
     .sfs-top .pass input { width: 70px; background: #111; color: #fff; border: 1px solid #666;
-                           border-radius: 3px; padding: 1px 4px; font: 12px sans-serif; }
-    .sfs-top .pass .dflt { color: #888; font-size: 11px; }
+                           border-radius: 3px; padding: 1px 4px; font: 13px sans-serif; }
+    .sfs-top .pass .dflt { color: #888; font-size: 12px; }
     .sfs-shelfrow { display: flex; gap: 14px; align-items: center; margin: 2px 4px;
-                    font: 12px sans-serif; color: #ccc; }
+                    font: 13px sans-serif; color: #ccc; }
     .sfs-shelfrow label { display: flex; gap: 6px; align-items: center; }
     .sfs-shelfrow input { width: 70px; background: #111; color: #fff; border: 1px solid #666;
-                          border-radius: 3px; padding: 1px 4px; font: 12px sans-serif; }`;
+                          border-radius: 3px; padding: 1px 4px; font: 13px sans-serif; }`;
   document.head.appendChild(s);
 }
 
@@ -84,7 +95,7 @@ function upstream(node, inputName) {
   return link ? app.graph.getNodeById(link.origin_id) : null;
 }
 
-// From the shelf: the Selected Face LoRA Stack its lora_file output is wired to, if any.
+// From the shelf: the Face Lora Stack its lora_file output is wired to, if any.
 function stackOf(shelf) {
   const out = (shelf.outputs || []).find((o) => o.name === "lora_file");
   for (const id of out?.links || []) {
@@ -106,12 +117,38 @@ function combined(shelf, stack) {
   return t;
 }
 
+// "STEP 3b  -  Face Shelf  -  Pick a face!" -> { step: "3b", name: "Face Shelf" }
+function fromTitle(node, fallbackName) {
+  const parts = String(node?.title ?? "").split(/\s+-\s+/);
+  const m = /^STEP\s+(\S+)$/i.exec(parts[0]?.trim() ?? "");
+  if (!m) return { step: "", name: fallbackName };
+  return { step: m[1], name: parts[1]?.trim() || fallbackName };
+}
+
 function noteHtml(extra) {
+  const row = (cls, d) => `<tr class="${cls}"><td class="step"></td><td class="nm"></td>`
+    + `<td class="dv">default ${d.toFixed(1)}</td></tr>`;
   return `
-    <div class="row"><span class="formula">Combined trained LoRA face strength (default)
-      <b>${FORMULA}</b></span></div>
-    <div class="row"><span class="lbl">Current:</span><span class="box score"></span>
+    <div class="row"><span class="formula"><b>Combined trained LoRA face strength</b></span></div>
+    <table class="parts">${row("p-shelf", SHELF_DEFAULT)}${PASS_DEFAULTS.map((d, k) =>
+      row(`p-pass p${k + 1}`, d)).join("")}</table>
+    <div class="row"><span>Total default <b>${TOTAL_DEFAULT.toFixed(1)}</b></span>
+      <span class="lbl">Current:</span><span class="box score"></span>
       <span class="hint"></span>${extra || ""}</div>`;
+}
+
+// the step + name cells of the parts table, from the two nodes' titles
+function fillParts(el, shelf, stack) {
+  const sh = shelf ? fromTitle(shelf, SHELF_NAME) : { step: "", name: SHELF_NAME };
+  const st = stack ? fromTitle(stack, STACK_NAME) : { step: "", name: STACK_NAME };
+  const set = (tr, step, name) => {
+    if (!tr) return;
+    const s = tr.querySelector(".step"), n = tr.querySelector(".nm");
+    if (s.textContent !== step) s.textContent = step;
+    if (n.textContent !== name) n.textContent = name;
+  };
+  set(el.querySelector(".p-shelf"), sh.step, sh.name);
+  for (let i = 1; i <= ROWS; i++) set(el.querySelector(`.p${i}`), st.step, `${st.name} - pass ${i}`);
 }
 
 function addTopNote(node, el, minHeight) {
@@ -135,11 +172,12 @@ function refreshStack(node) {
   if (!el) return;
   const shelf = upstream(node, "face_lora");
   el.querySelector(".score").textContent = combined(shelf, node).toFixed(2);
-  el.querySelector(".hint").textContent = shelf ? "" : "(no face shelf wired in)";
+  el.querySelector(".hint").textContent = shelf ? "" : `(no ${SHELF_NAME} wired in)`;
+  fillParts(el, shelf, node);
   for (let i = 1; i <= ROWS; i++) {
     const on = !!wv(node, `enabled_${i}`);
     const tog = el.querySelector(`.tog[data-i="${i}"]`);
-    tog.textContent = on ? `row ${i} ON` : `row ${i} OFF`;
+    tog.textContent = on ? `pass ${i} ON` : `pass ${i} OFF`;
     tog.classList.toggle("on", on);
     const inp = el.querySelector(`input[data-i="${i}"]`);
     if (document.activeElement !== inp)            // never overwrite what is being typed
@@ -152,7 +190,8 @@ function refreshShelf(node) {
   if (!el) return;
   const stack = stackOf(node);
   el.querySelector(".score").textContent = combined(node, stack).toFixed(2);
-  el.querySelector(".hint").textContent = stack ? "" : "(no Selected Face LoRA Stack wired in - shelf only)";
+  el.querySelector(".hint").textContent = stack ? "" : `(no ${STACK_NAME} wired in - ${SHELF_NAME} only)`;
+  fillParts(el, node, stack);
   const row = node.__sfsShelfRow;
   if (row) {
     for (const inp of row.querySelectorAll("input")) {
@@ -183,9 +222,9 @@ function buildStack(node) {
   const el = document.createElement("div");
   el.className = "sfs-top";
   el.innerHTML = noteHtml(
-    `<button class="reset" title="Put the three row strengths back to ${PASS_DEFAULTS.join(" / ")}">Reset to default</button>`)
+    `<button class="reset" title="Put the three pass strengths back to ${PASS_DEFAULTS.join(" / ")}">Reset to default</button>`)
     + `<div class="passes">${PASS_DEFAULTS.map((d, k) => `
-        <div class="pass"><span class="name">Row ${k + 1}</span>
+        <div class="pass"><span class="name">Pass ${k + 1}</span>
           <button class="tog" data-i="${k + 1}"></button>
           <span>strength</span><input type="number" step="0.05" min="-2" max="2" data-i="${k + 1}">
           <span class="dflt">default ${d.toFixed(1)}</span></div>`).join("")}
@@ -220,7 +259,7 @@ function buildStack(node) {
     x.options.hidden = true;
     x.computeSize = () => [0, -4];
   }
-  addTopNote(node, el, 60 + 40 * ROWS);
+  addTopNote(node, el, 140 + 40 * ROWS);
   for (const x of node.widgets) {
     if (!/^strength_\d$/.test(x.name)) continue;
     const cb = x.callback;
@@ -240,7 +279,7 @@ function buildShelf(node) {
   el.className = "sfs-top";
   el.innerHTML = noteHtml("");
   node.__sfsShelfTop = el;
-  addTopNote(node, el, 56);
+  addTopNote(node, el, 136);
   // strength and trigger_weight side by side on one row, above "enabled"
   // (user, 2026-09-27). The real widgets stay on the node, hidden, and are what
   // get saved and sent to the server; this row reads and writes them.
@@ -285,7 +324,7 @@ function buildShelf(node) {
       return r;
     };
   }
-  everyHalfSecond(node, () => refreshShelf(node));   // the rows live on the Selected Face LoRA Stack
+  everyHalfSecond(node, () => refreshShelf(node));   // the passes live on the Face Lora Stack
   refreshShelf(node);
 }
 

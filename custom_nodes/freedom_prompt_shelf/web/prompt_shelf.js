@@ -8,19 +8,19 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 const CSS = `
-.fps-root{display:flex;flex-direction:column;gap:5px;font:11px/1.35 system-ui,Segoe UI,sans-serif;
+.fps-root{display:flex;flex-direction:column;gap:5px;font:12px/1.35 system-ui,Segoe UI,sans-serif;
   color:#ddd;background:#1c1c1c;border:1px solid #444;border-radius:6px;padding:7px;max-height:230px;overflow:auto}
 .fps-bar{display:flex;align-items:center;gap:6px}
-.fps-bar .t{font-weight:700;color:#cde3ff;font-size:10px;letter-spacing:.3px;flex:1}
-.fps-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:10px}
+.fps-bar .t{font-weight:700;color:#cde3ff;font-size:11px;letter-spacing:.3px;flex:1}
+.fps-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px}
 .fps-btn:hover{background:#3a3a3a}
 .fps-item{background:#161616;border:1px solid #333;border-radius:5px;padding:5px 6px;display:flex;gap:6px;align-items:flex-start}
 .fps-item .m{flex:1;cursor:pointer}
 .fps-item .nm{font-weight:600;color:#eee}
-.fps-item .no{color:#9a9a9a;font-size:9.5px;margin-top:1px}
-.fps-item .x{color:#a66;cursor:pointer;font-size:11px;padding:0 3px}
+.fps-item .no{color:#9a9a9a;font-size:10.5px;margin-top:1px}
+.fps-item .x{color:#a66;cursor:pointer;font-size:12px;padding:0 3px}
 .fps-item:hover{border-color:#5a7fb0}
-.fps-status{color:#9cc4ff;font-size:9.5px;min-height:12px}
+.fps-status{color:#9cc4ff;font-size:10.5px;min-height:12px}
 `;
 function css(){ if(!document.getElementById("fps-css")){ const s=document.createElement("style"); s.id="fps-css"; s.textContent=CSS; document.head.appendChild(s);} }
 async function get(r){ return (await api.fetchApi(r)).json(); }
