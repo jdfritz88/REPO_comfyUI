@@ -19,6 +19,16 @@ const CSS = `
 .fls-bar .t{font-weight:700;color:#cde3ff;font-size:12px;letter-spacing:.3px;flex:1}
 .fls-btn{background:#2b2b2b;color:#ddd;border:1px solid #555;border-radius:4px;padding:3px 9px;cursor:pointer;font-size:11px}
 .fls-btn:hover{background:#3a3a3a}
+/* All OFF | All ON (user, 2026-10-01): the side the rows are on is green, the other gray;
+   with some rows on and some off, both are gray. Same colours as "face OFF | face ON". */
+.fls-pair{display:inline-flex;gap:0}
+/* the inactive side's lettering: a light gray, clearly apart from the button's own gray
+   and still easy to read (user, 2026-10-01: #c8c8c8 -> #e2e2e2 was the wrong way, too bright; now #a0a0a0) */
+.fls-pair .fls-btn{background:#55575c;color:#a0a0a0;border-color:#55575c}
+.fls-pair .fls-btn:first-child{border-radius:4px 0 0 4px}
+.fls-pair .fls-btn:last-child{border-radius:0 4px 4px 0}
+.fls-pair .fls-btn:hover{background:#6a6c72}
+.fls-pair .fls-btn.on{background:#2e8b3e;color:#fff;border-color:#2e8b3e}
 .fls-row{background:#161616;border:1px solid #333;border-radius:5px;padding:5px 6px;
   display:flex;gap:6px;align-items:center;margin-bottom:10px}
 .fls-row select{flex:1;min-width:0;background:#111;color:#ddd;border:1px solid #444;border-radius:4px;font-size:11.5px;padding:2px}
@@ -54,7 +64,9 @@ class Stack {
     this.root.innerHTML = `
       <div class="fls-bar">
         <span class="t">GENERAL LORA STACK - both face modes, never her face</span>
-        <button class="fls-btn allonoff" title="Switch every row off, or every row back on">All OFF</button>
+        <span class="fls-pair">
+          <button class="fls-btn alloff" title="Switch every row off">All OFF</button><button class="fls-btn allon" title="Switch every row on">All ON</button>
+        </span>
         <button class="fls-btn refresh">Refresh list</button>
       </div>
       <div class="fls-compat"></div>
@@ -66,15 +78,18 @@ class Stack {
     this.compatEl = this.root.querySelector(".fls-compat");
     this.warnEl = this.root.querySelector(".fls-warn");
     this.root.querySelector(".refresh").onclick = () => this.loadChoices(true);
-    // All ON / All OFF at the top (user, 2026-09-25): any row ON -> switch all off;
-    // all off -> switch all on. Each row keeps its own tick box as well.
-    this.allBtn = this.root.querySelector(".allonoff");
-    this.allBtn.onclick = () => {
-      const turnOn = !this.rows.some(r => r.enabled);
-      this.rows.forEach(r => { r.enabled = turnOn; });
+    // All OFF | All ON at the top - two separate buttons (user, 2026-10-01; was one
+    // button whose label flipped, 2026-09-25). Each switches every row to its side.
+    // Each row keeps its own tick box as well.
+    this.allOffBtn = this.root.querySelector(".alloff");
+    this.allOnBtn = this.root.querySelector(".allon");
+    const setAll = (on) => {
+      this.rows.forEach(r => { r.enabled = on; });
       this.sync();
       this.render();
     };
+    this.allOffBtn.onclick = () => setAll(false);
+    this.allOnBtn.onclick = () => setAll(true);
     this.addBtn.onclick = () => this.addRow();
     for (const ev of ["pointerdown", "wheel", "contextmenu"])
       this.root.addEventListener(ev, e => e.stopPropagation());
@@ -233,6 +248,14 @@ class Stack {
     this.node.setDirtyCanvas(true, true);
   }
 
+  // Green on the side every row is on; both gray when the rows are mixed.
+  showAllState() {
+    const all = this.rows.length > 0 && this.rows.every(r => r.enabled);
+    const none = this.rows.every(r => !r.enabled);
+    this.allOnBtn.classList.toggle("on", all);
+    this.allOffBtn.classList.toggle("on", none && !all);
+  }
+
   render() {
     this.rowsEl.innerHTML = "";
     if (!this.loraChoices.length) {
@@ -250,7 +273,7 @@ class Stack {
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = row.enabled;
-      cb.onchange = () => { row.enabled = cb.checked; this.sync(); };
+      cb.onchange = () => { row.enabled = cb.checked; this.sync(); this.showAllState(); };
 
       const sel = document.createElement("select");
       const noneOpt = document.createElement("option");
@@ -292,7 +315,7 @@ class Stack {
       this.rowsEl.appendChild(el);
     });
     this.addBtn.style.display = "none";        // all MAX_ROWS rows are always shown
-    this.allBtn.textContent = this.rows.some(r => r.enabled) ? "All OFF" : "All ON";
+    this.showAllState();
     this.sync();
   }
 }

@@ -311,9 +311,7 @@ launcher's own `comfyui.log`. The user's standing rule from 2026-09-18 said the 
 
 Writers changed at the source (not routed afterwards):
 - **Claude-started ComfyUI** — rule at the top of `CLAUDE.md`: stdout/stderr redirected into `logs\`.
-- **`face_training/otrain.py`** — `TRAIN_LOG_DIR` added; per-job log is now
-  `logsace_training\<job>_train.log` instead of `_face_runs\<job>	rain.log`. Nothing else read the old
-  path (grep: only `otrain.py:396`). Four old `train.log` files moved and renamed to match.
+> Moved to `REPO_face\logs\comfyui_403_cross_site_guard_and_launchpad_hop_2026-09-24__face_parts.md` on 2026-09-30, when Face N the Crowd moved out of REPO_comfyUI: "**`face_training/otrain.py`** — `TRAIN_LOG_DIR` added; per-job log is now"
 - **`REPO_avatarAIackendpp\services\expression_editor.py`** — `_COMFYUI_LOG_DIR` added; its ComfyUI
   server stderr now goes to `logsvatarai_comfyui_server_stderr.log`. Two old files moved in as
   `avatarai_comfyui_server_2026-08-16.log` and `avatarai_comfyui_server_stderr_2026-08-23.log`.
@@ -394,8 +392,7 @@ possible. Section 11 is the summary; this is the full record.
   (2026-08-16, 08-21) - all Claude sessions; `mobile-debug.log` is the third-party mobile frontend.
 - Claude then asked the user which writers to change - a question the user had already answered ("every
   new and old log"). Claude acknowledged that and did all of them:
-  - `face_training/otrain.py` (18:46:23): `TRAIN_LOG_DIR` = `logs/face_training`, per-job
-    `<job>_train.log`. Four old `_face_runs/.../train.log` moved and renamed.
+  - Moved to `REPO_face\logs\comfyui_403_cross_site_guard_and_launchpad_hop_2026-09-24__face_parts.md` on 2026-09-30, when Face N the Crowd moved out of REPO_comfyUI: "`face_training/otrain.py` (18:46:23): `TRAIN_LOG_DIR` = `logs/face_training`, per-job"
   - `REPO_avatarAI/.../expression_editor.py` (18:46:36): stderr to
     `REPO_comfyUI/logs/avatarai_comfyui_server_stderr.log`; two old AvatarAI ComfyUI logs moved in.
   - `REPO_comfyUI_Monitor_LOG.md` moved from the repo root into `logs/`; CLAUDE.md tells the CP agents

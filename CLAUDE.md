@@ -31,13 +31,13 @@ h) If I say I don't understand, the next reply explains it again in simpler
    words with more context. It does not repeat the same wording, and it does
    not pile on more technical detail.
 
-## Face tool: read the user's rules first (user, 2026-09-26)
+## Face tool: moved to REPO_face (user, 2026-09-30)
 
-Before changing anything in the face tool (`face_training/` — the search, the review
-page, the Face Tool window), read **`face_training/FACE_TOOL_RULES.md`**. It is the
-user's standing rule list. Any new face-tool rule the user gives goes into that file in
-the same session, with its date. If the code disagrees with a rule, tell the user; never
-quietly change either to make them match.
+The face tool (`face_training/`, its data `_face_profiles/` and `_face_runs/`, and its
+logs) is now the app **Face N the Crowd** in `F:\Apps\freedom_system\REPO_face`. Its
+rules, including "read `face_training/FACE_TOOL_RULES.md` first", live in that repo's
+CLAUDE.md. The finished face LoRAs still land here in `models\loras\faces\`, which the
+face shelf reads.
 
 ## Node-group layout: description, then packages, then the panel (user, 2026-09-26/27)
 
@@ -77,6 +77,14 @@ instructions, then the buttons that fill or reset the form, then the form itself
   STEP 3 in `Freedom_bigLust_SDXL v09.json` was the first step laid out this way
   (3a note, 3b face shelf with its recipes package kept inside, 3c face LoRA
   stack — the user chose to keep recipes inside the shelf node).
+- STEP 6 (Freedom_SDXL_v02, user 2026-10-01): 6a info note, 6b "Hints" note ("n/a" for
+  now, like 7b), 6c the general LoRA stack (FreedomLoraStack). Its All OFF | All ON are two
+  separate buttons: green on the side every row is on, both gray when the rows are mixed.
+  Record: `logs/session_2026-10-01_full_record.md`.
+- Every box in a STEP frame carries its letter, even a frame with one box (user, 2026-10-01,
+  "I keep asking"). Freedom_SDXL_v02: 2a, 5a, 8a/8b, 9a/9b, 10a/10b added. The boxes in the
+  "BEHIND THE SCENES - plumbing" frame stay WITHOUT letters - they are the "don't touch"
+  boxes (user, 2026-10-01, answer 3). Do not letter them or ask again.
 - STEP 7 (v09, user 2026-09-27): its save/load buttons live inside its panels,
   so each column is only a note and a panel. The user chose plain lettering with
   no gaps: 7a description note, 7b prompt boxes, 7c phrase note, 7d phrase node.
@@ -103,8 +111,11 @@ instructions, then the buttons that fill or reset the form, then the form itself
   final box shows (random-face: Portrait Master's words fill their marker at Run). The
   phrase shelf and its note were taken out of the workflow (code kept). The separate
   Prompt Watcher node and FreedomPromptParts are gone from the workflow (code kept).
-- Layout changes go into a new workflow version, not the one the user is working
-  in (v09 was made for STEP 3 because the user was working in v08).
+- **Do NOT create new workflow versions** (user, 2026-10-01: "you need to stop creating new
+  versions"). Changes go into the current workflow file (now `Freedom_SDXL_v02.json`). This
+  replaces the old rule "layout changes go into a new version". Because the user may have that
+  workflow open: first check their tab read-only, close the workflow there if it holds no unsaved
+  changes (if it does, stop and tell them), back the file up to `_backups/`, then edit it.
 
 ## Save packages: nothing saves by itself, and every package has "Save as" (user, 2026-09-29)
 

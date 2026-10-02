@@ -242,16 +242,56 @@ function blinkThree(field) {
                    { boxShadow: "0 0 0 3px transparent" }], { duration: 330, iterations: 3 });
   } catch (e) { /* an old browser simply skips the blink */ }
 }
+
+// The confirm/cancel box (user, 2026-10-01). A button that used to want a second
+// press (Rename, Save as, Delete) opens this box under its row instead, and
+// nothing happens until Confirm. Pressing the button again does nothing. Confirm
+// ignores clicks for half a second, so a double-click can never reach it, and
+// pressing Confirm or Cancel leaves the keyboard where it was (in the name box).
+function askBox(button) {
+  const box = document.createElement("div");
+  box.style.cssText = "display:none;flex-direction:column;gap:5px;margin-top:5px;padding:6px;" +
+    "border:1px solid #c66;border-radius:5px;background:#2a1c1c";
+  const text = document.createElement("div");
+  text.style.cssText = "color:#fbb;font-size:12px;font-weight:600;white-space:normal";
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:5px;flex-wrap:wrap";
+  const yes = document.createElement("button"), no = document.createElement("button");
+  yes.textContent = "Confirm"; no.textContent = "Cancel";
+  for (const b of [yes, no]) {
+    b.className = button.className.replace(/\b(danger|warn)\b/g, "").trim();
+    b.style.cssText = button.style.cssText;
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+  }
+  row.append(yes, no); box.append(text, row);
+  let job = null;
+  const close = () => { job = null; box.style.display = "none"; };
+  yes.onclick = async () => {
+    if (!job || performance.now() - job.at < 500) return;   // the 2nd half of a double-click
+    const { onYes } = job; close(); await onYes();
+  };
+  no.onclick = () => { const j = job; close(); j?.onNo?.(); };
+  const open = (message, onYes, onNo) => {
+    const spot = button.parentElement || button;
+    if (box.previousElementSibling !== spot) spot.after(box);
+    text.textContent = message;
+    box.style.display = "flex";
+    job = { onYes, onNo, at: performance.now() };
+  };
+  return { open, close, isOpen: () => !!job };
+}
 function makeRenamer({ button, field, current, apply, say, blocked, onFinish,
                        armedLabel = "Save new name", allowEmpty = false, requireChange = true }) {
   let armed = null;
   const label = button.textContent;
+  const ask = askBox(button);
   const end = (restore) => {
     if (!armed) return;
     const { el: f, before, onKey } = armed;
     f.removeEventListener("keydown", onKey, true);
     if (restore) f.value = before;
     armed = null;
+    ask.close();
     button.textContent = label;
   };
   const confirm = async () => {
@@ -265,7 +305,7 @@ function makeRenamer({ button, field, current, apply, say, blocked, onFinish,
     onFinish?.(false);
   };
   const click = async () => {
-    if (armed) return confirm();
+    if (armed) { armed.el.focus(); return; }   // a 2nd press does nothing - the box's Confirm does it
     const stop = blocked?.();
     if (stop) { say(stop); return; }
     const f = field(); const cur = current();
@@ -278,8 +318,9 @@ function makeRenamer({ button, field, current, apply, say, blocked, onFinish,
     };
     f.addEventListener("keydown", onKey, true);
     armed = { el: f, before, onKey };
-    button.textContent = armedLabel;
-    say(`Type the new name, then press Enter or ${armedLabel} (Esc cancels).`);
+    ask.open(`${label}: type the name in the name box, then press Confirm.`, confirm,
+      () => { end(true); say("Cancelled - nothing was changed."); onFinish?.(true); });
+    say("Type the name, then press Confirm (or Enter). Cancel or Esc stops.");
   };
   return { click };
 }
@@ -774,11 +815,17 @@ function buildTrainedFacePanel(node) {
         () => tell(`Now press Delete to delete '${select.value}'.`));
       return;
     }
-    const res = await api.remove(scope, name);
-    say.textContent = res.ok ? `Deleted '${name}'.` : res.error;
-    letGo();
-    await refreshLists();
+    // One click opens the confirm/cancel box; only Confirm deletes (user, 2026-10-01).
+    say.textContent = "";
+    recipeDelAsk.open(`Delete the recipe '${name}' for good?`, async () => {
+      if (select.value !== name) { say.textContent = "The menu changed before Confirm - nothing was deleted."; letGo(true); return; }
+      const res = await api.remove(scope, name);
+      say.textContent = res.ok ? `Deleted '${name}'.` : res.error;
+      letGo();
+      await refreshLists();
+    }, () => { say.textContent = "Cancelled - nothing was changed."; letGo(true); });
   });
+  const recipeDelAsk = askBox(btnDelete);
 
   select.onchange = async () => {
     // picked because a button asked for it: only choose - load nothing
@@ -1119,11 +1166,17 @@ function buildPanel(node, cls) {
                                   : `Now press Delete to delete '${select.value}'.`));
       return;
     }
-    const res = await api.remove(scope, name);
-    select.__holdPick = false;
-    say.textContent = res.ok ? `Deleted '${name}'.` : res.error;
-    await refreshLists();
+    // One click opens the confirm/cancel box; only Confirm deletes (user, 2026-10-01).
+    say.textContent = "";
+    presetDelAsk.open(`Delete the preset '${name}' for good?`, async () => {
+      if (select.value !== name) { say.textContent = "The menu changed before Confirm - nothing was deleted."; select.__holdPick = false; return; }
+      const res = await api.remove(scope, name);
+      select.__holdPick = false;
+      say.textContent = res.ok ? `Deleted '${name}'.` : res.error;
+      await refreshLists();
+    }, () => { say.textContent = "Cancelled - nothing was changed."; select.__holdPick = false; });
   });
+  const presetDelAsk = askBox(btnDelete);
   const btnReset = mkButton(isControl ? "Factory reset ALL" : "Factory reset", async () => {
     // Factory reset works on dials, not on a menu - so it only says why it cannot run.
     if (isControl && controlMode() !== MODE_IGNORE)

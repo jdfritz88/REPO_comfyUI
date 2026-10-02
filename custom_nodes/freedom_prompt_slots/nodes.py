@@ -393,7 +393,11 @@ def join_final(parts, face_live=""):
     """The finished prompt from the final box's saved parts. The face part is the
     marker in random-face mode; Portrait Master's words from the run replace it."""
     out = []
-    for key in FINAL_ORDER:
+    # The blue button under the final box can put Scene before Physical (user, 2026-10-02).
+    order = FINAL_ORDER
+    if str((parts or {}).get("order") or "") == "scene_first":
+        order = ("front", "face", "scene", "physical")
+    for key in order:
         text = str((parts or {}).get(key) or "").strip()
         if key == "face" and text == PM_MARKER:
             text = plain_nationality_mix(str(face_live or "")).strip()
@@ -445,11 +449,16 @@ class FreedomFinalPrompt:
         finished = join_final(parts, face_text)
         # Only a note in the log: option 1 sends the final box as it is, even when a
         # box has changed since its green button was last pressed.
+        # Her trigger word sits inside the Summary Signal part (after the model's text, since
+        # 2026-10-01) but is not part of the Summary Signal node's own text - leave it out here.
+        saved_front = str(parts.get("front") or "")
+        trig = str(parts.get("trig") or "").strip()
+        if trig:
+            saved_front = ", ".join(x for x in (p.strip() for p in saved_front.replace(trig, "").split(", ")) if x)
+        saved = {"Summary Signal": saved_front, "Physical": parts.get("physical"), "Scene": parts.get("scene")}
         stale = [name for name, live in (("Summary Signal", front), ("Physical", physical),
                                          ("Scene", scene))
-                 if str(live or "").strip() != str(parts.get({"Summary Signal": "front",
-                                                               "Physical": "physical",
-                                                               "Scene": "scene"}[name]) or "").strip()]
+                 if str(live or "").strip().rstrip(",").strip() != str(saved[name] or "").strip().rstrip(",").strip()]
         log.info("[Freedom] STEP 7f FINAL COMBINED PROMPT sent (%d characters)%s", len(finished),
                  ("; changed since its green button: " + ", ".join(stale)) if stale else "")
         return {"ui": {"finished_prompt": [finished]}, "result": (finished,)}

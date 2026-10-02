@@ -13,7 +13,8 @@
 //   - Stored by freedom_portrait_control's existing routes with scope
 //     "facedetailer" -> user/default/portrait_presets/facedetailer/<name>.json
 //     (presets.py write_preset: safe names, atomic write, our folder only).
-//   - Delete needs a second press ("Press again to delete") - no browser dialogs.
+//   - Rename, Save as and Delete ask in a confirm/cancel box under their row
+//     (user, 2026-10-01) - no browser dialogs.
 //
 // Reset to Developer's Defaults
 //   - Every dial back to the Impact Pack developer's own value, read live from
@@ -43,16 +44,56 @@ function blinkThree(field) {
                    { boxShadow: "0 0 0 3px transparent" }], { duration: 330, iterations: 3 });
   } catch (e) { /* an old browser simply skips the blink */ }
 }
+
+// The confirm/cancel box (user, 2026-10-01). A button that used to want a second
+// press (Rename, Save as, Delete) opens this box under its row instead, and
+// nothing happens until Confirm. Pressing the button again does nothing. Confirm
+// ignores clicks for half a second, so a double-click can never reach it, and
+// pressing Confirm or Cancel leaves the keyboard where it was (in the name box).
+function askBox(button) {
+  const box = document.createElement("div");
+  box.style.cssText = "display:none;flex-direction:column;gap:5px;margin-top:5px;padding:6px;" +
+    "border:1px solid #c66;border-radius:5px;background:#2a1c1c";
+  const text = document.createElement("div");
+  text.style.cssText = "color:#fbb;font-size:12px;font-weight:600;white-space:normal";
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:5px;flex-wrap:wrap";
+  const yes = document.createElement("button"), no = document.createElement("button");
+  yes.textContent = "Confirm"; no.textContent = "Cancel";
+  for (const b of [yes, no]) {
+    b.className = button.className.replace(/\b(danger|warn)\b/g, "").trim();
+    b.style.cssText = button.style.cssText;
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+  }
+  row.append(yes, no); box.append(text, row);
+  let job = null;
+  const close = () => { job = null; box.style.display = "none"; };
+  yes.onclick = async () => {
+    if (!job || performance.now() - job.at < 500) return;   // the 2nd half of a double-click
+    const { onYes } = job; close(); await onYes();
+  };
+  no.onclick = () => { const j = job; close(); j?.onNo?.(); };
+  const open = (message, onYes, onNo) => {
+    const spot = button.parentElement || button;
+    if (box.previousElementSibling !== spot) spot.after(box);
+    text.textContent = message;
+    box.style.display = "flex";
+    job = { onYes, onNo, at: performance.now() };
+  };
+  return { open, close, isOpen: () => !!job };
+}
 function makeRenamer({ button, field, current, apply, say, blocked,
                        armedLabel = "Save new name", allowEmpty = false, requireChange = true }) {
   let armed = null;
   const label = button.textContent;
+  const ask = askBox(button);
   const end = (restore) => {
     if (!armed) return;
     const { el: f, before, onKey } = armed;
     f.removeEventListener("keydown", onKey, true);
     if (restore) f.value = before;
     armed = null;
+    ask.close();
     button.textContent = label;
   };
   const confirm = async () => {
@@ -65,7 +106,7 @@ function makeRenamer({ button, field, current, apply, say, blocked,
     await apply(v);
   };
   const click = async () => {
-    if (armed) return confirm();
+    if (armed) { armed.el.focus(); return; }   // a 2nd press does nothing - the box's Confirm does it
     const stop = blocked?.();
     if (stop) { say(stop); return; }
     const f = field(); const cur = current();
@@ -78,8 +119,9 @@ function makeRenamer({ button, field, current, apply, say, blocked,
     };
     f.addEventListener("keydown", onKey, true);
     armed = { el: f, before, onKey };
-    button.textContent = armedLabel;
-    say(`Type the new name, then press Enter or ${armedLabel} (Esc cancels).`);
+    ask.open(`${label}: type the name in the name box, then press Confirm.`, confirm,
+      () => { end(true); say("Cancelled - nothing was changed."); });
+    say("Type the name, then press Confirm (or Enter). Cancel or Esc stops.");
   };
   return { click };
 }
@@ -134,7 +176,18 @@ function css() {
     .fdp .reset { width: 100%; margin-top: 2px; }
     .fdp .prefix { color: #9c9; font-weight: bold; }
     .fdp .msg { color: #bbb; font-size: 12px; min-height: 14px; }
-    .fdp .msg.err { color: #f99; }`;
+    .fdp .msg.err { color: #f99; }
+    /* repaint OFF | repaint ON (user, 2026-10-01): same look as every on/off pair -
+       the side in use green, the other gray with mid-gray lettering */
+    .fdp .fdpair { display: flex; flex: 1; }
+    .fdp .fdpair button { flex: 1; background: #55575c; color: #a0a0a0; border-color: #55575c;
+                          border-radius: 0; padding: 4px 8px; font-size: 13px; }
+    .fdp .fdpair button:first-child { border-radius: 3px 0 0 3px; }
+    .fdp .fdpair button:last-child { border-radius: 0 3px 3px 0; }
+    .fdp .fdpair button:hover { background: #6a6c72; }
+    .fdp .fdpair button.on { background: #2e8b3e; color: #fff; border-color: #2e8b3e; }
+    .fdp .rpnote { color: #c98a4a; font-size: 12px; margin: -2px 0 6px; }
+    .fdp .rpnote:empty { display: none; }`;
   document.head.appendChild(s);
 }
 
@@ -207,6 +260,10 @@ class Panel {
     this.el.className = "fdp";
     this.el.innerHTML = `
       <div class="t">FACEDETAILER PRESETS - every dial, saved by name</div>
+      <div class="row"><span class="fdpair">
+        <button class="rp-off" title="Switch the face repaint off - the picture is used as painted">repaint OFF</button><button class="rp-on" title="Switch the face repaint on">repaint ON</button>
+      </span></div>
+      <div class="rpnote"></div>
       <div class="row"><select class="list"></select>
         <button class="load">Load</button><button class="save">Save</button></div>
       <div class="row"><span class="prefix"></span><input class="name" placeholder="new preset name (prefix added for you)">
@@ -216,7 +273,7 @@ class Panel {
       <div class="msg"></div>`;
     this.q = (s) => this.el.querySelector(s);
     // Nothing picked: the preset menu blinks and waits; then the button carries on
-    // (Load loads; Save and Delete ask you to press them again). (user, 2026-09-30)
+    // (Load loads; Save asks you to press it again; Delete opens its confirm box).
     const list = () => this.q(".list");
     const tell = (t) => this.say(t);
     this.q(".load").onclick = () => this.selected() ? this.load()
@@ -245,7 +302,66 @@ class Panel {
     this.q(".reset").onclick = () => this.reset();
     for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"])
       this.el.addEventListener(ev, (e) => e.stopPropagation());
-    this.deleteArmed = null;
+    this.delAsk = askBox(this.q(".delete"));    // Delete asks in the box (user, 2026-10-01)
+
+    // repaint OFF | repaint ON (user, 2026-10-01). It works the workflow's own face
+    // repaint switch (in v01/v02: node 35 "STEP 11 SWITCH", in the plumbing frame),
+    // found by following this FaceDetailer's picture to the on/off chooser and back
+    // through the gate. The repaint still only runs in trained-face mode (STEP 2).
+    this.q(".rp-off").onclick = () => this.setRepaint(false);
+    this.q(".rp-on").onclick = () => this.setRepaint(true);
+    this.showRepaint();
+    const t = setInterval(() => {                   // follows changes made elsewhere
+      if (!this.node.graph) { clearInterval(t); return; }
+      this.showRepaint();
+    }, 700);
+  }
+
+  // The switch widget this FaceDetailer answers to, or null if the workflow has none.
+  repaintSwitch() {
+    const g = this.node.graph || app.graph;
+    if (!g) return null;
+    const link = (id) => (g.links?.get ? g.links.get(id) : g.links?.[id]) || null;
+    const from = (n, inputName) => {
+      const inp = (n.inputs || []).find((i) => i.name === inputName);
+      const l = inp && inp.link != null ? link(inp.link) : null;
+      return l ? g.getNodeById(l.origin_id) : null;
+    };
+    for (const id of this.node.outputs?.[0]?.links || []) {
+      const l = link(id);
+      const branch = l && g.getNodeById(l.target_id);
+      if (!branch || branch.comfyClass !== "ImpactConditionalBranch") continue;
+      let src = from(branch, "cond");
+      if (src?.comfyClass === "ImpactLogicalOperators") src = from(src, "bool_a");
+      const w = (src?.widgets || []).find((x) => x.name === "value");
+      if (src?.comfyClass === "PrimitiveBoolean" && w) return { node: src, w };
+    }
+    return null;
+  }
+
+  showRepaint() {
+    const sw = this.repaintSwitch();
+    const on = !!sw?.w.value;
+    this.q(".rp-on").classList.toggle("on", !!sw && on);
+    this.q(".rp-off").classList.toggle("on", !!sw && !on);
+    const note = !sw ? "This workflow has no face repaint switch, so these buttons do nothing here."
+      : (faceMode() !== "trained_face" && on
+        ? "STEP 2 is not on trained face, so no repaint happens even with this ON." : "");
+    const el = this.q(".rpnote");
+    if (el.textContent !== note) el.textContent = note;
+  }
+
+  setRepaint(on) {
+    const sw = this.repaintSwitch();
+    if (!sw) { this.showRepaint(); return; }
+    if (sw.w.value !== on) {
+      sw.w.value = on;
+      try { sw.w.callback?.(on); } catch (e) { /* no callback is fine */ }
+      sw.node.setDirtyCanvas?.(true, true);
+      app.extensionManager?.workflow?.activeWorkflow?.changeTracker?.checkState?.();
+    }
+    this.showRepaint();
+    this.say(on ? "Face repaint is ON." : "Face repaint is OFF - the picture is used as painted.");
   }
 
   say(text, err) {
@@ -318,17 +434,14 @@ class Panel {
   async del() {
     const name = this.selected();
     if (!name) return this.say("Pick the preset to delete.", true);
-    if (this.deleteArmed !== name) {
-      this.deleteArmed = name;
-      this.q(".delete").textContent = "Press again to delete";
-      return this.say(`Press Delete again to delete ${name}.`);
-    }
-    this.deleteArmed = null;
-    this.q(".delete").textContent = "Delete";
-    const d = await jpost("/freedom/pm/preset/delete", { scope: SCOPE, name });
-    if (!d.ok) return this.say(d.error || "Could not delete.", true);
-    await this.refresh("");
-    this.say(`Deleted ${name}.`);
+    this.say("");
+    this.delAsk.open(`Delete the preset ${name} for good?`, async () => {
+      if (this.selected() !== name) return this.say("The menu changed before Confirm - nothing was deleted.", true);
+      const d = await jpost("/freedom/pm/preset/delete", { scope: SCOPE, name });
+      if (!d.ok) return this.say(d.error || "Could not delete.", true);
+      await this.refresh("");
+      this.say(`Deleted ${name}.`);
+    }, () => this.say("Cancelled - nothing was changed."));
   }
 
   async reset() {

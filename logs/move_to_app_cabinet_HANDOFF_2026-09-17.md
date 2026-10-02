@@ -168,25 +168,7 @@ attribution, and git writes them into every commit anyway), and the word "Tailsc
 
 # PART 3 — TWO THINGS THAT WENT WRONG, AND WHAT WAS DONE
 
-## 3.1 A live training run was disturbed
-`face_training/` was moved out of the kobold repo while an OneTrainer run was **actively
-using it**. Four processes were running and unknown to this session: the face tool
-interface, the Susana retrain pipeline from the previous night, the review server, and an
-`ot_train_entry.py` training job started that morning at 06:10. The running job loads its
-code from that exact path.
-
-It was caught because three log files refused to move and the reason was investigated
-instead of worked around. `face_training/`, `logs/seek/` and `logs/train/` were put back
-immediately and the entry script confirmed in place. The training job survived.
-
-**Lesson for next time: check for running processes belonging to the folder being moved,
-not just for the app being moved.**
-
-## 3.2 The failed move split a log folder
-That same failed move was not atomic. Four `face_tool_*.log` files had already landed in
-`REPO_comfyUI/logs/face_training/` and existed **nowhere else**, while the other forty-seven
-stayed in kobold. Found by comparing both sides file by file. All four were returned and
-the stray folder removed. Count verified back at fifty-one, matching the original.
+> Moved to `REPO_face\logs\move_to_app_cabinet_HANDOFF_2026-09-17__face_parts.md` on 2026-09-30, when Face N the Crowd moved out of REPO_comfyUI: "3.1 A live training run was disturbed"
 
 ---
 
@@ -206,9 +188,7 @@ the stray folder removed. Count verified back at fifty-one, matching the origina
      menu, by this session driving the launcher menu, or by running the launcher's command
      directly (which would break the launcher-only rule).
 
-2. **face_training still has not moved.** Blocked: the face tool interface window is still
-   open (two processes) and holds three of its log files. The training run itself finished
-   at 11:55.
+> Moved to `REPO_face\logs\move_to_app_cabinet_HANDOFF_2026-09-17__face_parts.md` on 2026-09-30, when Face N the Crowd moved out of REPO_comfyUI: "2. **face_training still has not moved.** Blocked: the face tool interface window is still"
 
 3. **The public repository.** Not created, not named, nothing pushed. The scrub gate has
    been passed, so this is only waiting on a name.

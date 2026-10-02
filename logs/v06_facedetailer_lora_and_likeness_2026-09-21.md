@@ -116,46 +116,7 @@ the expression previously had to come entirely from the prompt at 1.4 to 1.7.
 **Consequence:** no number in the prompt box fixes this, because the expression no longer
 comes from the prompt box. It arrives with her face. It is fixed by retraining.
 
-## 2.4 The training run's own numbers
-`_face_runs/susana/susana_head_sdxl_pony/config.json`:
-- base model `cyberrealisticPony_v110` — **correct**, matches the generation checkpoint
-- lora_rank 16, **lora_alpha 1.0** → alpha/rank multiplier of **0.0625**
-- learning_rate 0.0003 → **effective rate 0.0000188**, the very bottom of the 1e-4 to 1e-5
-  range the community quotes
-- 164 images × 20 epochs ÷ 4 accumulation = **~820 optimiser steps**; the repo's own
-  3 Sep log set the target at 1,500–2,000
-- loss_weight_fn `CONSTANT` — the recommended `min_snr_gamma` weighting is OFF, while the
-  Gamma box sits at 5.0 doing nothing
-- masked_training `False`, validation `False`, clear_cache_before_training `False`
-
----
-
-# PART 3 — THE ONETRAINER HANDBOOK
-
-`logs/OneTrainer_Face_LoRA_Handbook.pdf` — 86 pages, ~22,000 words.
-
-- Covers **all 454 controls** across 10 tabs and 9 sub-windows. Coverage was verified
-  programmatically against an extracted inventory, not by eye: 454 assigned, 0 missing.
-- 386 carry the developer's own tooltip, rewritten in plain language; 364 have their real
-  default resolved from the config modules. Where nothing documents a control, the entry
-  says so rather than inventing an explanation.
-- 27 boxes carry community commentary, credited to the names contributors post under on
-  OneTrainer's own wiki: Caith, Alaiya of OnePawProductions, Malessar, Ejektaflex, efhosci.
-- Sourced from the installed source at commit `23df383`, the nine shipped docs, the
-  project wiki (developer pages and community pages), discussion #388, and community
-  face-training guides.
-
-**It is not in git.** `.gitignore:43` ignores `logs/*` but re-admits `.md`, `.py` and
-`.json` — not `.pdf`. The file exists on disk only.
-
-Findings from writing it that bear on this repo:
-- alpha ÷ rank multiplies the learning rate (wiki, stated outright)
-- min-SNR weighting at gamma 5 is recommended for SDXL by both the wiki and the
-  developer's own discussion forum
-- the Concepts tab has a **Resolution Override** whose documented purpose is preventing
-  image upscaling — exactly our 460px-frames-at-1024 problem
-- the **Concept Statistics** tab would have shown the upscaling, the aspect ratios and the
-  caption truncation in about ten seconds
+> Moved to `REPO_face\logs\v06_facedetailer_lora_and_likeness_2026-09-21__face_parts.md` on 2026-09-30, when Face N the Crowd moved out of REPO_comfyUI: "2.4 The training run's own numbers"
 
 ---
 

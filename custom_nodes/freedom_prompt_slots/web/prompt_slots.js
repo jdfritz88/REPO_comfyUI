@@ -61,7 +61,8 @@ import { app } from "../../scripts/app.js";
   s.id = "freedom-toggle-colors";
   s.textContent =
     `.lg-node [role=group] > button[data-state="on"] { background: #2e8b3e !important; color: #fff !important; }\n` +
-    `.lg-node [role=group] > button[data-state="off"] { background: #55575c !important; color: #c8c8c8 !important; }\n` +
+    // inactive lettering: a mid gray, darker than before but apart from the button gray (user, 2026-10-01: #c8c8c8 -> #e2e2e2 too bright -> #a0a0a0)
+    `.lg-node [role=group] > button[data-state="off"] { background: #55575c !important; color: #a0a0a0 !important; }\n` +
     `.lg-node [role=group] > button[data-state="off"]:hover { background: #6a6c72 !important; }`;
   document.head.appendChild(s);
 })();
@@ -306,6 +307,9 @@ const CSS = `
 .fpsl-btn:hover{background:#3a3a3a;border-color:#6a8cb8}
 .fpsl-btn:disabled{opacity:.4;cursor:default}
 .fpsl-btn.warn{border-color:#a66;color:#fbb}
+.fpsl-ask{display:flex;flex-direction:column;gap:5px;border:1px solid #c66;background:#2a1c1c;
+  border-radius:5px;padding:6px}
+.fpsl-ask-text{color:#fbb;font-size:12px;font-weight:600}
 .fpsl-where{color:#cde3ff;font-size:11px;font-weight:600;letter-spacing:.3px}
 .fpsl-status{color:#9cc4ff;font-size:11px;min-height:13px}
 .fpsl-status.bad{color:#f2a0a0}
@@ -319,6 +323,9 @@ const CSS = `
 .fpsl-green{background:#1f7a33;color:#fff;border:1px solid #39b35a;border-radius:6px;
   padding:10px 14px;cursor:pointer;font-size:14px;font-weight:700;width:100%}
 .fpsl-green:hover{background:#26933e}
+.fpsl-blue{background:#2b5f9e;color:#fff;border:1px solid #4a86c8;border-radius:6px;
+  padding:10px 14px;cursor:pointer;font-size:14px;font-weight:700;width:100%}
+.fpsl-blue:hover{background:#3a74ba}
 .ffinal-text{flex:1;background:#141414;border:1px solid #3a3a3a;border-radius:4px;padding:6px;
   color:#eee;font:13px/1.45 system-ui,sans-serif;white-space:pre-wrap;word-break:break-word;
   user-select:none;-webkit-user-select:none;cursor:default;outline:none}
@@ -663,11 +670,22 @@ function buildPartsSection(node, spec) {
   // The split boxes (Scene, Physical) have no Save phrase: the phrase shelf was
   // taken out of the workflow (user, 2026-09-30).
   // A box with a shelf title at its top has no second heading on the buttons (user, 2026-09-30).
+  // Delete and Create new ask first, in a small box (user, 2026-10-01): one click
+  // opens it, and nothing happens until Confirm. It sits BELOW the buttons and
+  // ignores Confirm for half a second, so a double-click can never get through.
+  // An in-page box, not a browser pop-up - a pop-up freezes the whole page.
+  const ask = el("div", { className: "fpsl-ask" });
+  const askText = el("div", { className: "fpsl-ask-text" });
+  const btnYes = el("button", { className: "fpsl-btn warn", textContent: "Confirm" });
+  const btnNo = el("button", { className: "fpsl-btn", textContent: "Cancel" });
+  ask.append(askText, el("div", { className: "fpsl-row" }, [btnYes, btnNo]));
+  ask.style.display = "none";
+
   root.append(...(spec.shelfTitle ? [] : [head]), where,
     el("div", { className: "fpsl-row" }, [btnLoad, btnSave, btnSaveAs, btnNew]),
     el("div", { className: "fpsl-row" },
       spec.phrase === false ? [btnRename, btnDelete] : [btnRename, btnPhrase, btnDelete]),
-    status);
+    ask, status);
   for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"]) {
     root.addEventListener(ev, (e) => e.stopPropagation());
   }
@@ -676,6 +694,22 @@ function buildPartsSection(node, spec) {
     status.textContent = message || "";
     status.className = "fpsl-status" + (bad ? " bad" : "");
   };
+
+  let pending = null;                        // what Confirm will do, and when the box opened
+  const closeAsk = () => { pending = null; ask.style.display = "none"; };
+  const openAsk = (message, act) => {
+    askText.textContent = message;
+    ask.style.display = "";
+    pending = { act, at: performance.now() };
+    say("");
+  };
+  btnYes.onclick = async () => {
+    if (!pending || performance.now() - pending.at < 500) return;   // the 2nd half of a double-click
+    const act = pending.act;
+    closeAsk();
+    await act();
+  };
+  btnNo.onclick = () => { closeAsk(); say("cancelled - nothing was changed"); };
   const items = () => shelf.parts[spec.kind] || [];
   const slotNow = () => Math.max(1, parseInt(widgetValue(node, spec.slot), 10) || 1);
   const boxText = () => {
@@ -684,7 +718,13 @@ function buildPartsSection(node, spec) {
     const ta = textareaOf(w);
     return ta ? String(ta.value || "") : String(w.value || "");
   };
-  const disarm = () => calmAll(root);
+  // Any other shelf button closes the confirm box and stops a half-done rename.
+  // (renamer and saveAser are made further down; this only runs on a click.)
+  const disarm = (keep) => {
+    closeAsk();
+    if (keep !== renamer) renamer.cancel();
+    if (keep !== saveAser) saveAser.cancel();
+  };
 
   function refresh() {
     const slot = slotNow();
@@ -704,7 +744,7 @@ function buildPartsSection(node, spec) {
     btnSave.disabled = false;
     btnRename.disabled = false;
     btnDelete.disabled = false;
-    if (waiting && entry) {                  // the dial reached a saved one: carry on
+    if (waiting && entry) {                  // the dial reached a saved one: say what to press
       const f = dialField(); if (f) f.style.outline = "";
       const then = waiting; waiting = null; setTimeout(then, 0);
     }
@@ -712,6 +752,8 @@ function buildPartsSection(node, spec) {
 
   // These buttons work on the slot the DIAL points at, so on an empty slot the dial is
   // the field that blinks 3 times and stays highlighted until it reaches a saved one.
+  // Reaching it only shows a message - no button ever acts by itself later on
+  // (user, 2026-10-01: a forgotten Load used to fill the box on its own).
   let waiting = null;
   const dialField = () => {
     const root = document.querySelector(`[data-node-id="${node.id}"]`);
@@ -727,16 +769,33 @@ function buildPartsSection(node, spec) {
   };
   const hasEntry = () => !!items()[slotNow() - 1];
 
+  // No answer, or a garbled one, from ComfyUI is reported - never silent (user, 2026-10-01).
+  let busy = false;                          // one shelf change at a time
   const post = async (action, body) => {
-    const result = await postJson(`/freedom/partslots/${spec.kind}/${action}`, body);
+    let result = null;
+    try { result = await postJson(`/freedom/partslots/${spec.kind}/${action}`, body); }
+    catch (e) { result = null; }
+    if (!result || typeof result !== "object") {
+      return { ok: false, error: "ComfyUI gave no proper answer, so this may not have happened. " +
+                                 "Turn the dial away and back to check." };
+    }
     if (result.ok && result.items) shelf.parts[spec.kind] = result.items;
     return result;
+  };
+  const once = async (job) => {
+    if (busy) { say("still working on the last click - wait a moment"); return; }
+    busy = true;
+    try { await job(); } finally { busy = false; }
   };
 
   btnLoad.onclick = () => {
     disarm();
     const entry = items()[slotNow() - 1];
-    if (!entry) { needSlot("turn the dial to the saved one to load", () => btnLoad.onclick()); return; }
+    if (!entry) {
+      needSlot("turn the dial to the saved one to load",
+        () => say(`now press Load to load "${items()[slotNow() - 1].name}"`));
+      return;
+    }
     setWidget(node, spec.box, entry.text);
     say(`loaded "${entry.name}" into ${spec.boxLabel} - edit it there`);
   };
@@ -751,10 +810,12 @@ function buildPartsSection(node, spec) {
     const text = boxText();
     if (text === null) { say(`could not find ${spec.boxLabel}`, true); return; }
     const slot = slotNow();
-    const r = await post("save", { slot, name: widgetValue(node, spec.name), text });
-    if (!r.ok) { say(r.error || "save failed", true); return; }
-    refreshAll();
-    say(`slot ${slot} written over with what is in ${spec.boxLabel}`);
+    await once(async () => {
+      const r = await post("save", { slot, name: widgetValue(node, spec.name), text });
+      if (!r.ok) { say(r.error || "save failed", true); return; }
+      refreshAll();
+      say(`slot ${slot} written over with what is in ${spec.boxLabel}`);
+    });
   };
 
   const saveAser = makeRenamer({
@@ -764,19 +825,22 @@ function buildPartsSection(node, spec) {
     apply: async (newName) => {
       const text = boxText();
       if (text === null) { say(`could not find ${spec.boxLabel}`, true); return; }
-      setWidget(node, spec.name, newName);
-      const r = await post("saveas", { name: newName, text });
-      if (!r.ok) { say(r.error || "save failed", true); refresh(); return; }
-      setWidget(node, spec.slot, r.slot);
-      refreshAll();
-      say(`saved as "${newName}" in slot ${r.slot}`);
+      await once(async () => {
+        setWidget(node, spec.name, newName);
+        const r = await post("saveas", { name: newName, text });
+        if (!r.ok) { say(r.error || "save failed", true); refresh(); return; }
+        setWidget(node, spec.slot, r.slot);
+        refreshAll();
+        say(`saved as "${newName}" in slot ${r.slot}`);
+      });
     },
   });
-  btnSaveAs.onclick = () => { disarm(); saveAser.click(); };
+  btnSaveAs.onclick = () => { disarm(saveAser); saveAser.click(); };
 
-  twoStep(btnNew, "Create new", "Clear the box - click again",
-    `this empties ${spec.boxLabel}. Click again to go ahead, or click anything else.`,
-    () => {
+  btnNew.onclick = () => {
+    disarm();
+    openAsk(`Empty ${spec.boxLabel}? What is typed there now will be lost. ` +
+            "Your saved ones on the shelf stay as they are.", () => {
       setWidget(node, spec.box, "");
       const fresh = Math.min(items().length + 1, 99);
       setWidget(node, spec.slot, fresh);
@@ -785,25 +849,31 @@ function buildPartsSection(node, spec) {
       refresh();
       say(`box emptied. You are on slot ${fresh}, which is free. Type, name it, ` +
           "then press Save as.");
-    }, say);
+    });
+  };
 
-  twoStep(btnDelete, "Delete", "Delete this one - click again",
-    "this takes the one you are dialled to off the shelf for good. Click again " +
-    "to go ahead, or click anything else.",
-    async () => {
-      if (!hasEntry()) {
-        needSlot("turn the dial to the saved one to delete",
-          () => say(`now press Delete to delete "${items()[slotNow() - 1].name}"`));
-        return;
-      }
-      const slot = slotNow();
-      const r = await post("delete", { slot });
-      if (!r.ok) { say(r.error || "could not delete that one", true); return; }
-      setWidget(node, spec.slot, Math.min(slot, Math.max(1, items().length)));
-      refreshAll();
-      say(`"${r.deleted}" is gone. ${items().length} left, and anything below it ` +
-          "has moved up a slot.");
-    }, say);
+  btnDelete.onclick = () => {
+    disarm();
+    if (!hasEntry()) {
+      needSlot("turn the dial to the saved one to delete",
+        () => say(`now press Delete to delete "${items()[slotNow() - 1].name}"`));
+      return;
+    }
+    const slot = slotNow();
+    const name = items()[slot - 1].name;
+    openAsk(`Delete "${name}" (slot ${slot}) from the shelf for good? The ones below it move up a slot.`,
+      () => once(async () => {
+        if (items()[slot - 1]?.name !== name) {        // the shelf changed meanwhile
+          say("the shelf changed before Confirm - nothing was deleted", true); return;
+        }
+        const r = await post("delete", { slot });
+        if (!r.ok) { say(r.error || "could not delete that one", true); return; }
+        setWidget(node, spec.slot, Math.min(slot, Math.max(1, items().length)));
+        refreshAll();
+        say(`"${r.deleted}" is gone. ${items().length} left, and anything below it ` +
+            "has moved up a slot.");
+      }));
+  };
 
   btnPhrase.onclick = async () => { disarm(); await savePhrase(say); };
 
@@ -813,16 +883,22 @@ function buildPartsSection(node, spec) {
     current: () => items()[slotNow() - 1]?.name || "",
     apply: async (newName) => {
       const slot = slotNow();
-      setWidget(node, spec.name, newName);
-      const r = await post("rename", { slot, name: newName });
-      if (!r.ok) { say(r.error || "rename failed", true); refresh(); return; }
-      refreshAll();
-      say(`renamed "${r.old}" to "${items()[slot - 1].name}" - its text is unchanged`);
+      await once(async () => {
+        setWidget(node, spec.name, newName);
+        const r = await post("rename", { slot, name: newName });
+        if (!r.ok) { say(r.error || "rename failed", true); refresh(); return; }
+        refreshAll();
+        say(`renamed "${r.old}" to "${items()[slot - 1].name}" - its text is unchanged`);
+      });
     },
   });
   btnRename.onclick = () => {
-    disarm();
-    if (!hasEntry()) { needSlot("turn the dial to the saved one to rename", () => renamer.click()); return; }
+    disarm(renamer);
+    if (!hasEntry()) {
+      needSlot("turn the dial to the saved one to rename",
+        () => say(`now press Rename to rename "${items()[slotNow() - 1].name}"`));
+      return;
+    }
     renamer.click();
   };
 
@@ -860,7 +936,14 @@ function buildPartsSection(node, spec) {
     const original = dial.callback;
     dial.callback = function (value) {
       const r = original ? original.apply(this, arguments) : undefined;
-      if (!dial.__freedomQuiet) setTimeout(refresh, 0);
+      if (!dial.__freedomQuiet) {
+        // A new slot is a different saved one: a waiting Confirm or a half-typed
+        // name was meant for the old one, so both are called off (user, 2026-10-01).
+        const was = pending || renamer.isArmed() || saveAser.isArmed();
+        disarm();
+        if (was) say("the dial moved, so that was cancelled - nothing was changed");
+        setTimeout(refresh, 0);
+      }
       return r;
     };
   }
@@ -1110,8 +1193,9 @@ function ownTextField(node, widgetName, domName, readOnly, label, placeholder, g
 
 // --------------------------------------------------------------------------- //
 // Rename in two steps (user, 2026-09-30) - every Rename button:
-//   1st click: the name field gets the current name, selected, and blinks 3 times.
-//   Then type the new name; Enter or a 2nd click ("Save new name") renames.
+//   1st click: the name field gets the current name, selected, and blinks 3 times,
+//   and the confirm/cancel box opens under the buttons (user, 2026-10-01).
+//   Then type the new name; Enter or Confirm renames. A 2nd click does nothing.
 //   Esc puts the field back and renames nothing.
 // --------------------------------------------------------------------------- //
 function blinkThree(field) {
@@ -1120,16 +1204,56 @@ function blinkThree(field) {
                    { boxShadow: "0 0 0 3px transparent" }], { duration: 330, iterations: 3 });
   } catch (e) { /* an old browser simply skips the blink */ }
 }
+
+// The confirm/cancel box (user, 2026-10-01). A button that used to want a second
+// press (Rename, Save as, Delete) opens this box under its row instead, and
+// nothing happens until Confirm. Pressing the button again does nothing. Confirm
+// ignores clicks for half a second, so a double-click can never reach it, and
+// pressing Confirm or Cancel leaves the keyboard where it was (in the name box).
+function askBox(button) {
+  const box = document.createElement("div");
+  box.style.cssText = "display:none;flex-direction:column;gap:5px;margin-top:5px;padding:6px;" +
+    "border:1px solid #c66;border-radius:5px;background:#2a1c1c";
+  const text = document.createElement("div");
+  text.style.cssText = "color:#fbb;font-size:12px;font-weight:600;white-space:normal";
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:5px;flex-wrap:wrap";
+  const yes = document.createElement("button"), no = document.createElement("button");
+  yes.textContent = "Confirm"; no.textContent = "Cancel";
+  for (const b of [yes, no]) {
+    b.className = button.className.replace(/\b(danger|warn)\b/g, "").trim();
+    b.style.cssText = button.style.cssText;
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+  }
+  row.append(yes, no); box.append(text, row);
+  let job = null;
+  const close = () => { job = null; box.style.display = "none"; };
+  yes.onclick = async () => {
+    if (!job || performance.now() - job.at < 500) return;   // the 2nd half of a double-click
+    const { onYes } = job; close(); await onYes();
+  };
+  no.onclick = () => { const j = job; close(); j?.onNo?.(); };
+  const open = (message, onYes, onNo) => {
+    const spot = button.parentElement || button;
+    if (box.previousElementSibling !== spot) spot.after(box);
+    text.textContent = message;
+    box.style.display = "flex";
+    job = { onYes, onNo, at: performance.now() };
+  };
+  return { open, close, isOpen: () => !!job };
+}
 function makeRenamer({ button, field, current, apply, say, armedLabel = "Save new name",
                        allowEmpty = false, requireChange = true }) {
   let armed = null;
   const label = button.textContent;
+  const ask = askBox(button);
   const end = (restore) => {
     if (!armed) return;
     const { el: f, before, onKey } = armed;
     f.removeEventListener("keydown", onKey, true);
     if (restore) { f.value = before; f.dispatchEvent(new Event("input", { bubbles: true })); }
     armed = null;
+    ask.close();
     button.textContent = label;
   };
   const confirm = async () => {
@@ -1143,7 +1267,7 @@ function makeRenamer({ button, field, current, apply, say, armedLabel = "Save ne
   };
   const cancel = () => { const after = armed?.after; end(true); after?.(); say?.("rename cancelled - the name is unchanged"); };
   const click = async () => {
-    if (armed) return confirm();
+    if (armed) { armed.el.focus(); return; }   // a 2nd press does nothing - the box's Confirm does it
     const f = field(); const cur = current();
     if (!f) { say?.("could not find the name field", true); return; }
     if (!cur && !allowEmpty) { say?.("there is nothing here to rename", true); return; }
@@ -1157,9 +1281,9 @@ function makeRenamer({ button, field, current, apply, say, armedLabel = "Save ne
       else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); }
     };
     f.addEventListener("keydown", onKey, true);
-    armed = { el: f, before, onKey, after };
-    button.textContent = armedLabel;
-    say?.(`type the new name, then press Enter or ${armedLabel} (Esc cancels)`);
+    armed = { el: f, before, onKey, after, at: performance.now() };
+    ask.open(`${label}: type the name in the name box, then press Confirm.`, confirm, () => cancel());
+    say?.("type the name, then press Confirm (or Enter). Cancel or Esc stops.");
   };
   // release: stop waiting without renaming and without putting the old text back
   const release = () => { const after = armed?.after; end(false); after?.(); };
@@ -1180,18 +1304,31 @@ const firstNode = (type) => graphNodes(type)[0] || null;
 const cleanPart = (s) => String(s ?? "").trim();
 
 // What each part of the final prompt would be RIGHT NOW, read from the page.
+// Her trigger word, e.g. "(lorasusana:1.1)" - only in trained-face mode, and not when the Face
+// Shelf's strength is 0. Its weight comes from the Face Shelf's trigger_weight dial.
+function liveTrigger() {
+  if (widgetValue(firstNode("FreedomFaceSource"), "mode") !== "trained_face") return "";
+  const shelfNode = firstNode("FreedomFaceShelf");
+  if (Number(widgetValue(shelfNode, "strength")) === 0) return "";
+  return cleanPart(shelfNode?.__ffs?.trigEl?.dataset?.text);
+}
+
+// Her trigger word lives in the Summary Signal part, right after the model's text (user,
+// 2026-10-01, choice 2: shown locked in 7c; the weight is still set on the Face Shelf). So the
+// Summary Signal part is: model text, trigger word, your words. Random-face mode is unchanged:
+// Portrait Master's words go in the face part, written at Run.
 function liveParts() {
-  const live = { front: "", face: "", physical: "", scene: "" };
+  const live = { front: "", face: "", physical: "", scene: "", model: "", trig: "" };
   const sig = firstNode("FreedomCheckpointFrontText")?.__cfp;
-  if (sig) {
-    const front = sig.enabled() && sig.front ? cleanPart(sig.front) : "";
-    live.front = [front, cleanPart(sig.words())].filter(Boolean).join(", ");
-  }
   const mode = widgetValue(firstNode("FreedomFaceSource"), "mode");
+  const trig = liveTrigger();
+  if (sig) {
+    live.model = sig.enabled() && sig.front ? cleanPart(sig.front) : "";
+    live.trig = trig;
+    live.front = [live.model, trig, cleanPart(sig.words())].filter(Boolean).join(", ");
+  }
   if (mode === "trained_face") {
-    const shelfNode = firstNode("FreedomFaceShelf");
-    const strength = Number(widgetValue(shelfNode, "strength"));
-    live.face = strength === 0 ? "" : cleanPart(shelfNode?.__ffs?.trigEl?.dataset?.text);
+    live.face = sig ? "" : trig;                // no Summary Signal box: as before
   } else if (mode === "random_face") {
     live.face = PM_MARKER;
   }
@@ -1214,7 +1351,11 @@ function finalParts(node) {
   try { const p = JSON.parse(widgetValue(node, "final_parts") || "{}"); return p && typeof p === "object" ? p : {}; }
   catch (e) { return {}; }
 }
-const joinParts = (p) => FINAL_KEYS.map((k) => cleanPart(p[k])).filter(Boolean).join(", ");
+// The blue button under the final box swaps Physical and Scene (user, 2026-10-02); the choice
+// is kept in the saved parts as "order", which the server reads too (nodes.py join_final).
+const sceneFirst = (p) => (p && p.order) === "scene_first";
+const orderOf = (p) => sceneFirst(p) ? ["front", "face", "scene", "physical"] : FINAL_KEYS;
+const joinParts = (p) => orderOf(p).map((k) => cleanPart(p[k])).filter(Boolean).join(", ");
 
 // Pressing a green button: that box's text goes into the final box. The face
 // part (trigger word / Portrait Master marker) has no box of its own, so every
@@ -1225,12 +1366,35 @@ function updateFinal(key) {
   const live = liveParts();
   const parts = finalParts(node);
   parts[key] = live[key];
+  if (key === "front") { parts.model = live.model; parts.trig = live.trig; }
   parts.face = live.face;
+  // Every green button keeps her trigger word current (as it always kept the face part current),
+  // without taking in Summary Signal words that its own green button has not been pressed for.
+  if (key !== "front") refreshTrigger(parts, live);
   setWidget(node, "final_parts", JSON.stringify(parts));
   node.__final?.render();
   return null;
 }
-window.__freedomFinal = { update: updateFinal, liveParts };
+
+// Put the live trigger word into the saved Summary Signal part, in place of the one stored
+// there (or after the model's text when none was stored), leaving the rest of it alone.
+function refreshTrigger(parts, live) {
+  if (!firstNode("FreedomCheckpointFrontText")) return;
+  const old = cleanPart(parts.trig), now = cleanPart(live.trig);
+  if (old === now && parts.trig !== undefined) return;
+  let front = cleanPart(parts.front);
+  if (old && front.includes(old)) {
+    front = front.replace(old, now);
+  } else if (now) {
+    const model = cleanPart(parts.model !== undefined ? parts.model : live.model);
+    front = model && front.startsWith(model)
+      ? model + ", " + now + front.slice(model.length)
+      : (front ? now + ", " + front : now);
+  }
+  parts.front = front.replace(/(\s*,\s*){2,}/g, ", ").replace(/^\s*,\s*|\s*,\s*$/g, "");
+  parts.trig = now;
+}
+window.__freedomFinal = { update: updateFinal, liveParts, liveTrigger };
 
 // The big green button under a prompt box.
 function greenButton(node, name, key) {
@@ -1257,7 +1421,7 @@ function buildFinal(node) {
   }
   const top = el("div", { className: "fpsl-root" });
   top.innerHTML = `<div class="fpsl-where">FINAL COMBINED PROMPT - what goes to the engine at Run</div>
-    <div class="fpsl-status">Read-only. Only the green buttons change it. Order: Summary Signal, her trigger word (or Portrait Master's words), Physical Description, Scene.</div>
+    <div class="fpsl-status">Read-only. Only the green buttons change it. Order: Summary Signal (the model's text, her trigger word in trained-face mode, your words), Portrait Master's words in random-face mode, Physical Description, Scene (the blue button below swaps those two).</div>
     <div class="ffinal-text"></div>`;
   const text = top.querySelector(".ffinal-text");
   // Closed to the mouse and keyboard: no clicking in, no selecting, no typing. A
@@ -1266,6 +1430,30 @@ function buildFinal(node) {
     text.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); }, true);
   makeAdjustable(node, "freedom_parts_final_text", top, 120);
   node.addDOMWidget("freedom_parts_final_text", "div", top, { serialize: false, hideOnZoom: false });
+
+  // Blue button right under the final box (user, 2026-10-02, choice 1): each click swaps
+  // Physical Description and Scene at once; the line under it says which order is in use.
+  // Saved with the workflow (it lives in the final box's own saved parts).
+  const swap = el("div", { className: "fpsl-root" });
+  const swapBtn = el("button", { className: "fpsl-blue", textContent: "Switch the order of the Scene Prompt and the Physical Prompt" });
+  const swapLine = el("div", { className: "fpsl-status" });
+  swap.append(swapBtn, swapLine);
+  for (const ev of ["pointerdown", "wheel", "contextmenu", "keydown"]) swap.addEventListener(ev, (e) => e.stopPropagation());
+  const showOrder = () => {
+    swapLine.textContent = sceneFirst(finalParts(node))
+      ? "Order now: ... Scene Prompt, then Physical Description."
+      : "Order now: ... Physical Description, then Scene Prompt.";
+  };
+  swapBtn.onclick = () => {
+    const parts = finalParts(node);
+    if (sceneFirst(parts)) delete parts.order; else parts.order = "scene_first";
+    setWidget(node, "final_parts", JSON.stringify(parts));
+    markChanged();
+    node.__final?.render();
+    showOrder();
+  };
+  makeAdjustable(node, "freedom_parts_final_order", swap, 60);
+  node.addDOMWidget("freedom_parts_final_order", "div", swap, { serialize: false, hideOnZoom: false });
 
   const watch = el("div", { className: "fpsl-root" });
   const line = el("div", { className: "ffinal-watch" });
@@ -1286,14 +1474,19 @@ function buildFinal(node) {
     const joined = joinParts(parts);
     text.textContent = joined || "(empty - press a green button on a prompt box)";
     text.classList.toggle("empty", !joined);
+    showOrder();
   };
   const check = () => {
     const parts = finalParts(node), live = liveParts();
     const stale = FINAL_KEYS.filter((k) => cleanPart(parts[k]) !== cleanPart(live[k]));
     if (!stale.length) { line.textContent = "Up to date - the final prompt matches every box."; line.className = "ffinal-watch ok"; return; }
-    const tips = stale.map((k) => k === "face"
-      ? `${PART_NAMES[k]} changed - press any green button`
-      : `${PART_NAMES[k]} changed - press its green button`);
+    // Only her trigger word changed inside the Summary Signal part? Any green button fixes that.
+    const t = { ...parts }; refreshTrigger(t, live);
+    const onlyTrigger = cleanPart(t.front) === cleanPart(live.front);
+    // one note for everything any green button fixes (her trigger word / Portrait Master's slot)
+    const anyBtn = stale.filter((k) => k === "face" || (k === "front" && onlyTrigger));
+    const tips = (anyBtn.length ? ["her trigger word / Portrait Master changed - press any green button"] : [])
+      .concat(stale.filter((k) => !anyBtn.includes(k)).map((k) => `${PART_NAMES[k]} changed - press its green button`));
     line.textContent = "Out of date: " + tips.join("; ") + ".";
     line.className = "ffinal-watch bad";
   };

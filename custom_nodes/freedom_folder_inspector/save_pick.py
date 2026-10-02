@@ -22,11 +22,13 @@
 
 import asyncio
 import json
+import logging
 import os
 import re
 import shutil
 import subprocess
 import sys
+import threading
 import uuid
 
 import numpy as np
@@ -71,6 +73,74 @@ def hold_dir():
     d = os.path.join(folder_paths.get_temp_directory(), HOLD_SUB)
     os.makedirs(d, exist_ok=True)
     return d
+
+
+# --------------------------------------------------------------------------
+# every copy of a picture (user, 2026-10-01: the viewer's DELETE removes them all)
+# --------------------------------------------------------------------------
+# The 12b copy is named in the hold folder; its archive copy and any Save Image
+# copies are noted here, so DELETE can find them again later - even after a page
+# reload. Only the pictures this node made are listed.
+_LINKS_LOCK = threading.Lock()
+
+
+def _links_path():
+    return os.path.join(hold_dir(), "_links.json")
+
+
+def _links_update(fn, **add):
+    with _LINKS_LOCK:
+        try:
+            with open(_links_path(), "r", encoding="utf-8") as fh:
+                links = json.load(fh)
+        except Exception:
+            links = {}
+        e = links.setdefault(fn, {"archive": "", "saved": []})
+        if add.get("archive"):
+            e["archive"] = add["archive"]
+        for p in add.get("saved", []):
+            if p not in e["saved"]:
+                e["saved"].append(p)
+        if add.get("forget"):
+            links.pop(fn, None)
+        tmp = _links_path() + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(links, fh, indent=1)
+        os.replace(tmp, _links_path())
+        return links.get(fn)
+
+
+def _links_get(fn):
+    with _LINKS_LOCK:
+        try:
+            with open(_links_path(), "r", encoding="utf-8") as fh:
+                return json.load(fh).get(fn)
+        except Exception:
+            return None
+
+
+def _inside(path, folder):
+    path, folder = os.path.abspath(path), os.path.abspath(folder)
+    return os.path.commonpath([path, folder]) == folder
+
+
+def _recycle(path):
+    """Send one file to the Windows Recycle Bin (it can be restored from there)."""
+    import ctypes
+    from ctypes import wintypes
+
+    class SHFILEOPSTRUCTW(ctypes.Structure):
+        _fields_ = [("hwnd", wintypes.HWND), ("wFunc", wintypes.UINT),
+                    ("pFrom", wintypes.LPCWSTR), ("pTo", wintypes.LPCWSTR),
+                    ("fFlags", ctypes.c_ushort), ("fAnyOperationsAborted", wintypes.BOOL),
+                    ("hNameMappings", ctypes.c_void_p), ("lpszProgressTitle", wintypes.LPCWSTR)]
+    FO_DELETE, FOF_SILENT, FOF_NOCONFIRMATION, FOF_ALLOWUNDO, FOF_NOERRORUI = 3, 0x4, 0x10, 0x40, 0x400
+    op = SHFILEOPSTRUCTW(None, FO_DELETE, os.path.abspath(path) + "\0", None,
+                         FOF_SILENT | FOF_NOCONFIRMATION | FOF_ALLOWUNDO | FOF_NOERRORUI,
+                         False, None, None)
+    code = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+    if code != 0 or op.fAnyOperationsAborted or os.path.exists(path):
+        raise OSError("the Recycle Bin did not take it (code %s)" % code)
 
 
 def _clean_prefix(prefix):
@@ -214,6 +284,10 @@ class FreedomPreviewPick:
             img.save(os.path.join(d, fn), pnginfo=meta, compress_level=4)
             files.append({"filename": fn, "subfolder": HOLD_SUB, "type": "temp", "index": i,
                           "batch": batch, "width": img.width, "height": img.height})
+            if i < len(archived):                      # archive copy i is picture i
+                a = archived[i]
+                _links_update(fn, archive=os.path.join(folder_paths.get_output_directory(),
+                                                       a["subfolder"], a["filename"]))
         folder = _resolve_folder(save_folder)
         # keep the last-used folder as the default for brand-new nodes
         save_settings({"folder": folder})
@@ -369,10 +443,51 @@ async def api_pick(request):
         try:
             shutil.copy2(src, dst)
             saved.append(dst)
+            _links_update(fn, saved=[dst])
         except Exception as exc:
             errors.append(fn + ": " + str(exc))
     save_settings({"folder": _resolve_folder(body.get("folder", ""))})
     return web.json_response({"ok": not errors, "saved": saved, "errors": errors, "folder": folder})
+
+
+@routes.post("/freedom/save/delete")
+async def api_delete(request):
+    """The viewer's DELETE (user, 2026-10-01, choice 3): every copy of one picture - the
+    12b copy, its archive copy and any Save Image copies - goes to the Recycle Bin.
+    A copy that is already gone is skipped, never an error."""
+    body = await request.json()
+    fn = os.path.basename(str(body.get("file", "")))
+    if not fn or fn.startswith("_"):
+        return web.json_response({"ok": False, "error": "no picture named"}, status=400)
+    link = _links_get(fn) or {}
+    paths = [("12b", os.path.join(hold_dir(), fn))]
+    arch = link.get("archive") or ""
+    a = body.get("archive") or {}                     # the page's own record, if the note is missing
+    if not arch and a.get("filename"):
+        arch = os.path.join(folder_paths.get_output_directory(), str(a.get("subfolder", "")),
+                            os.path.basename(str(a["filename"])))
+    if arch:
+        paths.append(("archive", arch))
+    for p in link.get("saved", []):
+        paths.append(("your save folder", p))
+    removed, missing, errors = [], [], []
+    for where, p in paths:
+        if where == "12b" and not _inside(p, hold_dir()):
+            errors.append(where + ": not in the 12b folder"); continue
+        if where == "archive" and not _inside(p, folder_paths.get_output_directory()):
+            errors.append(where + ": not in the output folder"); continue
+        if not os.path.isfile(p):
+            missing.append(where); continue
+        try:
+            await asyncio.to_thread(_recycle, p)
+            removed.append(where)
+        except Exception as exc:
+            errors.append(where + ": " + str(exc))
+    if not errors:
+        _links_update(fn, forget=True)
+    logging.getLogger("freedom_save").info("[Freedom] 12b DELETE %s: removed %s; already gone %s; problems %s",
+                                           fn, removed, missing, errors)
+    return web.json_response({"ok": not errors, "removed": removed, "missing": missing, "errors": errors})
 
 
 NODE_CLASS_MAPPINGS = {"FreedomPreviewPick": FreedomPreviewPick}

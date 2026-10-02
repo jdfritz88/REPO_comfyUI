@@ -37,6 +37,17 @@ const CSS = `
 .pp-viewer .close{position:fixed;top:14px;right:16px;width:52px;height:52px;border:none;border-radius:10px;background:rgba(255,255,255,.08);color:#fff;font:30px/1 sans-serif;cursor:pointer}
 .pp-viewer .close:hover{background:rgba(255,80,80,.5)}
 .pp-viewer .count{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:#eee;font:20px sans-serif;background:rgba(0,0,0,.6);padding:5px 14px;border-radius:8px}
+.pp-viewer .vbar{position:fixed;top:14px;left:110px;right:90px;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;align-items:center;pointer-events:none}
+.pp-viewer .vbar > *{pointer-events:auto;white-space:nowrap}
+.pp-viewer .vbtn{border:none;border-radius:8px;padding:10px 16px;font:16px sans-serif;cursor:pointer;background:#2b5f9e;color:#fff}
+.pp-viewer .vbtn:hover{background:#3a74ba}
+.pp-viewer .vmsg{color:#eee;font:15px sans-serif;background:rgba(0,0,0,.6);padding:6px 12px;border-radius:8px}
+.pp-viewer .vmsg:empty{display:none}
+.pp-viewer .vbtn.vdel{background:#a32b2b}
+.pp-viewer .vbtn.vdel:hover{background:#c23a3a}
+.pp-viewer .vask{color:#fff;font:15px sans-serif;background:rgba(60,0,0,.85);padding:6px 10px;border-radius:8px;display:inline-flex;gap:8px;align-items:center}
+.pp-viewer .vask[hidden]{display:none}
+.pp-viewer .vmsg.err{color:#f9a}
 `;
 
 function injectCss() {
@@ -145,21 +156,34 @@ class PickPanel {
                 ? `Auto-saved ${a.length} to output/${a[0].subfolder || ""} (${a[0].filename}${a.length > 1 ? " ... " + a[a.length - 1].filename : ""}).`
                 : "Auto-save is off - this run was not archived.";
         }
-        this.files = files.map(f => ({ ...f, on: files.length === 1 }));
-        this.urls = [];                       // every picture of this run, for the viewer
+        const arch = (message && Array.isArray(message.freedom_archived)) ? message.freedom_archived : [];
+        // archive copy i belongs to picture i (save_pick.py makes them in the same order)
+        this.files = files.map((f, i) => ({ ...f, on: files.length === 1, archived: arch[i] || null }));
+        this.drawGrid();
+        if (!files.length) { this.grid.innerHTML = `<div class="pp-empty">No pictures came out of this run.</div>`; return; }
+        this.say(files.length === 1
+            ? "1 picture ready. Click \"Save Image\" to keep it."
+            : files.length + " pictures. Tick the ones you want, then \"Save Selected Images\".");
+    }
+
+    // The picture cards, drawn from this.files - also after a DELETE, so the box, the
+    // viewer's list and the Save button always describe the same pictures.
+    drawGrid() {
+        this.urls = [];                       // every picture still here, for the viewer
         this.grid.innerHTML = "";
-        if (!files.length) {
-            this.grid.innerHTML = `<div class="pp-empty">No pictures came out of this run.</div>`;
+        if (!this.files.length) {
+            this.grid.innerHTML = `<div class="pp-empty">No pictures here.</div>`;
             this.updateButtons();
             return;
         }
+        const total = this.files.length;
         this.files.forEach((f, i) => {
             const card = document.createElement("div");
             card.className = "pp-card" + (f.on ? " on" : "");
             const url = api.apiURL("/view?filename=" + encodeURIComponent(f.filename)
                 + "&subfolder=" + encodeURIComponent(f.subfolder) + "&type=temp&t=" + Date.now());
             card.innerHTML = `<img src="${url}" alt=""><input class="tick" type="checkbox" ${f.on ? "checked" : ""}>`
-                + `<span class="idx">${i + 1} of ${files.length}${f.width ? " - " + f.width + "x" + f.height : ""}</span>`;
+                + `<span class="idx">${i + 1} of ${total}${f.width ? " - " + f.width + "x" + f.height : ""}</span>`;
             const tick = card.querySelector(".tick");
             const toggle = (v) => { f.on = v; tick.checked = v; card.classList.toggle("on", v); this.updateButtons(); };
             card.onclick = (e) => { if (e.target !== tick) toggle(!f.on); };
@@ -169,37 +193,93 @@ class PickPanel {
             card.title = "Click = select / unselect.  Double-click = open full size.";
             this.grid.appendChild(card);
         });
-        this.say(files.length === 1
-            ? "1 picture ready. Click \"Save Image\" to keep it."
-            : files.length + " pictures. Tick the ones you want, then \"Save Selected Images\".");
         this.updateButtons();
+    }
+
+    // DELETE (user, 2026-10-01, choice 3): every copy of one picture - the 12b copy, its
+    // archive copy, and any Save Image copy - goes to the Windows Recycle Bin. The picture
+    // leaves this box only when nothing went wrong; a copy already gone is not a problem.
+    async deletePicture(f) {
+        let r = null;
+        try {
+            r = await postJSON("/freedom/save/delete", { file: f.filename, archive: f.archived });
+        } catch (e) { r = null; }
+        if (!r || typeof r !== "object" || r.ok === undefined) {
+            return { ok: false, text: "ComfyUI gave no proper answer - nothing was deleted from this box. (Was ComfyUI restarted after the update?)" };
+        }
+        if (!r.ok) {
+            return { ok: false, text: "Not deleted: " + (r.errors || []).join("; ")
+                + (r.removed && r.removed.length ? " (already moved to the Recycle Bin: " + r.removed.join(", ") + ")" : "") };
+        }
+        const k = this.files.indexOf(f);
+        if (k !== -1) this.files.splice(k, 1);
+        this.drawGrid();
+        const gone = (r.removed || []).join(", ") || "nothing (no copies were left)";
+        this.say(`Deleted: ${gone} -> Recycle Bin. ${this.files.length} picture(s) left.`);
+        return { ok: true, text: `Moved to the Recycle Bin: ${gone}.` };
     }
 
     // Double-click a picture: it opens large ON TOP OF ComfyUI (no new tab, so Chrome
     // can never block it), with arrows left and right, the arrow keys, a "2 of 4" count,
     // and an X. Esc or a click on the dark area closes it (user, 2026-09-30, Q = 1).
+    // Top bar (user, 2026-10-01): "Send to video workflow queue" and "DELETE".
     openViewer(start) {
-        const urls = this.urls || [];
-        if (!urls.length) return;
+        if (!(this.urls || []).length) return;
         document.querySelector(".pp-viewer")?.remove();
-        const many = urls.length > 1;
         const v = document.createElement("div");
         v.className = "pp-viewer";
         v.innerHTML = `<img class="pic" alt="">
           <button class="nav prev" title="Previous picture (left arrow key)">&#8249;</button>
           <button class="nav next" title="Next picture (right arrow key)">&#8250;</button>
           <button class="close" title="Close (Esc)">&#10005;</button>
+          <div class="vbar">
+            <button class="vbtn v-video" title="Send the picture you are looking at to the 9-slot video queue">Send to video workflow queue</button>
+            <button class="vbtn vdel v-del" title="Move every copy of this picture to the Recycle Bin">DELETE</button>
+            <span class="vask" hidden>Delete this picture everywhere (12b, the archive, your save folder)?
+              <button class="vbtn vdel v-yes">Confirm</button><button class="vbtn v-no">Cancel</button></span>
+            <span class="vmsg"></span>
+          </div>
           <div class="count"></div>`;
-        const pic = v.querySelector(".pic"), count = v.querySelector(".count");
-        let i = start;
-        const show = () => { pic.src = urls[i]; count.textContent = (i + 1) + " of " + urls.length; };
-        const step = (d) => { i = (i + d + urls.length) % urls.length; show(); };   // wraps around
+        const pic = v.querySelector(".pic"), count = v.querySelector(".count"), vmsg = v.querySelector(".vmsg");
+        const ask = v.querySelector(".vask");
+        let i = Math.min(start, this.urls.length - 1), askedAt = 0, busy = false;
+        const many = () => this.urls.length > 1;
+        const tell = (t, err) => { vmsg.textContent = t; vmsg.className = "vmsg" + (err ? " err" : ""); };
+        const closeAsk = () => { ask.hidden = true; askedAt = 0; };
+        const show = () => {
+            pic.src = this.urls[i];
+            count.textContent = (i + 1) + " of " + this.urls.length;
+            [v.querySelector(".prev"), v.querySelector(".next")].forEach(n => { n.style.display = many() ? "" : "none"; });
+        };
+        const step = (d) => { const n = this.urls.length; i = (i + d + n) % n; closeAsk(); tell(""); show(); };
         const close = () => { v.remove(); document.removeEventListener("keydown", onKey, true); };
+        v.querySelector(".v-video").onclick = (e) => {
+            e.stopPropagation(); closeAsk();
+            this.sendToVideoQueue([this.files[i]], tell, `picture ${i + 1}`);
+        };
+        v.querySelector(".v-del").onclick = (e) => {
+            e.stopPropagation();
+            if (busy) return;
+            ask.hidden = false; askedAt = performance.now(); tell("");
+        };
+        v.querySelector(".v-no").onclick = (e) => { e.stopPropagation(); closeAsk(); tell("Cancelled - nothing was deleted."); };
+        v.querySelector(".v-yes").onclick = async (e) => {
+            e.stopPropagation();
+            if (!askedAt || performance.now() - askedAt < 500 || busy) return;   // no double-click through
+            closeAsk(); busy = true; tell("Deleting...");
+            const f = this.files[i];
+            const r = f ? await this.deletePicture(f) : { ok: false, text: "That picture is no longer here." };
+            busy = false;
+            if (!r.ok) { tell(r.text, true); return; }
+            if (!this.urls.length) { close(); return; }          // the last one: nothing left to show
+            i = Math.min(i, this.urls.length - 1);               // the next picture moves into its place
+            show(); tell(r.text);
+        };
         // Keys go to the viewer only while it is open, so ComfyUI's own shortcuts don't fire.
         const onKey = (e) => {
-            if (e.key === "ArrowLeft" && many) step(-1);
-            else if (e.key === "ArrowRight" && many) step(1);
-            else if (e.key === "Escape") close();
+            if (e.key === "ArrowLeft" && many()) step(-1);
+            else if (e.key === "ArrowRight" && many()) step(1);
+            else if (e.key === "Escape") { if (!ask.hidden) closeAsk(); else close(); }
             else return;
             e.preventDefault(); e.stopPropagation();
         };
@@ -207,11 +287,11 @@ class PickPanel {
         v.querySelector(".next").onclick = (e) => { e.stopPropagation(); step(1); };
         v.querySelector(".close").onclick = (e) => { e.stopPropagation(); close(); };
         pic.onclick = (e) => e.stopPropagation();          // clicking the picture keeps it open
+        v.querySelector(".vbar").onclick = (e) => e.stopPropagation();
         v.onclick = close;                                 // clicking the dark area closes it
         for (const ev of ["pointerdown", "mousedown", "wheel", "contextmenu", "dblclick"]) {
             v.addEventListener(ev, e => e.stopPropagation());
         }
-        if (!many) { v.querySelector(".prev").style.display = "none"; v.querySelector(".next").style.display = "none"; }
         document.addEventListener("keydown", onKey, true);
         document.body.appendChild(v);
         show();
@@ -232,20 +312,31 @@ class PickPanel {
         this.saveBtn.textContent = this.files.length <= 1 ? "Save Image" : "Save Selected Images (" + n + ")";
     }
 
-    async sendToVideoQueue() {
-        const picked = this.files.filter(f => f.on);
-        if (!picked.length) { this.say("Click the picture(s) you want first, then Send selected image to video workflow queue.", true); return; }
+    // Box button: the ticked pictures. Viewer button: the picture on screen (list, tell, label).
+    async sendToVideoQueue(list, tell, label) {
+        const say = tell || ((t, err) => this.say(t, err));
+        const picked = (list || this.files.filter(f => f.on)).filter(Boolean);
+        if (!picked.length) { say("Click the picture(s) you want first, then Send selected image to video workflow queue.", true); return; }
         const refs = picked.map(f => ({ filename: f.filename, subfolder: f.subfolder, type: "temp" }));
         try {
             const r = await postJSON("/freedom/video/enqueue", { images: refs, prompt: "" });
-            if (!r.ok) { this.say("Video queue error.", true); return; }
-            this.say(`Sent ${r.added} to the video queue${r.full ? " (queue was full - " + (picked.length - r.added) + " didn't fit)" : ""}.`);
-            if (r.auto_start && r.added && window.app && window.app.queuePrompt) {
+            if (!r || !r.ok) { say("Video queue error" + (r && r.error ? ": " + r.error : "") + " - nothing was sent.", true); return; }
+            let msg = (r.added
+                ? `Sent ${label || r.added} to the video queue`
+                : "Not sent") + (r.full ? ` (the queue is full - ${picked.length - r.added} didn't fit)` : "") + ".";
+            // Auto-start presses Run on the workflow on screen - only right when that IS the video
+            // workflow. From the picture workflow it would start another round of pictures
+            // (found 2026-10-01), so there the picture just waits in the queue.
+            const hasVideoQueue = (window.app?.graph?._nodes || []).some(n => n.comfyClass === "FreedomVideoQueue");
+            if (r.auto_start && r.added && hasVideoQueue && window.app.queuePrompt) {
                 window.app.queuePrompt(0, 1);
-                this.say(this.status.textContent + "  Auto-starting...");
+                msg += "  Auto-starting...";
+            } else if (r.added) {
+                msg += "  It is waiting in the queue - open the video workflow and press Run to make the video.";
             }
+            say(msg, !r.added);
         } catch (e) {
-            this.say("Video queue not found - add a 'Freedom: Video Queue' node / open the video workflow. (" + e + ")", true);
+            say("Video queue not found - add a 'Freedom: Video Queue' node / open the video workflow. (" + e + ")", true);
         }
     }
 

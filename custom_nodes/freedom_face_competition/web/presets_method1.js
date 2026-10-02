@@ -41,15 +41,55 @@ function blinkThree(field) {
                    { boxShadow: "0 0 0 3px transparent" }], { duration: 330, iterations: 3 });
   } catch (e) { /* an old browser simply skips the blink */ }
 }
+
+// The confirm/cancel box (user, 2026-10-01). A button that used to want a second
+// press (Rename, Save as, Delete) opens this box under its row instead, and
+// nothing happens until Confirm. Pressing the button again does nothing. Confirm
+// ignores clicks for half a second, so a double-click can never reach it, and
+// pressing Confirm or Cancel leaves the keyboard where it was (in the name box).
+function askBox(button) {
+  const box = document.createElement("div");
+  box.style.cssText = "display:none;flex-direction:column;gap:5px;margin-top:5px;padding:6px;" +
+    "border:1px solid #c66;border-radius:5px;background:#2a1c1c";
+  const text = document.createElement("div");
+  text.style.cssText = "color:#fbb;font-size:12px;font-weight:600;white-space:normal";
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:5px;flex-wrap:wrap";
+  const yes = document.createElement("button"), no = document.createElement("button");
+  yes.textContent = "Confirm"; no.textContent = "Cancel";
+  for (const b of [yes, no]) {
+    b.className = button.className.replace(/\b(danger|warn)\b/g, "").trim();
+    b.style.cssText = button.style.cssText;
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+  }
+  row.append(yes, no); box.append(text, row);
+  let job = null;
+  const close = () => { job = null; box.style.display = "none"; };
+  yes.onclick = async () => {
+    if (!job || performance.now() - job.at < 500) return;   // the 2nd half of a double-click
+    const { onYes } = job; close(); await onYes();
+  };
+  no.onclick = () => { const j = job; close(); j?.onNo?.(); };
+  const open = (message, onYes, onNo) => {
+    const spot = button.parentElement || button;
+    if (box.previousElementSibling !== spot) spot.after(box);
+    text.textContent = message;
+    box.style.display = "flex";
+    job = { onYes, onNo, at: performance.now() };
+  };
+  return { open, close, isOpen: () => !!job };
+}
 function makeRenamer({ button, field, current, apply, say, blocked }) {
   let armed = null;
   const label = button.textContent;
+  const ask = askBox(button);
   const end = (restore) => {
     if (!armed) return;
     const { el: f, before, onKey } = armed;
     f.removeEventListener("keydown", onKey, true);
     if (restore) f.value = before;
     armed = null;
+    ask.close();
     button.textContent = label;
   };
   const confirm = async () => {
@@ -61,7 +101,7 @@ function makeRenamer({ button, field, current, apply, say, blocked }) {
     await apply(v);
   };
   const click = async () => {
-    if (armed) return confirm();
+    if (armed) { armed.el.focus(); return; }   // a 2nd press does nothing - the box's Confirm does it
     const stop = blocked?.();
     if (stop) { say(stop); return; }
     const f = field(); const cur = current();
@@ -74,8 +114,9 @@ function makeRenamer({ button, field, current, apply, say, blocked }) {
     };
     f.addEventListener("keydown", onKey, true);
     armed = { el: f, before, onKey };
-    button.textContent = "Save new name";
-    say("Type the new name, then press Enter or Save new name (Esc cancels).");
+    ask.open(`${label}: type the new name in the name box, then press Confirm.`, confirm,
+      () => { end(true); say("Rename cancelled - the name is unchanged."); });
+    say("Type the new name, then press Confirm (or Enter). Cancel or Esc stops.");
   };
   return { click };
 }

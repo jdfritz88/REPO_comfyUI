@@ -12,115 +12,7 @@ there; a new branch is cut at the end of this session (see bottom).
 
 ---
 
-## 1. Face-training: video ingestion + rotating backup
-
-### 1.1 Discussion
-
-User asked for a full walkthrough of how the Face Seek / Face Training pipeline
-avoids double-processing photos, handles head vs head+body crops, protects
-originals, tracks progress, and resumes after a stop — all explained in plain,
-teaching language (per standing preference), and explicitly "do not assume or
-guess." Verified everything against the actual code before answering:
-
-- **Duplicate protection**: `scan_cache.py`'s `content_hash()` (first 256 KB +
-  file size, blake2b) keyed in a per-profile SQLite DB — confirmed exact-duplicate
-  protection across folders/reruns.
-- **Head vs head+body**: confirmed two separate folders (`clean/head/`,
-  `clean/body/`) via `sort_photos.py`, never mixed.
-- **Originals**: confirmed never moved/deleted — `seek.py` only copies into a
-  staging `found/` folder, crops from the copy, deletes the staged copy.
-- **Progress tracking**: `profile.json`'s `seek.progress` dict + `SEEK_STAGES`
-  tuple in `profiles.py`, checkpointed per stage (scan/learn/group/reteach/
-  search/clean).
-- **Stop-safety**: a `STOP` flag file (`Profile.request_stop/_stop_flag`),
-  polled between photos.
-- **Model tracking**: `profile.json`'s `loras` dict, `jobs.py`'s job table.
-
-Found and reported the one real gap: **no video support at all** — `IMAGE_EXTS`
-in `sort_photos.py` only covered still-image extensions; no `cv2.VideoCapture`,
-no ffmpeg, nothing, anywhere in `face_training/`. Researched two real options via
-web search (frame-extraction/dedup community practice + a pHash-vs-embedding
-paper-backed comparison) and presented two ideas. User picked **idea two only,
-for video**: a fuzzy/near-duplicate check (perceptual hash + face-embedding
-reuse), paired with the smarter "scene-cut + sharpest frame" extraction method
-once asked directly which extraction approach to use.
-
-Also asked for a **5-slot rotating backup** of "everything used to track the
-process" (clarified down to: `profile.json`, `identity/`, `scan_cache/faces.db`
-only — not cropped photos, not LoRA files), living inside each person's own
-profile folder, triggered automatically on Seek/Train stop **and** on closing
-either the Face Tool window or the launcher console (including their actual
-Windows X buttons — confirmed via code read that neither currently had a real
-close handler), plus a manual backup/restore path.
-
-### 1.2 Built
-
-**New file `face_training/video_frames.py`** — scene-cut + sharpest-frame video
-extraction, then a fuzzy-duplicate pass:
-- Samples a video at `SAMPLE_FPS = 2.0`, detects scene cuts via histogram
-  correlation drop (`SCENE_CUT_DROP = 0.45`), keeps only the sharpest frame
-  (Laplacian variance) per scene.
-- Fuzzy-dup pass on the kept frames: a DCT-based perceptual hash
-  (`PHASH_HAMMING_MAX = 8`) first, then — if a face is present — an ArcFace
-  embedding comparison reusing `sort_photos._detect` (`EMBED_SIM_MAX = 0.93`).
-  Either match drops the frame.
-- Output: plain `.jpg` stills, so nothing downstream needs to know they came
-  from video.
-
-**New file `face_training/backup.py`** — 5-slot rotating backup/restore:
-- `backup_profile()` rotates `<profile>/backup/1/` (newest) through `.../5/`
-  (oldest), copying only `profile.json`, `identity/`, `scan_cache/faces.db`.
-- `backup_profile_by_slug()`, `backup_all_profiles()`, `list_backups()`,
-  `restore_backup()`.
-- stdlib only, importable from the launcher's own Python or the OneTrainer venv.
-
-**Wired in:**
-- `scan_cache.py`: added `list_videos()`, `extract_videos()`, and a
-  `video_frames_dir` parameter on `scan_folder()` so Seek's scan stage also
-  extracts and scans any videos in the seek folder.
-- `seek.py`: scan stage passes `self.prof.video_frames_dir`; `Seek.run()`'s
-  `finally` block now calls `BK.backup_profile(self.prof.dir)` on every run end
-  (finished or stopped).
-- `pipeline.py`: `run()` now calls `BK.backup_profile_by_slug(person_slug)` at
-  the end.
-- `profiles.py`: added `video_frames_dir` property and `backup/` to the folder
-  layout doc; both created by `Profile.create()`.
-- `face_tool_ui.py`: added a **Close** button, `self.protocol("WM_DELETE_WINDOW",
-  self.close)` handler (backs up all profiles before destroying the window), and
-  per-profile **Backup**/**Restore** buttons with a slot-picker dialog.
-- `launcher.py`: added `_install_close_backup_handler()` using
-  `ctypes.WINFUNCTYPE` + `SetConsoleCtrlHandler`, handling
-  `CTRL_CLOSE_EVENT`/`CTRL_LOGOFF_EVENT`/`CTRL_SHUTDOWN_EVENT` — backs up every
-  profile when the console's own X button is clicked (previously only Ctrl+C
-  was handled, and only to protect the shutdown sequence, not to back anything
-  up).
-
-### 1.3 Verified (not just written)
-
-- Backup rotation tested end-to-end against a throwaway fake profile: 7 cycles
-  through 5 slots, confirmed slot 1 = newest / slot 5 = oldest-kept, confirmed
-  restoring from a specific slot rolls back to exactly that snapshot.
-- Video extraction tested against a real synthetic OpenCV-generated test video
-  (two distinct color scenes, 30 total frames): correctly found 2 scenes,
-  correctly collapsed to exactly 2 kept frames.
-- The perceptual-hash duplicate math itself was directly unit-tested: an
-  initial test using a flat solid-color synthetic image gave a misleading
-  result (flagged as a real finding, investigated) — root cause was the test
-  image being degenerate (no texture for the DCT hash to key on), not a bug in
-  the hash logic. Re-tested with realistic textured synthetic images (gradient
-  + shapes) and got correct results: near-duplicate correctly caught (Hamming
-  distance 0), genuinely different scene correctly left alone (Hamming distance
-  30, threshold 8).
-- All 8 touched/new files passed `ast.parse` syntax checks; all imported
-  cleanly inside the real OneTrainer venv (with insightface etc. actually
-  available), not just the system Python.
-
-### 1.4 Committed
-
-- `3f8a939` — "Face training: video ingestion (scene-cut + fuzzy dedup) and
-  rotating backup" (9 files, +527/−8).
-
----
+> Moved to `REPO_face\logs\comfyui_lora_stack_and_repo_migration_2026-09-07__face_parts.md` on 2026-09-30, when Face N the Crowd moved out of REPO_comfyUI: "1. Face-training: video ingestion + rotating backup"
 
 ## 2. LoRA Stack node, Face Shelf wiring, trigger word
 
@@ -324,9 +216,7 @@ face-training output "live" relative to git — established that:
      `f"{CABINET}/comfyui"` to `f"{BASE_DIR}/REPO_comfyUI"`; everything else in
      the launcher already routed through this one constant. Also fixed one
      informational print string (line ~902).
-   - `face_training/otrain.py`, `pipeline.py`, `thumbs.py`, `face_tool_ui.py`,
-     `sort_photos.py` — each had its own separate hardcoded literal
-     (insightface root, LoRA output dir, registry path) — fixed individually.
+   - Moved to `REPO_face\logs\comfyui_lora_stack_and_repo_migration_2026-09-07__face_parts.md` on 2026-09-30, when Face N the Crowd moved out of REPO_comfyUI: "`face_training/otrain.py`, `pipeline.py`, `thumbs.py`, `face_tool_ui.py`,"
    - `comfyui_ext/freedom_face_competition/build_face_competition.py`,
      `freedom_face_shelf/build_face_shelf.py`,
      `freedom_prompt_shelf/build_face_image.py` — each writes its generated

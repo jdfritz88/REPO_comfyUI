@@ -94,16 +94,56 @@ function blinkThree(field) {
                    { boxShadow: "0 0 0 3px transparent" }], { duration: 330, iterations: 3 });
   } catch (e) { /* an old browser simply skips the blink */ }
 }
+
+// The confirm/cancel box (user, 2026-10-01). A button that used to want a second
+// press (Rename, Save as, Delete) opens this box under its row instead, and
+// nothing happens until Confirm. Pressing the button again does nothing. Confirm
+// ignores clicks for half a second, so a double-click can never reach it, and
+// pressing Confirm or Cancel leaves the keyboard where it was (in the name box).
+function askBox(button) {
+  const box = document.createElement("div");
+  box.style.cssText = "display:none;flex-direction:column;gap:5px;margin-top:5px;padding:6px;" +
+    "border:1px solid #c66;border-radius:5px;background:#2a1c1c";
+  const text = document.createElement("div");
+  text.style.cssText = "color:#fbb;font-size:12px;font-weight:600;white-space:normal";
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:5px;flex-wrap:wrap";
+  const yes = document.createElement("button"), no = document.createElement("button");
+  yes.textContent = "Confirm"; no.textContent = "Cancel";
+  for (const b of [yes, no]) {
+    b.className = button.className.replace(/\b(danger|warn)\b/g, "").trim();
+    b.style.cssText = button.style.cssText;
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+  }
+  row.append(yes, no); box.append(text, row);
+  let job = null;
+  const close = () => { job = null; box.style.display = "none"; };
+  yes.onclick = async () => {
+    if (!job || performance.now() - job.at < 500) return;   // the 2nd half of a double-click
+    const { onYes } = job; close(); await onYes();
+  };
+  no.onclick = () => { const j = job; close(); j?.onNo?.(); };
+  const open = (message, onYes, onNo) => {
+    const spot = button.parentElement || button;
+    if (box.previousElementSibling !== spot) spot.after(box);
+    text.textContent = message;
+    box.style.display = "flex";
+    job = { onYes, onNo, at: performance.now() };
+  };
+  return { open, close, isOpen: () => !!job };
+}
 function makeRenamer({ button, field, current, apply, say, blocked,
                        armedLabel = "Save new name", allowEmpty = false, requireChange = true }) {
   let armed = null;
   const label = button.textContent;
+  const ask = askBox(button);
   const end = (restore) => {
     if (!armed) return;
     const { el: f, before, onKey } = armed;
     f.removeEventListener("keydown", onKey, true);
     if (restore) f.value = before;
     armed = null;
+    ask.close();
     button.textContent = label;
   };
   const confirm = async () => {
@@ -116,7 +156,7 @@ function makeRenamer({ button, field, current, apply, say, blocked,
     await apply(v);
   };
   const click = async () => {
-    if (armed) return confirm();
+    if (armed) { armed.el.focus(); return; }   // a 2nd press does nothing - the box's Confirm does it
     const stop = blocked?.();
     if (stop) { say(stop); return; }
     const f = field(); const cur = current();
@@ -129,8 +169,9 @@ function makeRenamer({ button, field, current, apply, say, blocked,
     };
     f.addEventListener("keydown", onKey, true);
     armed = { el: f, before, onKey };
-    button.textContent = armedLabel;
-    say(`Pick the model in the menu, then press Enter or ${armedLabel} (Esc cancels).`);
+    ask.open(`${label}: pick the model in the menu, then press Confirm.`, confirm,
+      () => { end(true); say("Cancelled - nothing was changed."); });
+    say("Pick the model in the menu, then press Confirm (or Enter). Cancel or Esc stops.");
   };
   return { click };
 }
@@ -138,13 +179,14 @@ function makeRenamer({ button, field, current, apply, say, blocked,
 class Panel {
   constructor(node) {
     this.node = node; this.ckpt = null; this.front = ""; this.mode = "words";
-    this.armed = false; this.lastGood = ""; this.countSeq = 0;
+    this.lastGood = ""; this.countSeq = 0;
     this.el = document.createElement("div"); this.el.className = "cfp";
     this.el.innerHTML = `
       <div class="t">STEP 7c SUMMARY SIGNAL - page 1 of the prompt</div>
       <div class="ex">The art model sums up page 1 (the first 75 places of the prompt) and keeps that
-        summary in mind for the whole picture. This box is page 1: the model's own text first (locked),
-        then your most important words.</div>
+        summary in mind for the whole picture. This box is page 1: the model's own text first, then her
+        trigger word in trained-face mode (both locked - the trigger's weight is set on the STEP 3b Face
+        Shelf), then your most important words.</div>
       <div>Model picked in STEP 1:</div><div class="ck">-</div>
       <textarea class="box"></textarea>
       <div class="count">-</div>
@@ -173,6 +215,8 @@ class Panel {
     this.q(".save").onclick = () => this.save();
     this.q(".cancel").onclick = () => this.cancel();
     this.q(".del").onclick = () => this.del();
+    this.delAsk = askBox(this.q(".del"));          // Delete asks in the box (user, 2026-10-01)
+    this.replaceAsk = askBox(this.q(".saveas"));   // so does replacing another model's text
     // Save as (user, 2026-09-30): 1st click points you at the model menu (it blinks
     // and takes the focus); pick the model, then Enter or a 2nd click saves.
     const saveAser = makeRenamer({
@@ -191,7 +235,14 @@ class Panel {
   words() { return String(this.w("signal")?.value ?? ""); }
   setWords(v) { const w = this.w("signal"); if (w) w.value = v; }
   enabled() { return this.w("enabled")?.value !== false; }
-  prefix() { return this.enabled() && this.front ? this.front + SEP : ""; }
+  // Her trigger word, shown locked after the model's text in trained-face mode (user, 2026-10-01,
+  // choice 2). Read from the FINAL COMBINED PROMPT code so both always agree; its weight comes from
+  // the Face Shelf's trigger_weight dial and cannot be typed here.
+  trigger() { try { return window.__freedomFinal?.liveTrigger?.() || ""; } catch (e) { return ""; } }
+  prefix() {
+    const locked = [this.enabled() && this.front ? this.front : "", this.trigger()].filter(Boolean);
+    return locked.length ? locked.join(SEP) + SEP : "";
+  }
   say(t, err) { const m = this.q(".msg"); m.textContent = t || ""; m.classList.toggle("err", !!err); }
   watcher(t, err) { const m = this.q(".wt"); m.textContent = t ? "WATCHER: " + t : ""; m.classList.toggle("err", !!err); }
   buttons() {
@@ -246,12 +297,19 @@ class Panel {
 
   // ---- following STEP 1 (the watcher) --------------------------------------
   async follow() {
+    // her trigger word appears, changes or disappears with STEP 2 and the Face Shelf
+    const t = this.trigger();
+    if (t !== this.lastTrig) {
+      const seen = this.lastTrig !== undefined;
+      this.lastTrig = t;
+      if (seen && this.mode === "words") this.render();
+    }
     const m = stepOneModel();
     const key = m.problem ? "!" + m.problem : m.name;
     if (key === this.ckpt || this.mode === "model") return;
     const first = this.ckpt === null;
     const oldFront = this.front, oldName = this.ckpt;
-    this.ckpt = key; this.armed = false; this.q(".del").textContent = "Delete model text";
+    this.ckpt = key; this.delAsk.close(); this.replaceAsk.close();   // they were about the old model
     this.q(".ck").textContent = m.problem ? "WARNING: " + m.problem : m.name;
     if (m.problem) { this.front = ""; this.render(); return this.watcher(m.problem + " - no model text used", true); }
     const d = await jget(`/freedom/ckptfront/entry?ckpt=${encodeURIComponent(m.name)}`);
@@ -300,9 +358,11 @@ class Panel {
   }
   async del() {
     const m = stepOneModel(); if (m.problem) return this.say("Can't delete: " + m.problem, true);
-    if (!this.armed) { this.armed = true; this.q(".del").textContent = "Press again to delete";
-      return this.say("Press Delete again to remove " + shortName(m.name) + "'s model text."); }
-    this.armed = false; this.q(".del").textContent = "Delete model text";
+    this.say("");
+    this.delAsk.open("Remove " + shortName(m.name) + "'s model text for good? Your words are kept.",
+      () => this.doDel(m), () => this.say("Cancelled - nothing was changed."));
+  }
+  async doDel(m) {
     const d = await jpost("/freedom/ckptfront/delete", { ckpt: m.name });
     if (!d.ok) return this.say(d.error || "Could not delete.", true);
     const oldFront = this.front;
@@ -319,16 +379,16 @@ class Panel {
         list.map((n) => `<option value="${n.replace(/"/g, "&quot;")}">${n}</option>`).join("");
     } catch (e) { this.say("Could not list the models for Save as.", true); }
   }
-  async saveAs() {
+  async saveAs(replace) {
     const target = this.q(".other").value;
     if (!target) return this.say("Pick the model to save this model text for, then press Save as.", true);
     const text = this.mode === "model" ? this.q(".box").value.trim() : this.front;
     const had = (await jget(`/freedom/ckptfront/entry?ckpt=${encodeURIComponent(target)}`)).exists;
-    if (had && this.armedSaveAs !== target) {
-      this.armedSaveAs = target;
-      return this.say(shortName(target) + " already has model text. Press Save as again to replace it.");
+    if (had && !replace) {
+      this.say("");
+      return this.replaceAsk.open(shortName(target) + " already has model text. Replace it with this one?",
+        () => this.saveAs(true), () => this.say("Cancelled - nothing was changed."));
     }
-    this.armedSaveAs = null;
     const d = await jpost("/freedom/ckptfront/save", { ckpt: target, front: text });
     if (!d.ok) return this.say(d.error || "Could not save.", true);
     this.say("Saved this model text as " + shortName(target) + "'s entry.");

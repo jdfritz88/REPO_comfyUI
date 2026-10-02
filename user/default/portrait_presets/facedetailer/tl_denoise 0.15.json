@@ -6,7 +6,7 @@
     "guide_size_for": true,
     "max_size": 1024,
     "seed": 1736114183,
-    "control_after_generate": "fixed",
+    "control_after_generate": "randomize",
     "steps": 26,
     "cfg": 6,
     "sampler_name": "dpmpp_2m",
@@ -32,5 +32,5 @@
     "tiled_encode": false,
     "tiled_decode": false
   },
-  "_saved": "2026-09-26 08:48:56"
+  "_saved": "2026-09-30 20:58:26"
 }
